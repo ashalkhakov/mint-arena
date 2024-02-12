@@ -1,5 +1,6 @@
 build
 Makefile.local
+/local.cmake
 *.swp
 *tags
 misc/code_blocks/*.layout
