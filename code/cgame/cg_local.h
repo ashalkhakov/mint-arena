@@ -1219,6 +1219,7 @@ typedef struct cg_gamemodel_s {
 	vec3_t org;
 	vec3_t axes[3];
 	vec_t radius;
+	int frame;
 } cg_gamemodel_t;
 
 // The client game static (cgs) structure hold everything

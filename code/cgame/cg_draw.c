@@ -3001,6 +3001,8 @@ void CG_DrawMiscGamemodels( void ) {
 		}
 		ent.hModel = cgs.miscGameModels[i].model;
 
+		ent.frame = cgs.miscGameModels[i].frame;
+
 		ent.customSkin = CG_AddSkinToFrame( &cgs.miscGameModels[i].skin );
 		trap_R_AddRefEntityToScene( &ent );
 

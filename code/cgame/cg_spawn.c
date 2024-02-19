@@ -124,6 +124,8 @@ void SP_misc_gamemodel( void ) {
 
 	vec3_t org;
 
+	int frame;
+
 	cg_gamemodel_t* gamemodel;
 
 	int i;
@@ -145,6 +147,10 @@ void SP_misc_gamemodel( void ) {
 
 	CG_SpawnVector( "origin", "0 0 0", org );
 
+	if ( !CG_SpawnInt( "frame", "0", &frame ) ) {
+		frame = 0;
+	}
+
 	if ( !CG_SpawnVector( "angles", "0 0 0", angles ) ) {
 		if ( CG_SpawnFloat( "angle", "0", &angle ) ) {
 			angles[YAW] = angle;
@@ -163,6 +169,8 @@ void SP_misc_gamemodel( void ) {
 	if ( *skin ) {
 		CG_RegisterSkin( skin, &gamemodel->skin, qfalse );
 	}
+
+	gamemodel->frame = frame;
 
 	AnglesToAxis( angles, gamemodel->axes );
 	for ( i = 0; i < 3; i++ ) {
