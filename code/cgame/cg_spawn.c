@@ -217,6 +217,38 @@ void SP_skyportal( void ) {
 	}
 }
 
+/*
+TODO: put the quaked string here
+*/
+void SP_effect_rain( void ) {
+	float height;
+	char *model;
+	qhandle_t modelHandle;
+	cg_effect_t* effect;
+	vec3_t org;
+
+	CG_SpawnFloat( "height", "0", &height );
+	CG_SpawnString( "model", "", &model );
+
+	CG_SpawnVector( "origin", "0 0 0", org );
+
+	effect = &cgs.effects[cg.numEffects++];
+
+	effect->type = EFFECT_RAIN;
+
+	modelHandle = trap_R_RegisterModel( model );
+
+	VectorCopy( org, effect->org );
+
+	trap_R_ModelBounds( modelHandle, effect->mins, effect->maxs, 0, 0, 0 );
+	effect->mins[2] = effect->maxs[2] - height;
+
+	VectorSet( effect->corners[0], effect->maxs[0], effect->maxs[1], 0.0f );
+	VectorSet( effect->corners[1], effect->maxs[0], effect->mins[1], 0.0f );
+	VectorSet( effect->corners[2], effect->mins[0], effect->mins[1], 0.0f );
+	VectorSet( effect->corners[3], effect->mins[0], effect->maxs[2], 0.0f );
+}
+
 typedef struct {
 	char    *name;
 	void ( *spawn )( void );
@@ -226,6 +258,7 @@ spawn_t spawns[] = {
 	{0, 0},
 	{"misc_gamemodel",               SP_misc_gamemodel},
 	{"props_skyportal",              SP_skyportal},
+	{"effect_rain", SP_effect_rain}
 };
 
 int numSpawns = ARRAY_LEN( spawns );
@@ -371,6 +404,7 @@ void SP_worldspawn( void ) {
 
 	CG_SpawnString( "atmosphere", "", &s );
 	CG_EffectParse( s );
+	CG_InitParticles();
 
 	CG_SpawnFloat( "skyalpha", "1", &cg.skyAlpha );
 }

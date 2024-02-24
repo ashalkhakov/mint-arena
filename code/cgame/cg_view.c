@@ -1016,6 +1016,21 @@ qboolean CG_CullPointAndRadius( const vec3_t pt, vec_t radius ) {
 	return( qfalse );
 }
 
+qboolean CG_CullBounds( const vec3_t mins, const vec3_t maxs ) {
+	int i;
+	plane_t *frust;
+
+	// check each of the view frustrum planes
+	for ( i = 0 ; i < 4 ; i++) {
+		frust = &frustum[i];
+
+		if ( BoxOnPlaneSide( mins, maxs, frust ) == 2 )
+			return( qtrue );
+	}
+
+	return( qfalse );
+}
+
 //=========================================================================
 
 /*

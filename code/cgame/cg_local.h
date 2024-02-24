@@ -773,6 +773,8 @@ typedef struct {
 	vec3_t		skyPortalFogColor;
 	int			skyPortalFogDepthForOpaque;
 
+	int			numEffects;
+
 	float		skyAlpha;
 
 	int			numViewports;
@@ -1222,6 +1224,25 @@ typedef struct cg_gamemodel_s {
 	int frame;
 } cg_gamemodel_t;
 
+#define MAX_STATIC_EFFECTS 1024
+
+typedef enum cg_effecttype_s {
+	EFFECT_RAIN = 0
+} cg_effecttype_t;
+
+typedef struct cg_effect_s {
+	cg_effecttype_t type;
+
+	vec3_t			org;
+	vec3_t			mins, maxs;
+
+	vec3_t			corners[4];
+	float			dist; // distance of the nearest corner to eye
+	qboolean		visible;
+
+	int				maxActive, numActive;
+} cg_effect_t;
+
 // The client game static (cgs) structure hold everything
 // loaded or calculated from the gamestate.  It will NOT
 // be cleared when a tournement restart is done, allowing
@@ -1303,6 +1324,8 @@ typedef struct {
 	float		globalFogFarClip;
 
 	cg_gamemodel_t miscGameModels[MAX_STATIC_GAMEMODELS];
+
+	cg_effect_t effects[MAX_STATIC_EFFECTS];
 
 	// media
 	cgMedia_t		media;
@@ -1427,6 +1450,7 @@ extern	vmCvar_t		cg_railWidth;
 extern	vmCvar_t		cg_railCoreWidth;
 extern	vmCvar_t		cg_railSegmentLength;
 extern	vmCvar_t		cg_atmosphericEffects;
+extern	vmCvar_t		cg_atmosphericEffectsPause;
 extern	vmCvar_t		cg_teamDmLeadAnnouncements;
 extern	vmCvar_t		cg_voipShowMeter;
 extern	vmCvar_t		cg_voipShowCrosshairMeter;
@@ -1576,6 +1600,7 @@ void CG_CalcVrect( void );
 void CG_SetupFrustum( void );
 qboolean CG_CullPoint( vec3_t pt );
 qboolean CG_CullPointAndRadius( const vec3_t pt, vec_t radius );
+qboolean CG_CullBounds( const vec3_t mins, const vec3_t maxs );
 
 void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback );
 
@@ -1952,6 +1977,7 @@ void CG_CheckGameSounds( void );
 // cg_atmospheric.c
 //
 void CG_EffectParse(const char *effectstr);
+void CG_InitParticles( void );
 void CG_AddAtmosphericEffects(void);
 
 //

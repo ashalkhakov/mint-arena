@@ -263,6 +263,7 @@ vmCvar_t	cg_railWidth;
 vmCvar_t	cg_railCoreWidth;
 vmCvar_t	cg_railSegmentLength;
 vmCvar_t	cg_atmosphericEffects;
+vmCvar_t	cg_atmosphericEffectsPause;
 vmCvar_t	cg_teamDmLeadAnnouncements;
 vmCvar_t	cg_voipShowMeter;
 vmCvar_t	cg_voipShowCrosshairMeter;
@@ -495,6 +496,7 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_railCoreWidth, "cg_railCoreWidth", "6", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_railSegmentLength, "cg_railSegmentLength", "32", CVAR_ARCHIVE, RANGE_FLOAT( 1, 1000 ) },
 	{ &cg_atmosphericEffects, "cg_atmosphericEffects", "1", CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_atmosphericEffectsPause, "cg_atmosphericEffectsPause", "0", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_teamDmLeadAnnouncements, "cg_teamDmLeadAnnouncements", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_voipShowMeter, "cg_voipShowMeter", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_voipShowCrosshairMeter, "cg_voipShowCrosshairMeter", "1", CVAR_ARCHIVE, RANGE_BOOL },

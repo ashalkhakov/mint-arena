@@ -194,6 +194,9 @@ void SP_misc_gamemodel( gentity_t *ent ) {
 void SP_props_skyportal( gentity_t *ent ) {
 	G_FreeEntity( ent );
 }
+void SP_effect_rain( gentity_t *ent ) {
+	G_FreeEntity( ent );
+}
 
 void locateMaster( gentity_t *ent ) {
 	ent->target_ent = G_PickTarget( ent->target );
