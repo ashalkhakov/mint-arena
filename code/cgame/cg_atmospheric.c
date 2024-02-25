@@ -395,7 +395,8 @@ static void CG_GenerateEffectParticles( cg_effect_t *effect ) {
 		return;
 	}
 
-	VectorSet( velocity, 0, 0, -400 );
+	VectorCopy( effect->velocity, velocity );
+	velocity[2] -= 400;
 
 	// volumes that are closer get full density rain... ones farther
 	// than half the clip distance get half density rain

@@ -225,7 +225,10 @@ void SP_effect_rain( void ) {
 	char *model;
 	qhandle_t modelHandle;
 	cg_effect_t* effect;
+	int flags;
 	vec3_t org;
+
+	CG_SpawnInt( "spawnflags", "0", flags );
 
 	CG_SpawnFloat( "height", "0", &height );
 	CG_SpawnString( "model", "", &model );
@@ -235,6 +238,20 @@ void SP_effect_rain( void ) {
 	effect = &cgs.effects[cg.numEffects++];
 
 	effect->type = EFFECT_RAIN;
+
+	VectorClear( effect->velocity );
+	if ( flags & 1 ) { // RAIN_NORTH
+		effect->velocity[1] += 300;
+	}
+	if ( flags & 2 ) { // RAIN_SOUTH
+		effect->velocity[1] -= 300;
+	}
+	if ( flags & 4 ) { // RAIN_EAST
+		effect->velocity[0] += 300;
+	}
+	if ( flags & 8 ) { // RAIN_WEST
+		effect->velocity[0] -= 300;
+	}
 
 	modelHandle = trap_R_RegisterModel( model );
 

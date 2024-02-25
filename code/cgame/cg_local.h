@@ -1236,6 +1236,8 @@ typedef struct cg_effect_s {
 	vec3_t			org;
 	vec3_t			mins, maxs;
 
+	vec3_t			velocity;
+
 	vec3_t			corners[4];
 	float			dist; // distance of the nearest corner to eye
 	qboolean		visible;
