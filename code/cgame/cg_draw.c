@@ -2948,7 +2948,7 @@ void CG_DrawMiscGamemodels( void ) {
 	ent.nonNormalizedAxes = qtrue;
 
 	// ydnar: static gamemodels don't project shadows
-	ent.renderfx = RF_NOSHADOW;
+	ent.renderfx = RF_LIGHTING_GRID; // RF_NOSHADOW;
 
 	for ( i = 0; i < cg.numMiscGameModels; i++ ) {
 		if ( cgs.miscGameModels[i].radius ) {
