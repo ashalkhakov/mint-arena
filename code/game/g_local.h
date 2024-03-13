@@ -61,7 +61,13 @@ typedef enum {
 	MOVER_POS1,
 	MOVER_POS2,
 	MOVER_1TO2,
-	MOVER_2TO1
+	MOVER_2TO1,
+
+	// Rotating Doors
+	ROTATOR_POS1,
+	ROTATOR_POS2,
+	ROTATOR_1TO2,
+	ROTATOR_2TO1
 } moverState_t;
 
 #define SP_PODIUM_MODEL		"models/mapobjects/podium/podium4.md3"
@@ -176,6 +182,7 @@ struct gentity_s {
 	// timing variables
 	float		wait;
 	float		random;
+	float		distance;		// rotating doors
 
 	gitem_t		*item;			// for bonus items
 
