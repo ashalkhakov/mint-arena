@@ -982,9 +982,23 @@ void SP_func_door (gentity_t *ent) {
 	float	distance;
 	vec3_t	size;
 	float	lip;
+	char	*sound;
 
 	ent->sound1to2 = ent->sound2to1 = G_SoundIndex("sound/movers/doors/dr1_strt.wav");
 	ent->soundPos1 = ent->soundPos2 = G_SoundIndex("sound/movers/doors/dr1_end.wav");
+
+	if ( G_SpawnString( "sound_open_finish", "", &sound ) ) {
+		ent->soundPos1 = G_SoundIndex( sound );
+	}
+	if ( G_SpawnString( "sound_close_finish", "", &sound ) ) {
+		ent->soundPos2 = G_SoundIndex( sound );
+	}
+	if ( G_SpawnString( "sound_opening", "", &sound ) ) {
+		ent->sound1to2 = G_SoundIndex( sound );
+	}
+	if ( G_SpawnString( "sound_closing", "", &sound ) ) {
+		ent->sound2to1 = G_SoundIndex( sound );
+	}
 
 	ent->blocked = Blocked_Door;
 
