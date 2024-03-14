@@ -1768,6 +1768,11 @@ void SP_func_rotating (gentity_t *ent) {
 		ent->speed = 100;
 	}
 
+	// check for reverse rotation
+	if ( ent->spawnflags & 2 ) {
+		ent->speed *= -1.0;
+	}
+
 	// set the axis of rotation
 	ent->s.apos.trType = TR_ROTATING;
 	if ( ent->spawnflags & 4 ) {
@@ -1784,6 +1789,14 @@ void SP_func_rotating (gentity_t *ent) {
 
 	G_SetBrushModel( ent, ent->model );
 	InitMover( ent );
+
+	// TODO: implement DK func_rotate stuff
+	// - delay
+	// - killtarget
+	// - sound
+	// - min, max
+	// - volume
+	// - parentname (attachments?)
 
 	VectorCopy( ent->s.origin, ent->s.pos.trBase );
 	VectorCopy( ent->s.pos.trBase, ent->r.currentOrigin );
