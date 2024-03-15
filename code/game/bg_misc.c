@@ -88,8 +88,8 @@ gitem_t	bg_itemlist[] =
 */
 	{
 		"item_armor_combat", 
-		"sound/misc/ar2_pkup.wav",
-        { "models/powerups/armor/armor_yel.md3",
+		"sounds/global/armorpickup1.wav",
+        { "models/e1/a1_ar1.md3",
 		NULL, NULL, NULL},
 /* icon */		"icons/iconr_yellow",
 /* pickup */	"Armor",
@@ -103,8 +103,8 @@ gitem_t	bg_itemlist[] =
 */
 	{
 		"item_armor_body", 
-		"sound/misc/ar2_pkup.wav",
-        { "models/powerups/armor/armor_red.md3",
+		"sounds/global/armorpickup2.wav",
+        { "models/e1/a1_ar2.md3",
 		NULL, NULL, NULL},
 /* icon */		"icons/iconr_red",
 /* pickup */	"Heavy Armor",
@@ -137,9 +137,9 @@ gitem_t	bg_itemlist[] =
 */
 	{
 		"item_health",
-		"sound/items/n_health.wav",
-        { "models/powerups/health/medium_cross.md3", 
-		"models/powerups/health/medium_sphere.md3", 
+		"sounds/global/a_hpick.wav",
+        { "models/e1/a1_hlth.md3", 
+		NULL, 
 		NULL, NULL },
 /* icon */		"icons/iconh_yellow",
 /* pickup */	"25 Health",
@@ -153,9 +153,9 @@ gitem_t	bg_itemlist[] =
 */
 	{
 		"item_health_large",
-		"sound/items/l_health.wav",
-        { "models/powerups/health/large_cross.md3", 
-		"models/powerups/health/large_sphere.md3", 
+		"sounds/global/a_hpick.wav",
+        { "models/e1/a1_hlth2.md3", 
+		NULL, 
 		NULL, NULL },
 /* icon */		"icons/iconh_red",
 /* pickup */	"50 Health",
@@ -169,8 +169,8 @@ gitem_t	bg_itemlist[] =
 */
 	{
 		"item_health_mega",
-		"sound/items/m_health.wav",
-        { "models/powerups/health/mega_cross.md3", 
+		"sounds/global/a_gspick.wav",
+        { "models/global/a_gsoul.md3", 
 		"models/powerups/health/mega_sphere.md3", 
 		NULL, NULL },
 /* icon */		"icons/iconh_mega",
@@ -178,7 +178,7 @@ gitem_t	bg_itemlist[] =
 		100,
 		IT_HEALTH,
 		0,
-/* sounds */ ""
+/* sounds */ "sounds/global/a_gswait.wav"
 	},
 
 
@@ -548,16 +548,16 @@ gitem_t	bg_itemlist[] =
 */
 	{
 		"item_invis",
-		"sound/items/invisibility.wav",
-        { "models/powerups/instant/invis.md3", 
-		"models/powerups/instant/invis_ring.md3", 
+		"sounds/artifacts/wraithorbpickup.wav",
+        { "models/global/a_wraithorb.md3", 
+		NULL,
 		NULL, NULL },
 /* icon */		"icons/invis",
 /* pickup */	"Invisibility",
 		30,
 		IT_POWERUP,
 		PW_INVIS,
-/* sounds */ ""
+/* sounds */ "sounds/artifacts/wraithorbwait.wav"
 	},
 
 /*QUAKED item_regen (.3 .3 1) (-16 -16 -16) (16 16 16) suspended

@@ -374,6 +374,7 @@ static void CG_Item( centity_t *cent ) {
 	float			frac;
 	float			scale;
 	weaponInfo_t	*wi;
+	qboolean		megaHealth;
 
 	es = &cent->currentState;
 	if ( es->modelindex >= BG_NumItems() ) {
@@ -401,15 +402,23 @@ static void CG_Item( centity_t *cent ) {
 	}
 
 	// items bob up and down continuously
-	scale = 0.005 + cent->currentState.number * 0.00001;
-	cent->lerpOrigin[2] += 4 + cos( ( cg.time + 1000 ) *  scale ) * 4;
+	megaHealth = ( item->giType == IT_HEALTH && !strcmp(item->classname, "item_health_mega" ) );
+	if ( item->giType != IT_HEALTH || megaHealth ) {
+		scale = 0.005 + cent->currentState.number * 0.00001;
+		cent->lerpOrigin[2] += 4 + cos( ( cg.time + 1000 ) *  scale ) * 4;
+	}
 
 	memset (&ent, 0, sizeof(ent));
 
 	// autorotate at one of two speeds
 	if ( item->giType == IT_HEALTH ) {
-		VectorCopy( cg.autoAnglesFast, cent->lerpAngles );
-		AxisCopy( cg.autoAxisFast, ent.axis );
+		if ( megaHealth ) {
+			VectorCopy( cg.autoAngles, cent->lerpAngles );
+			AxisCopy( cg.autoAxis, ent.axis );
+		} else {
+			VectorClear( cent->lerpAngles );
+			AxisClear( ent.axis );
+		}
 	} else {
 		VectorCopy( cg.autoAngles, cent->lerpAngles );
 		AxisCopy( cg.autoAxis, ent.axis );
@@ -515,7 +524,7 @@ static void CG_Item( centity_t *cent ) {
 
 		VectorClear( spinAngles );
 
-		if ( item->giType == IT_HEALTH || item->giType == IT_POWERUP )
+		if ( /*item->giType == IT_HEALTH ||*/ item->giType == IT_POWERUP )
 		{
 			if ( ( ent.hModel = cg_items[es->modelindex].models[1] ) != 0 )
 			{

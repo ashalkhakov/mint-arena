@@ -551,8 +551,15 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity ) {
 
 	dropped->classname = item->classname;
 	dropped->item = item;
-	VectorSet (dropped->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -ITEM_RADIUS);
-	VectorSet (dropped->s.maxs, ITEM_RADIUS, ITEM_RADIUS, ITEM_RADIUS);
+	if ( dropped->item->giType == IT_HEALTH
+		|| dropped->item->giType == IT_ARMOR
+		|| ( dropped->item->giType == IT_POWERUP && !strcmp( dropped->item->classname, "item_invis" ) ) ) {
+		VectorSet( dropped->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -24 );
+		VectorSet( dropped->s.maxs, ITEM_RADIUS, ITEM_RADIUS, 0 );
+	} else {
+		VectorSet (dropped->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -ITEM_RADIUS);
+		VectorSet (dropped->s.maxs, ITEM_RADIUS, ITEM_RADIUS, ITEM_RADIUS);
+	}
 	dropped->s.contents = CONTENTS_TRIGGER;
 
 	dropped->touch = Touch_Item;
@@ -631,8 +638,15 @@ void FinishSpawningItem( gentity_t *ent ) {
 	trace_t		tr;
 	vec3_t		dest;
 
-	VectorSet( ent->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -ITEM_RADIUS );
-	VectorSet( ent->s.maxs, ITEM_RADIUS, ITEM_RADIUS, ITEM_RADIUS );
+	if ( ent->item->giType == IT_HEALTH ||
+		 ent->item->giType == IT_ARMOR ||
+		 ( ent->item->giType == IT_POWERUP && !strcmp( ent->item->classname, "item_invis" ) ) ) {
+		VectorSet( ent->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -24 );
+		VectorSet( ent->s.maxs, ITEM_RADIUS, ITEM_RADIUS, 0 );
+	} else {
+		VectorSet( ent->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -ITEM_RADIUS );
+		VectorSet( ent->s.maxs, ITEM_RADIUS, ITEM_RADIUS, ITEM_RADIUS );
+	}
 
 	ent->s.eType = ET_ITEM;
 	ent->s.modelindex = BG_ItemNumForItem( ent->item );		// store item number in modelindex
