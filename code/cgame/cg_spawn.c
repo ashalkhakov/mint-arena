@@ -228,7 +228,7 @@ void SP_effect_rain( void ) {
 	int flags;
 	vec3_t org;
 
-	CG_SpawnInt( "spawnflags", "0", flags );
+	CG_SpawnInt( "spawnflags", "0", &flags );
 
 	CG_SpawnFloat( "height", "0", &height );
 	CG_SpawnString( "model", "", &model );

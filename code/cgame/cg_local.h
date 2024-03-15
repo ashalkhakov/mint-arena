@@ -1602,7 +1602,7 @@ void CG_CalcVrect( void );
 void CG_SetupFrustum( void );
 qboolean CG_CullPoint( vec3_t pt );
 qboolean CG_CullPointAndRadius( const vec3_t pt, vec_t radius );
-qboolean CG_CullBounds( const vec3_t mins, const vec3_t maxs );
+qboolean CG_CullBounds( vec3_t mins, vec3_t maxs );
 
 void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback );
 

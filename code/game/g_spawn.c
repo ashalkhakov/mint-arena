@@ -141,6 +141,7 @@ void SP_info_player_intermission (gentity_t *ent);
 
 void SP_func_plat (gentity_t *ent);
 void SP_func_static (gentity_t *ent);
+void SP_func_breakable (gentity_t *ent);
 void SP_func_rotating (gentity_t *ent);
 void SP_func_bobbing (gentity_t *ent);
 void SP_func_pendulum( gentity_t *ent );
@@ -224,6 +225,7 @@ spawn_t	spawns[] = {
 	{"func_door", SP_func_door},
 	{"func_door_rotating", SP_func_door_rotating},	// Rotating Doors
 	{"func_static", SP_func_static},
+	{"func_breakable", SP_func_breakable},
 	{"func_rotating", SP_func_rotating},
 	{"func_bobbing", SP_func_bobbing},
 	{"func_pendulum", SP_func_pendulum},

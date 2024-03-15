@@ -152,6 +152,9 @@ static void CG_Obituary( entityState_t *ent ) {
 	case MOD_TRIGGER_HURT:
 		message = "was in the wrong place";
 		break;
+	case MOD_BREAKABLE_SPLASH:
+		message = "died of explosion";
+		break;
 	default:
 		message = NULL;
 		break;
@@ -1309,6 +1312,16 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_DEBUG_LINE:
 		DEBUGNAME("EV_DEBUG_LINE");
 		CG_Beam( cent );
+		break;
+
+	case EV_EXPLOSION:
+		DEBUGNAME("EV_EXPLOSION");
+
+		// show explosion
+		dir[0] = 0;
+		dir[1] = 0;
+		dir[2] = 0;
+		CG_MakeExplosion( cent->lerpOrigin, dir, cgs.media.dishFlashModel, cgs.media.rocketExplosionShader, 1000, qtrue );
 		break;
 
 	default:

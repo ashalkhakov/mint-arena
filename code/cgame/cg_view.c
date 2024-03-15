@@ -941,12 +941,19 @@ static void CG_PlayBufferedSounds( void ) {
 */
 
 // some culling bits
-typedef struct plane_s {
-	vec3_t normal;
-	float dist;
-} plane_t;
+static cplane_t frustum[4];
 
-static plane_t frustum[4];
+static int SignbitsForNormal( vec3_t normal ) {
+	int	bits, j;
+
+	bits = 0;
+	for (j=0 ; j<3 ; j++) {
+		if ( normal[j] < 0 ) {
+			bits |= 1<<j;
+		}
+	}
+	return bits;
+}
 
 //
 //	CG_SetupFrustum
@@ -978,6 +985,10 @@ void CG_SetupFrustum( void ) {
 
 	for ( i = 0 ; i < 4 ; i++ ) {
 		frustum[i].dist = DotProduct( cg.refdef.vieworg, frustum[i].normal );
+
+		frustum[i].type = PlaneTypeForNormal( frustum[i].normal );
+
+		frustum[i].signbits = SignbitsForNormal(frustum[i].normal);
 	}
 }
 
@@ -986,7 +997,7 @@ void CG_SetupFrustum( void ) {
 //
 qboolean CG_CullPoint( vec3_t pt ) {
 	int i;
-	plane_t *frust;
+	cplane_t *frust;
 
 	// check against frustum planes
 	for ( i = 0 ; i < 4 ; i++ ) {
@@ -1002,7 +1013,7 @@ qboolean CG_CullPoint( vec3_t pt ) {
 
 qboolean CG_CullPointAndRadius( const vec3_t pt, vec_t radius ) {
 	int i;
-	plane_t *frust;
+	cplane_t *frust;
 
 	// check against frustum planes
 	for ( i = 0 ; i < 4 ; i++ ) {
@@ -1016,9 +1027,9 @@ qboolean CG_CullPointAndRadius( const vec3_t pt, vec_t radius ) {
 	return( qfalse );
 }
 
-qboolean CG_CullBounds( const vec3_t mins, const vec3_t maxs ) {
+qboolean CG_CullBounds( vec3_t mins, vec3_t maxs ) {
 	int i;
-	plane_t *frust;
+	cplane_t *frust;
 
 	// check each of the view frustrum planes
 	for ( i = 0 ; i < 4 ; i++) {
