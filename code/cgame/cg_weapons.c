@@ -1459,18 +1459,11 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 		// if it's a viewmodel and a gauntlet, it doesn't need the hand tag, actually
 		VectorCopy(parent->origin, gun.origin);
 		AxisCopy( parent->axis, gun.axis );
+		gun.backlerp = parent->backlerp;
 	} else {
 		trap_R_LerpTag(&lerped, parent->hModel, parent->oldframe, parent->frame,
 			1.0 - parent->backlerp, "tag_weapon");
 		VectorCopy(parent->origin, gun.origin);
-		// HACK for glove. it has multiple frames in the world model... use the one that is best fit for this.
-		if ( weaponNum == WP_GAUNTLET ) {
-			gun.frame = 2;
-			// this is object space. bring it to worldspace... how?
-			gun.origin[0] -= 3;
-			gun.origin[1] += 2;
-			gun.origin[2] += 3;
-		}
 
 		VectorMA(gun.origin, lerped.origin[0], parent->axis[0], gun.origin);
 
@@ -1483,8 +1476,18 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 		VectorMA(gun.origin, lerped.origin[2], parent->axis[2], gun.origin);
 
 		MatrixMultiply(lerped.axis, ((refEntity_t *)parent)->axis, gun.axis);
+
+		// HACK for glove. it has multiple frames in the world model... use the one that is best fit for this.
+		if ( weaponNum == WP_GAUNTLET ) {
+			gun.frame = 2;
+			// we should also rotate it. or just edit the model itself?
+			VectorMA(gun.origin, -3, parent->axis[0], gun.origin);
+			VectorMA(gun.origin, 2, parent->axis[1], gun.origin);
+			gun.backlerp = 0;
+		} else {
+			gun.backlerp = parent->backlerp;
+		}
 	}
-	gun.backlerp = parent->backlerp;
 
 	CG_AddWeaponWithPowerups( &gun, cent->currentState.powerups );
 

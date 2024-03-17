@@ -1457,8 +1457,6 @@ void CG_WeaponAnimation(centity_t * cent, weaponInfo_t *weaponInfo, int *weaponO
 {
 	playerInfo_t *ci;
 	int clientNum;
-	int stateAnimNum;
-	int weapAnimNum;
 
 	clientNum = cent->currentState.number;
 
