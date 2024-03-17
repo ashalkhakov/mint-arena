@@ -198,6 +198,9 @@ typedef struct {
 
 	// third person gun flash origin
 	vec3_t			flashOrigin;
+
+	//Blaze: for weapon animations
+	lerpFrame_t weapon;
 } playerEntity_t;
 
 
@@ -451,6 +454,24 @@ typedef struct {
 	sfxHandle_t		sounds[MAX_CUSTOM_SOUNDS];
 } playerInfo_t;
 
+// Elder: maximum sizes
+#define MAX_RELOAD_SOUNDS		5
+#define MAX_OTHER_SOUNDS		5
+
+#define MAX_ANIM_SOUNDS			16
+
+struct sfxSyncInfo_s {
+	int frame;
+	sfxHandle_t sound;
+	qboolean played;
+};
+
+typedef struct sfxSyncInfo_s sfxSyncInfo_t;
+
+typedef struct {
+	int numFrames;
+	sfxSyncInfo_t sfxInfo[MAX_ANIM_SOUNDS];
+} sfxWeapTiming_t;
 
 // each WP_* weapon enum has an associated weaponInfo_t
 // that contains media references necessary to present the
@@ -463,6 +484,10 @@ typedef struct weaponInfo_s {
 	qhandle_t		weaponModel;
 	qhandle_t		barrelModel;
 	qhandle_t		flashModel;
+
+	qhandle_t	firstModel;	//Elder: view model
+	qboolean	animated;
+	animation_t animations[MAX_WEAPON_ANIMATIONS];
 
 	vec3_t			weaponMidpoint;		// so it will rotate centered instead of by tag
 
@@ -488,6 +513,9 @@ typedef struct weaponInfo_s {
 
 	sfxHandle_t		readySound;
 	sfxHandle_t		firingSound;
+
+	// Elder: sounds to queue
+	sfxWeapTiming_t animationSounds[MAX_ANIM_SOUNDS];
 } weaponInfo_t;
 
 
@@ -1759,6 +1787,7 @@ sfxHandle_t	CG_CustomSound( int playerNum, const char *soundName );
 void CG_CachePlayerSounds( const char *modelName );
 void CG_CachePlayerModels( const char *modelName, const char *headModelName );
 void CG_PlayerColorFromIndex( int val, vec3_t color );
+void CG_WeaponAnimation(centity_t * cent, weaponInfo_t *weaponInfo, int *weaponOld, int *weapon, float *weaponBackLerp);
 
 //
 // cg_predict.c

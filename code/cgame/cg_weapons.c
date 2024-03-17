@@ -33,6 +33,131 @@ Suite 120, Rockville, Maryland 20850 USA.
 
 /*
 ==========================
+CG_ParseWeaponSoundFile
+
+Added by Elder
+Reads information for frame-sound timing
+==========================
+*/
+static qboolean CG_ParseWeaponSoundFile(const char *filename, weaponInfo_t * weapon)
+{
+	char *text_p;
+	int len, i; // skip;
+	char *token;
+	char text[20000];
+	fileHandle_t f;
+	sfxWeapTiming_t *weapTiming;
+
+	weapTiming = weapon->animationSounds;
+
+	// load the file
+	len = trap_FS_FOpenFile(filename, &f, FS_READ);
+	if (len <= 0) {
+		return qfalse;
+	}
+	if (len >= sizeof(text) - 1) {
+		CG_Printf("File %s too long\n", filename);
+		return qfalse;
+	}
+	trap_FS_Read(text, len, f);
+	text[len] = 0;
+	trap_FS_FCloseFile(f);
+
+	// parse the text
+	text_p = text;
+	// Elder: uhh, what was this for?
+//	skip = 0;		// quite the compiler warning
+
+	for (i = 0; i < MAX_ANIM_SOUNDS; i++) {
+		// Grab frame number
+		token = COM_Parse(&text_p);
+		if (!token)
+			break;
+		// Add it to the array
+		if (atoi(token)) {
+			weapTiming->sfxInfo[i].frame = atoi(token);
+		} else
+			break;
+
+		// Grab sound file path
+		token = COM_Parse(&text_p);
+		if (!token)
+			break;
+
+		weapTiming->sfxInfo[i].sound = trap_S_RegisterSound(token, qfalse);
+	}
+
+	// Store total number
+	weapTiming->numFrames = i;
+	return qtrue;
+}
+
+/* [QUARANTINE] - Weapon Animations - CG_ParseWeaponAnimFile
+==========================
+CG_ParseWeaponAnimFile
+==========================
+*/
+static qboolean CG_ParseWeaponAnimFile(const char *filename, weaponInfo_t * weapon)
+{
+	char *text_p, *token;
+	int len, i; // skip;
+	float fps;
+	char text[20000];
+	fileHandle_t f;
+	animation_t *animations;
+
+	animations = weapon->animations;
+
+	// load the file
+	len = trap_FS_FOpenFile(filename, &f, FS_READ);
+	if (len <= 0) {
+		return qfalse;
+	}
+	if (len >= sizeof(text) - 1) {
+		CG_Printf("File %s too long\n", filename);
+		return qfalse;
+	}
+	trap_FS_Read(text, len, f);
+	text[len] = 0;
+	trap_FS_FCloseFile(f);
+
+	// parse the text
+	text_p = text;
+ //	skip = 0;		// quite the compiler warning
+
+	// read information for each frame
+	for (i = 0; i < MAX_WEAPON_ANIMATIONS; i++) {
+		token = COM_Parse(&text_p);
+		if (!token)
+			break;
+		animations[i].firstFrame = atoi(token);
+		token = COM_Parse(&text_p);
+		if (!token)
+			break;
+		animations[i].numFrames = atoi(token);
+		token = COM_Parse(&text_p);
+		if (!token)
+			break;
+		animations[i].loopFrames = atoi(token);
+		token = COM_Parse(&text_p);
+		if (!token)
+			break;
+		fps = atof(token);
+		if (fps == 0)
+			fps = 1;
+		animations[i].frameLerp = 1000 / fps;
+		animations[i].initialLerp = 1000 / fps;
+	}
+	if (i != MAX_WEAPON_ANIMATIONS) {
+		CG_Printf("Error parsing weapon animation file: %s", filename);
+		return qfalse;
+	}
+
+	return qtrue;
+}
+
+/*
+==========================
 CG_MachineGunEjectBrass
 ==========================
 */
@@ -610,6 +735,8 @@ void CG_RegisterWeapon( int weaponNum ) {
 	char			path[MAX_QPATH];
 	vec3_t			mins, maxs;
 	int				i;
+	char			filename[MAX_QPATH];	//Used to open animation.cfg files
+	qboolean		weapAnimLoad;
 
 	weaponInfo = &cg_weapons[weaponNum];
 
@@ -659,15 +786,50 @@ void CG_RegisterWeapon( int weaponNum ) {
 	Q_strcat( path, sizeof(path), "_hand.md3" );
 	weaponInfo->handsModel = trap_R_RegisterModel( path );
 
+	//Elder: added to cache 1st-person models
+	if ( weaponNum == WP_GAUNTLET ) {
+		weaponInfo->firstModel = trap_R_RegisterModel( item->world_model[1] );
+	}
+
 	if ( !weaponInfo->handsModel ) {
 		weaponInfo->handsModel = trap_R_RegisterModel( "models/weapons2/shotgun/shotgun_hand.md3" );
+	}
+
+	//Elder: if no _1st model, point to the weaponModel... this may get funky :)
+	if (!weaponInfo->firstModel) {
+		// Added warning message
+		CG_Printf(" ^3Warning: %s first-person model not found; using world model^7\n",
+			  weaponInfo->item->pickup_name);
+		weaponInfo->firstModel = weaponInfo->weaponModel;
 	}
 
 	switch ( weaponNum ) {
 	case WP_GAUNTLET:
 		MAKERGB( weaponInfo->flashDlightColor, 0.6f, 0.6f, 1.0f );
+		weaponInfo->readySound = trap_S_RegisterSound( "sounds/e1/we_dgloveready.wav", qfalse );
 		weaponInfo->firingSound = trap_S_RegisterSound( "sound/weapons/melee/fstrun.wav", qfalse );
 		weaponInfo->flashSound[0] = trap_S_RegisterSound( "sound/weapons/melee/fstatck.wav", qfalse );
+
+		// Load the animation information
+		Com_sprintf(filename, sizeof(filename), "models/e1/%s_animation.cfg", "w_tglove");
+		if (!CG_ParseWeaponAnimFile(filename, weaponInfo)) {
+			Com_Printf("^1Failed to load weapon animation file %s\n", filename);
+			weapAnimLoad = qfalse;
+		} else {
+			weapAnimLoad = qtrue;
+		}
+		// Load sound information -- ALWAYS DO THIS AFTER THE ANIMATION
+		if (weapAnimLoad) {
+			Com_sprintf(filename, sizeof(filename), "models/e1/%s_sound.cfg", "w_tglove");
+			if (!CG_ParseWeaponSoundFile(filename, weaponInfo)) {
+				Com_Printf("^1Failed to load weapon sound file %s\n", filename);
+			} else {
+				weaponInfo->animated = qtrue;
+			}
+		} else {
+			Com_Printf("^1Could not load sound.cfg because animation.cfg loading failed\n");
+		}
+
 		break;
 
 	case WP_LIGHTNING:
@@ -936,7 +1098,7 @@ static void CG_CalculateWeaponPosition( vec3_t origin, vec3_t angles ) {
 #endif
 
 	// idle drift
-	scale = cg.xyspeed + 40;
+	scale = 80; // cg.xyspeed + 40;
 	fracsin = sin( cg.time * 0.001 );
 	angles[ROLL] += scale * fracsin * 0.01;
 	angles[YAW] += scale * fracsin * 0.01;
@@ -1264,7 +1426,14 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 		}
 	}
 
-	gun.hModel = weapon->weaponModel;
+	//Elder: We are in third person, use the third-person model (DEFAULT)
+	if ( ps == NULL || !weapon->animated ) {
+		gun.hModel = weapon->weaponModel;
+	} 
+	//Elder: we are in first-person, use the first-person (NOT default) model
+	else {
+		gun.hModel = weapon->firstModel;
+	}
 	if (!gun.hModel) {
 		return;
 	}
@@ -1279,23 +1448,42 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 		} else if ( weapon->readySound ) {
 			trap_S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin, weapon->readySound );
 		}
+	} else {
+		// in first person
+		if ( weapon->animated ) {
+			CG_WeaponAnimation( cent, weapon, &gun.oldframe, &gun.frame, &gun.backlerp );
+		}
 	}
 
-	trap_R_LerpTag(&lerped, parent->hModel, parent->oldframe, parent->frame,
-		1.0 - parent->backlerp, "tag_weapon");
-	VectorCopy(parent->origin, gun.origin);
+	if ( ps && weapon->animated ) {
+		// if it's a viewmodel and a gauntlet, it doesn't need the hand tag, actually
+		VectorCopy(parent->origin, gun.origin);
+		AxisCopy( parent->axis, gun.axis );
+	} else {
+		trap_R_LerpTag(&lerped, parent->hModel, parent->oldframe, parent->frame,
+			1.0 - parent->backlerp, "tag_weapon");
+		VectorCopy(parent->origin, gun.origin);
+		// HACK for glove. it has multiple frames in the world model... use the one that is best fit for this.
+		if ( weaponNum == WP_GAUNTLET ) {
+			gun.frame = 2;
+			// this is object space. bring it to worldspace... how?
+			gun.origin[0] -= 3;
+			gun.origin[1] += 2;
+			gun.origin[2] += 3;
+		}
 
-	VectorMA(gun.origin, lerped.origin[0], parent->axis[0], gun.origin);
+		VectorMA(gun.origin, lerped.origin[0], parent->axis[0], gun.origin);
 
-	// Make weapon appear left-handed for 2 and centered for 3
-	if(ps && cg_drawGun[cg.cur_localPlayerNum].integer == 2)
-		VectorMA(gun.origin, -lerped.origin[1], parent->axis[1], gun.origin);
-	else if(!ps || cg_drawGun[cg.cur_localPlayerNum].integer != 3)
-	       	VectorMA(gun.origin, lerped.origin[1], parent->axis[1], gun.origin);
+		// Make weapon appear left-handed for 2 and centered for 3
+		if(ps && cg_drawGun[cg.cur_localPlayerNum].integer == 2)
+			VectorMA(gun.origin, -lerped.origin[1], parent->axis[1], gun.origin);
+		else if(!ps || cg_drawGun[cg.cur_localPlayerNum].integer != 3)
+				VectorMA(gun.origin, lerped.origin[1], parent->axis[1], gun.origin);
 
-	VectorMA(gun.origin, lerped.origin[2], parent->axis[2], gun.origin);
+		VectorMA(gun.origin, lerped.origin[2], parent->axis[2], gun.origin);
 
-	MatrixMultiply(lerped.axis, ((refEntity_t *)parent)->axis, gun.axis);
+		MatrixMultiply(lerped.axis, ((refEntity_t *)parent)->axis, gun.axis);
+	}
 	gun.backlerp = parent->backlerp;
 
 	CG_AddWeaponWithPowerups( &gun, cent->currentState.powerups );
@@ -1420,17 +1608,19 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 
 	VectorClear(fovOffset);
 
-	if ( cg.viewWeaponFov > 90 ) {
-		// drop gun lower at higher fov
-		fovOffset[2] = -0.2 * ( cg.viewWeaponFov - 90 ) * cg.refdef.weapon_fov_x / cg.viewWeaponFov;
-	} else if ( cg.viewWeaponFov < 90 ) {
-		// move gun forward at lowerer fov
-		fovOffset[0] = -0.2 * ( cg.viewWeaponFov - 90 ) * cg.refdef.weapon_fov_x / cg.viewWeaponFov;
-	}
-
 	cent = &cg.cur_lc->predictedPlayerEntity;	// &cg_entities[cg.snap->ps.playerNum];
 	CG_RegisterWeapon( ps->weapon );
 	weapon = &cg_weapons[ ps->weapon ];
+
+	if ( !weapon->animated ) {
+		if ( cg.viewWeaponFov > 90 ) {
+			// drop gun lower at higher fov
+			fovOffset[2] = -0.2 * ( cg.viewWeaponFov - 90 ) * cg.refdef.weapon_fov_x / cg.viewWeaponFov;
+		} else if ( cg.viewWeaponFov < 90 ) {
+			// move gun forward at lowerer fov
+			fovOffset[0] = -0.2 * ( cg.viewWeaponFov - 90 ) * cg.refdef.weapon_fov_x / cg.viewWeaponFov;
+		}
+	}
 
 	memset (&hand, 0, sizeof(hand));
 
@@ -1444,7 +1634,7 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	AnglesToAxis( angles, hand.axis );
 
 	// map torso animations to weapon animations
-	if ( cg_gun_frame.integer ) {
+	if ( cg_gun_frame.integer || weapon->animated ) {
 		// development tool
 		hand.frame = hand.oldframe = cg_gun_frame.integer;
 		hand.backlerp = 0;

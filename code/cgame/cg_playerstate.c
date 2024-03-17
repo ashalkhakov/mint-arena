@@ -221,6 +221,11 @@ void CG_Respawn( int playerNum ) {
 
 		// select the weapon the server says we are using
 		cg.localPlayers[i].weaponSelect = cg.snap->pss[i].weapon;
+
+		// need to reset client-side weapon animations
+		cg.localPlayers[i].predictedPlayerState.weaponAnim = WP_ANIM_IDLE;  // reset weapon animations
+		cg.localPlayers[i].predictedPlayerState.weapAnimTimer = 0;      // allow other animations to happen right away
+		cg.localPlayers[i].predictedPlayerState.weaponstate = WEAPON_RAISING;   // hmm, set this?  what to?
 	}
 }
 

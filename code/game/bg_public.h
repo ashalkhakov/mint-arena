@@ -276,6 +276,7 @@ typedef struct entityState_s {
 	int		weapon;			// determines weapon and flash model, etc
 	int		legsAnim;		// mask off ANIM_TOGGLEBIT
 	int		torsoAnim;		// mask off ANIM_TOGGLEBIT
+	int		weaponAnim;		// mask off ANIM_TOGGLEBIT
 	int		tokens;			// harvester skulls
 } entityState_t;
 
@@ -349,6 +350,9 @@ typedef struct playerState_s {
 
 	int			torsoTimer;		// don't change low priority animations until this runs out
 	int			torsoAnim;		// mask off ANIM_TOGGLEBIT
+
+	int			weapAnimTimer;	// don't change low priority animations until this runs out
+	int			weaponAnim;		// mask off ANIM_TOGGLEBIT
 
 	int			movementDir;	// a number 0 to 7 that represents the relative angle
 								// of movement to the view angle (axial and diagonals)
@@ -468,6 +472,20 @@ typedef enum {
 	WEAPON_DROPPING,
 	WEAPON_FIRING
 } weaponstate_t;
+
+//Blaze: for the weapon animation states
+typedef enum {
+	//WP_ANIM_READY,
+	WP_ANIM_FIRE,
+	WP_ANIM_RELOAD,
+	WP_ANIM_IDLE,
+	WP_ANIM_DISARM,
+	WP_ANIM_ACTIVATE,
+	WP_ANIM_EMPTY,
+	WP_ANIM_EXTRA1,		// e.g. grenade pulling pin, fast-reload, knife slash to throw switch
+	WP_ANIM_EXTRA2,		// knife throw to slash switch
+	MAX_WEAPON_ANIMATIONS
+} wpAnimNumber_t;
 
 // pmove->pm_flags
 #define	PMF_DUCKED			1

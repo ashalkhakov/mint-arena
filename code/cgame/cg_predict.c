@@ -598,6 +598,11 @@ void CG_PredictPlayerState( void ) {
 
 	cg_pmove.pmove_overbounce = pmove_overbounce.integer;
 
+	// restore persistant client-side playerstate variables before doing the pmove
+	// this could be done as suggested in qshared.h ~line 1444, but right now I copy each variable individually
+	cg_pmove.ps->weaponAnim              = oldPlayerState.weaponAnim;
+	cg_pmove.ps->weapAnimTimer           = oldPlayerState.weapAnimTimer;
+
 	// run cmds
 	moved = qfalse;
 	for ( cmdNum = current - CMD_BACKUP + 1 ; cmdNum <= current ; cmdNum++ ) {

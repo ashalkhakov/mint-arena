@@ -191,8 +191,8 @@ gitem_t	bg_itemlist[] =
 	{
 		"weapon_gauntlet", 
 		"sound/misc/w_pkup.wav",
-        { "models/weapons2/gauntlet/gauntlet.md3",
-		NULL, NULL, NULL},
+        { "models/e1/a_tazer.md3",
+		"models/e1/w_tglove.md3", NULL, NULL},
 /* icon */		"icons/iconw_gauntlet",
 /* pickup */	"Gauntlet",
 		0,
@@ -942,7 +942,8 @@ vmNetField_t	bg_entityStateFields[] =
 { NETF(constantLight), 32 },
 { NETF(dl_intensity), 32 },
 { NETF(density), 10},
-{ NETF(frame), 16 }
+{ NETF(frame), 16 },
+{ NETF(weaponAnim), 8 }
 };
 
 int bg_numEntityStateFields = ARRAY_LEN(bg_entityStateFields);
@@ -1013,7 +1014,8 @@ vmNetField_t	bg_playerStateFields[] =
 { PSF(mins[2]), 0 },
 { PSF(maxs[0]), 0 },
 { PSF(maxs[1]), 0 },
-{ PSF(maxs[2]), 0 }
+{ PSF(maxs[2]), 0 },
+{ PSF(weaponAnim), 8 },
 };
 
 int bg_numPlayerStateFields = ARRAY_LEN(bg_playerStateFields);
@@ -1702,6 +1704,7 @@ void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean 
 	s->angles2[YAW] = ps->movementDir;
 	s->legsAnim = ps->legsAnim;
 	s->torsoAnim = ps->torsoAnim;
+	s->weaponAnim = ps->weaponAnim;
 	s->playerNum = ps->playerNum;		// ET_PLAYER looks here instead of at number
 										// so corpses can also reference the proper config
 	s->eFlags = ps->eFlags;
@@ -1791,6 +1794,7 @@ void BG_PlayerStateToEntityStateExtraPolate( playerState_t *ps, entityState_t *s
 	s->angles2[YAW] = ps->movementDir;
 	s->legsAnim = ps->legsAnim;
 	s->torsoAnim = ps->torsoAnim;
+	s->weaponAnim = ps->weaponAnim;
 	s->playerNum = ps->playerNum;		// ET_PLAYER looks here instead of at number
 										// so corpses can also reference the proper config
 	s->eFlags = ps->eFlags;

@@ -59,6 +59,34 @@ float	pm_ladderfriction = 3000;
 int		c_pmove = 0;
 
 
+/* [QUARANTINE] - Weapon Animations
+===================
+PM_StartWeaponAnim, PM_ContinueWeaponAnim
+===================
+*/
+static void PM_StartWeaponAnim(int anim)
+{
+	if (pm->ps->pm_type >= PM_DEAD) {
+		return;
+	}
+
+	if ( pm->ps->weapAnimTimer > 0 ) {
+		return;     // a high priority animation is running
+	}
+
+	pm->ps->weaponAnim = ((pm->ps->weaponAnim & ANIM_TOGGLEBIT) ^ ANIM_TOGGLEBIT) | anim;
+}
+
+static void PM_ContinueWeaponAnim(int anim)
+{
+	if ((pm->ps->weaponAnim & ~ANIM_TOGGLEBIT) == anim) {
+		return;
+	}
+
+	PM_StartWeaponAnim( anim );
+}
+
+
 /*
 ===============
 PM_AddEvent
@@ -1583,6 +1611,7 @@ static void PM_BeginWeaponChange( int weapon ) {
 	PM_AddEvent( EV_CHANGE_WEAPON );
 	pm->ps->weaponstate = WEAPON_DROPPING;
 	pm->ps->weaponTime += 200;
+	PM_StartWeaponAnim( WP_ANIM_DISARM );
 	PM_StartTorsoAnim( TORSO_DROP );
 }
 
@@ -1607,6 +1636,7 @@ static void PM_FinishWeaponChange( void ) {
 	pm->ps->weapon = weapon;
 	pm->ps->weaponstate = WEAPON_RAISING;
 	pm->ps->weaponTime += 250;
+	PM_StartWeaponAnim( WP_ANIM_ACTIVATE );
 	PM_StartTorsoAnim( TORSO_RAISE );
 }
 
@@ -1624,6 +1654,7 @@ static void PM_TorsoAnimation( void ) {
 		} else {
 			PM_ContinueTorsoAnim( TORSO_STAND );
 		}
+		PM_ContinueWeaponAnim( WP_ANIM_IDLE );
 		return;
 	}
 }
@@ -1686,6 +1717,11 @@ static void PM_Weapon( void ) {
 		BG_DecomposeUserCmdValue( pm->cmd.stateValue, &newWeapon );
 		if ( pm->ps->weapon != newWeapon ) {
 			PM_BeginWeaponChange( newWeapon );
+		} else {
+			//Elder: temp hack
+			if (pm->ps->weaponstate == WEAPON_READY) {
+				PM_ContinueWeaponAnim(WP_ANIM_IDLE);
+			}
 		}
 	}
 
@@ -1706,6 +1742,8 @@ static void PM_Weapon( void ) {
 		} else {
 			PM_StartTorsoAnim( TORSO_STAND );
 		}
+		// temp hack
+		PM_StartWeaponAnim( WP_ANIM_IDLE );
 		return;
 	}
 
@@ -1719,15 +1757,17 @@ static void PM_Weapon( void ) {
 	// start the animation even if out of ammo
 	if ( pm->ps->weapon == WP_GAUNTLET ) {
 		// the guantlet only "fires" when it actually hits something
-		if ( !pm->gauntletHit ) {
+		/*if ( !pm->gauntletHit )
+		{
 			pm->ps->weaponTime = 0;
 			pm->ps->weaponstate = WEAPON_READY;
 			return;
-		}
+		}*/
 		PM_StartTorsoAnim( TORSO_ATTACK2 );
 	} else {
 		PM_StartTorsoAnim( TORSO_ATTACK );
 	}
+	PM_StartWeaponAnim( WP_ANIM_FIRE );
 
 	pm->ps->weaponstate = WEAPON_FIRING;
 
@@ -1885,6 +1925,14 @@ static void PM_DropTimers( void ) {
 		pm->ps->torsoTimer -= pml.msec;
 		if ( pm->ps->torsoTimer < 0 ) {
 			pm->ps->torsoTimer = 0;
+		}
+	}
+
+	// first person weapon counter
+	if ( pm->ps->weapAnimTimer > 0 ) {
+		pm->ps->weapAnimTimer -= pml.msec;
+		if ( pm->ps->weapAnimTimer < 0 ) {
+			pm->ps->weapAnimTimer = 0;
 		}
 	}
 }

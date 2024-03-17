@@ -1313,6 +1313,169 @@ void CG_LoadDeferredPlayers( void ) {
 	}
 }
 
+
+/*
+=============================================================================
+
+VIEW WEAPON ANIMATION
+
+=============================================================================
+*/
+
+/*
+===============
+CG_SetWeapLerpFrameAnimation
+
+may include ANIM_TOGGLEBIT
+===============
+*/
+static void CG_SetWeapLerpFrameAnimation( weaponInfo_t *wi, lerpFrame_t *lf, int newAnimation ) {
+	animation_t *anim;
+
+	lf->animationNumber = newAnimation;
+	newAnimation &= ~ANIM_TOGGLEBIT;
+
+	if ( newAnimation < 0 || newAnimation >= MAX_WEAPON_ANIMATIONS ) {
+		CG_Error( "Bad animation number (CG_SWLFA): %i", newAnimation );
+	}
+
+	anim = &wi->animations[ newAnimation ];
+
+	lf->animation       = anim;
+	lf->animationTime   = lf->frameTime + anim->initialLerp;
+
+	if ( cg_debugAnim.integer & 2 ) {
+		CG_Printf( "Weap Anim: %d\n", newAnimation );
+	}
+}
+
+
+/*
+===============
+CG_ClearWeapLerpFrame
+===============
+*/
+void CG_ClearWeapLerpFrame( weaponInfo_t *wi, lerpFrame_t *lf, int animationNumber ) {
+	lf->frameTime = lf->oldFrameTime = cg.time;
+	CG_SetWeapLerpFrameAnimation( wi, lf, animationNumber );
+	lf->oldFrame = lf->frame = lf->animation->firstFrame;
+
+}
+
+
+/*
+===============
+CG_RunWeapLerpFrame
+
+Sets cg.snap, cg.oldFrame, and cg.backlerp
+cg.time should be between oldFrameTime and frameTime after exit
+===============
+*/
+static void CG_RunWeapLerpFrame( playerInfo_t *ci, weaponInfo_t *wi, lerpFrame_t *lf, int newAnimation, float speedScale ) {
+	int f;
+	animation_t *anim;
+
+	// debugging tool to get no animations
+	if ( cg_animSpeed.integer == 0 ) {
+		lf->oldFrame = lf->frame = lf->backlerp = 0;
+		return;
+	}
+
+	// see if the animation sequence is switching
+	if ( !lf->animation ) {
+		CG_ClearWeapLerpFrame( wi, lf, newAnimation );
+	} else if ( newAnimation != lf->animationNumber )   {
+		if ( ( newAnimation & ~ANIM_TOGGLEBIT ) == WP_ANIM_ACTIVATE ) {
+			CG_ClearWeapLerpFrame( wi, lf, newAnimation );   // clear when switching to raise (since it should be out of view anyway)
+		} else {
+			CG_SetWeapLerpFrameAnimation( wi, lf, newAnimation );
+		}
+	}
+
+	// if we have passed the current frame, move it to
+	// oldFrame and calculate a new frame
+	if ( cg.time >= lf->frameTime ) {
+		lf->oldFrame = lf->frame;
+		lf->oldFrameTime = lf->frameTime;
+
+		// get the next frame based on the animation
+		anim = lf->animation;
+		if ( !anim->frameLerp ) {
+			return;     // shouldn't happen
+		}
+		if ( cg.time < lf->animationTime ) {
+			lf->frameTime = lf->animationTime;      // initial lerp
+		} else {
+			lf->frameTime = lf->oldFrameTime + anim->frameLerp;
+		}
+		f = ( lf->frameTime - lf->animationTime ) / anim->frameLerp;
+		f *= speedScale;        // adjust for haste, etc
+		if ( f >= anim->numFrames ) {
+			f -= anim->numFrames;
+			if ( anim->loopFrames ) {
+				f %= anim->loopFrames;
+				f += anim->numFrames - anim->loopFrames;
+			} else {
+				f = anim->numFrames - 1;
+				// the animation is stuck at the end, so it
+				// can immediately transition to another sequence
+				lf->frameTime = cg.time;
+			}
+		}
+		lf->frame = anim->firstFrame + f;
+		if ( cg.time > lf->frameTime ) {
+			lf->frameTime = cg.time;
+			if ( cg_debugAnim.integer ) {
+//				CG_Printf( "Clamp lf->frameTime\n" );
+			}
+		}
+	}
+
+	if ( lf->frameTime > cg.time + 200 ) {
+		lf->frameTime = cg.time;
+	}
+
+	if ( lf->oldFrameTime > cg.time ) {
+		lf->oldFrameTime = cg.time;
+	}
+	// calculate current lerp value
+	if ( lf->frameTime == lf->oldFrameTime ) {
+		lf->backlerp = 0;
+	} else {
+		lf->backlerp = 1.0 - (float)( cg.time - lf->oldFrameTime ) / ( lf->frameTime - lf->oldFrameTime );
+	}
+}
+
+/* [QUARANTINE] - Weapon Animations
+===============
+CG_WeaponAnimation
+
+This is called from cg_weapons.c
+===============
+*/
+void CG_WeaponAnimation(centity_t * cent, weaponInfo_t *weaponInfo, int *weaponOld, int *weapon, float *weaponBackLerp)
+{
+	playerInfo_t *ci;
+	int clientNum;
+	int stateAnimNum;
+	int weapAnimNum;
+
+	clientNum = cent->currentState.number;
+
+	if (cg_noPlayerAnims.integer) {
+		*weaponOld = *weapon = 0;
+		return;
+	}
+
+	ci = &cgs.playerinfo[clientNum];
+
+	CG_RunWeapLerpFrame( ci, weaponInfo, &cent->pe.weapon, cent->currentState.weaponAnim, 1 );
+
+	*weaponOld = cent->pe.weapon.oldFrame;
+	*weapon = cent->pe.weapon.frame;
+	*weaponBackLerp = cent->pe.weapon.backlerp;
+}
+
 /*
 =============================================================================
 
@@ -1320,7 +1483,6 @@ PLAYER ANIMATION
 
 =============================================================================
 */
-
 
 /*
 ===============
@@ -1450,7 +1612,6 @@ static void CG_ClearLerpFrame( playerInfo_t *pi, lerpFrame_t *lf, int animationN
 	CG_SetLerpFrameAnimation( pi, lf, animationNumber );
 	lf->oldFrame = lf->frame = lf->animation->firstFrame;
 }
-
 
 /*
 ===============
