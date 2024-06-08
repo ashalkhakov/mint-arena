@@ -65,50 +65,54 @@ GAUNTLET
 ======================================================================
 */
 
+#define GAUNTLET_DIST 48
+
 void Weapon_Gauntlet( gentity_t *ent ) {
+	trace_t tr;
+	gentity_t   *traceEnt, *tent;
+	int damage, mod;
+//	vec3_t		pforward, eforward;
+	vec3_t		muzzleTrace;
 
-}
+	vec3_t end;
 
-/*
-===============
-CheckGauntletAttack
-===============
-*/
-qboolean CheckGauntletAttack( gentity_t *ent ) {
-	trace_t		tr;
-	vec3_t		end;
-	gentity_t	*tent;
-	gentity_t	*traceEnt;
-	int			damage;
+	mod = MOD_GAUNTLET;
 
-	// set aiming directions
-	AngleVectors (ent->player->ps.viewangles, forward, right, up);
+	AngleVectors( ent->player->ps.viewangles, forward, right, up );
+	CalcMuzzlePoint( ent, ent->s.weapon, forward, right, up, muzzleTrace );
+	VectorMA( muzzleTrace, GAUNTLET_DIST, forward, end );
 
-	CalcMuzzlePoint ( ent, forward, right, up, muzzle );
+	// et sdk antilag
+	trap_Trace( &tr, muzzleTrace, NULL, NULL, end, ent->s.number, MASK_SHOT );
+	//G_HistoricalTrace( ent, &tr, muzzleTrace, NULL, NULL, end, ent->s.number, MASK_SHOT_NOCORPSE );
 
-	VectorMA (muzzle, 32, forward, end);
-
-	trap_Trace (&tr, muzzle, NULL, NULL, end, ent->s.number, MASK_SHOT);
 	if ( tr.surfaceFlags & SURF_NOIMPACT ) {
-		return qfalse;
+		return;
 	}
 
-	if ( ent->player->noclip ) {
-		return qfalse;
+	// no contact
+	if ( tr.fraction == 1.0f ) {
+		return;
+	}
+
+	if ( tr.entityNum >= MAX_CLIENTS ) {   // world brush or non-player entity (no blood)
+		tent = G_TempEntity( tr.endpos, EV_MISSILE_MISS );
+	} else {                            // other player
+		tent = G_TempEntity( tr.endpos, EV_MISSILE_HIT );
+	}
+
+	tent->s.otherEntityNum = tr.entityNum;
+	tent->s.eventParm = DirToByte( tr.plane.normal );
+	tent->s.weapon = ent->s.weapon;
+
+	if ( tr.entityNum == ENTITYNUM_WORLD ) { // don't worry about doing any damage
+		return;
 	}
 
 	traceEnt = &g_entities[ tr.entityNum ];
 
-	// send blood impact
-	if ( traceEnt->takedamage && traceEnt->player ) {
-		tent = G_TempEntity( tr.endpos, EV_MISSILE_HIT );
-		tent->s.otherEntityNum = traceEnt->s.number;
-		tent->s.eventParm = DirToByte( tr.plane.normal );
-		tent->s.weapon = ent->s.weapon;
-	}
-
-	if ( !traceEnt->takedamage) {
-		return qfalse;
+	if ( !( traceEnt->takedamage ) ) {
+		return;
 	}
 
 	if ( ent->player->ps.powerups[PW_QUAD] ) {
@@ -128,13 +132,10 @@ qboolean CheckGauntletAttack( gentity_t *ent ) {
 	}
 #endif
 
-	damage = 50 * s_quadFactor;
-	G_Damage( traceEnt, ent, ent, forward, tr.endpos,
-		damage, 0, MOD_GAUNTLET );
+	damage = 50 * s_quadFactor; //G_GetWeaponDamage( ent->s.weapon ); // JPW		// default knife damage for frontal attacks
 
-	return qtrue;
+	G_Damage( traceEnt, ent, ent, vec3_origin, tr.endpos, ( damage + rand() % 5 ) * s_quadFactor, 0, mod );
 }
-
 
 /*
 ======================================================================
@@ -792,7 +793,7 @@ CalcMuzzlePoint
 set muzzle location relative to pivoting eye
 ===============
 */
-void CalcMuzzlePoint ( gentity_t *ent, vec3_t forward, vec3_t right, vec3_t up, vec3_t muzzlePoint ) {
+void CalcMuzzlePoint ( gentity_t *ent, int weapon, vec3_t forward, vec3_t right, vec3_t up, vec3_t muzzlePoint ) {
 	VectorCopy( ent->s.pos.trBase, muzzlePoint );
 	muzzlePoint[2] += ent->player->ps.viewheight;
 	VectorMA( muzzlePoint, 14, forward, muzzlePoint );
@@ -807,7 +808,7 @@ CalcMuzzlePointOrigin
 set muzzle location relative to pivoting eye
 ===============
 */
-void CalcMuzzlePointOrigin ( gentity_t *ent, vec3_t origin, vec3_t forward, vec3_t right, vec3_t up, vec3_t muzzlePoint ) {
+void CalcMuzzlePointOrigin ( gentity_t *ent, int weapon, vec3_t origin, vec3_t forward, vec3_t right, vec3_t up, vec3_t muzzlePoint ) {
 	VectorCopy( ent->s.pos.trBase, muzzlePoint );
 	muzzlePoint[2] += ent->player->ps.viewheight;
 	VectorMA( muzzlePoint, 14, forward, muzzlePoint );
@@ -837,7 +838,7 @@ void FireWeapon( gentity_t *ent ) {
 #endif
 
 	// track shots taken for accuracy tracking.  Grapple is not a weapon and gauntet is just not tracked
-	if( ent->s.weapon != WP_GRAPPLING_HOOK && ent->s.weapon != WP_GAUNTLET ) {
+	if( ent->s.weapon != WP_GRAPPLING_HOOK  ) {
 #ifdef MISSIONPACK
 		if( ent->s.weapon == WP_NAILGUN ) {
 			ent->player->accuracy_shots += NUM_NAILSHOTS;
@@ -852,7 +853,7 @@ void FireWeapon( gentity_t *ent ) {
 	// set aiming directions
 	AngleVectors (ent->player->ps.viewangles, forward, right, up);
 
-	CalcMuzzlePointOrigin ( ent, ent->player->oldOrigin, forward, right, up, muzzle );
+	CalcMuzzlePointOrigin ( ent, ent->s.weapon, ent->player->oldOrigin, forward, right, up, muzzle );
 
 	// fire the specific weapon
 	switch( ent->s.weapon ) {

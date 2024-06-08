@@ -806,9 +806,11 @@ void CG_RegisterWeapon( int weaponNum ) {
 	switch ( weaponNum ) {
 	case WP_GAUNTLET:
 		MAKERGB( weaponInfo->flashDlightColor, 0.6f, 0.6f, 1.0f );
-		weaponInfo->readySound = trap_S_RegisterSound( "sounds/e1/we_dgloveready.wav", qfalse );
-		weaponInfo->firingSound = trap_S_RegisterSound( "sound/weapons/melee/fstrun.wav", qfalse );
-		weaponInfo->flashSound[0] = trap_S_RegisterSound( "sound/weapons/melee/fstatck.wav", qfalse );
+		weaponInfo->readySound = trap_S_RegisterSound( "sounds/e1/we_dgloveamba.wav", qfalse );
+		weaponInfo->flashSound[0] = trap_S_RegisterSound( "sounds/e1/we_dgloveshoota.wav", qfalse );
+
+		cgs.media.sfx_dglovehit1Sound = trap_S_RegisterSound( "sounds/e1/we_dglovehita.wav", qfalse );
+		cgs.media.sfx_dglovehit2Sound = trap_S_RegisterSound( "sounds/e1/we_dglovehitb.wav", qfalse );
 
 		// Load the animation information
 		Com_sprintf(filename, sizeof(filename), "models/e1/%s_animation.cfg", "w_tglove");
@@ -2189,6 +2191,15 @@ void CG_MissileHitWall( int weapon, int playerNum, vec3_t origin, vec3_t dir, im
 		} else {
 			sfx = cgs.media.sfx_ric3;
 		}
+
+		radius = 8;
+		break;
+	case WP_GAUNTLET:
+		mod = cgs.media.bulletFlashModel;
+		shader = cgs.media.bulletExplosionShader;
+		mark = cgs.media.bulletMarkShader;
+
+		sfx = cgs.media.sfx_dglovehit1Sound;
 
 		radius = 8;
 		break;
