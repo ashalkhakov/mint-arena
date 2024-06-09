@@ -1174,12 +1174,14 @@ void PlayerSpawn(gentity_t *ent) {
 		player->ps.stats[STAT_WEAPONS] = ( 1 << WP_RAILGUN );
 		player->ps.ammo[WP_RAILGUN] = 999;
 	} else {
+#if 0
 		player->ps.stats[STAT_WEAPONS] = ( 1 << WP_MACHINEGUN );
 		if ( g_gametype.integer == GT_TEAM ) {
 			player->ps.ammo[WP_MACHINEGUN] = 50;
 		} else {
 			player->ps.ammo[WP_MACHINEGUN] = 100;
 		}
+#endif
 	}
 
 	player->ps.stats[STAT_WEAPONS] |= ( 1 << WP_GAUNTLET );
@@ -1213,7 +1215,7 @@ void PlayerSpawn(gentity_t *ent) {
 		if (ent->player->sess.sessionTeam != TEAM_SPECTATOR) {
 			G_KillBox(ent);
 			// force the base weapon up
-			player->ps.weapon = WP_MACHINEGUN;
+			player->ps.weapon = WP_GAUNTLET;
 			player->ps.weaponstate = WEAPON_READY;
 			// fire the targets of the spawn point
 			G_UseTargets(spawnPoint, ent);
