@@ -37,8 +37,9 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "l_memory.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/idlib_local.h"
+#include "../idlib/l_memory.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -780,9 +781,10 @@ void AAS_FloodAreas(vec3_t origin)
 {
 	int areanum, cluster, *done;
 
-	done = (int *) GetClearedMemory(aasworld.numareas * sizeof(int));
+	done = (int *) ii.GetMemory(aasworld.numareas * sizeof(int));
+    memset(done, 0, aasworld.numareas * sizeof(int));
 	areanum = AAS_PointAreaNum(origin);
 	cluster = AAS_AreaCluster(areanum);
 	AAS_FloodAreas_r(areanum, cluster, done);
-	FreeMemory(done);
+	ii.FreeMemory(done);
 }

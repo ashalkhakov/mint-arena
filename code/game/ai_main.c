@@ -161,7 +161,7 @@ BotAI_Trace
 ==================
 */
 void BotAI_Trace(bsp_trace_t *bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int passent, int contentmask) {
-	trap_Trace(bsptrace, start, mins, maxs, end, passent, contentmask);
+	G_Trace(bsptrace, start, mins, maxs, end, passent, contentmask, TT_AABB);
 }
 
 /*
@@ -170,7 +170,7 @@ BotAI_EntityTrace
 ==================
 */
 void BotAI_EntityTrace(bsp_trace_t *bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int entnum, int contentmask) {
-	trap_ClipToEntities(bsptrace, start, mins, maxs, end, entnum, contentmask);
+	G_ClipToEntities(bsptrace, start, mins, maxs, end, entnum, contentmask, TT_AABB);
 }
 
 /*
@@ -179,7 +179,7 @@ BotAI_PointContents
 ==================
 */
 int BotAI_PointContents(vec3_t point) {
-	return trap_PointContents(point, -1);
+	return G_PointContents(point, -1);
 }
 
 /*

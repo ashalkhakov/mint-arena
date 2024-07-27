@@ -37,7 +37,7 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
+#include "../idlib/q_shared.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"

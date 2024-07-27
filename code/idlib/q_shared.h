@@ -116,6 +116,7 @@ typedef int intptr_t;
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <time.h>
 #include <ctype.h>
@@ -262,6 +263,7 @@ typedef enum {
 #if !defined(NDEBUG) && !defined(BSPC)
 	#define ZONE_DEBUG
 #endif
+#define ZONE_DEBUG // TODO: Remove
 
 #if !defined(NDEBUG) && !defined(BSPC)
 	#define HUNK_DEBUG
@@ -304,6 +306,8 @@ typedef vec_t vec2_t[2];
 typedef vec_t vec3_t[3];
 typedef vec_t vec4_t[4];
 typedef vec_t vec5_t[5];
+
+typedef vec_t quat_t[4];
 
 typedef	int	fixed4_t;
 typedef	int	fixed8_t;
@@ -502,6 +506,8 @@ typedef struct {
 
 #define Byte4Copy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
 
+#define QuatCopy(a,b)			((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2],(b)[3]=(a)[3])
+
 #define	SnapVector(v) {v[0]=((int)(v[0]));v[1]=((int)(v[1]));v[2]=((int)(v[2]));}
 // just in case you don't want to use the macros
 vec_t _DotProduct( const vec3_t v1, const vec3_t v2 );
@@ -653,7 +659,7 @@ void vectoangles( const vec3_t value1, vec3_t angles);
 void AnglesToAxis( const vec3_t angles, vec3_t axis[3] );
 
 void AxisClear( vec3_t axis[3] );
-void AxisCopy( vec3_t in[3], vec3_t out[3] );
+void AxisCopy( const vec3_t in[3], vec3_t out[3] );
 int AxisEmpty( vec3_t *axis );
 
 void SetPlaneSignbits( struct cplane_s *out );
@@ -686,7 +692,7 @@ void MakeNormalVectors( const vec3_t forward, vec3_t right, vec3_t up );
 
 //int	PlaneTypeForNormal (vec3_t normal);
 
-void MatrixMultiply(float in1[3][3], float in2[3][3], float out[3][3]);
+void MatrixMultiply( const float in1[3][3], const float in2[3][3], float out[3][3]);
 void AngleVectors( const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
 void PerpendicularVector( vec3_t dst, const vec3_t src );
 
@@ -1235,8 +1241,7 @@ typedef struct sharedPlayerState_s {
 
 	int			ping;			// server to game info for scoreboard
 
-	// ZTM: FIXME: make persistant private to game/cgame. Currently server accesses PERS_SCORE (0) in it.
-	int			persistant[1];	// stats that aren't cleared on death
+	int			score;			// persistant[ PERS_SCORE (0) ] in game's playerState_t
 
 } sharedPlayerState_t;
 

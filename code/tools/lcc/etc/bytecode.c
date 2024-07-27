@@ -2,7 +2,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#include "../../../qcommon/q_platform.h"
+#include "../../../idlib/q_platform.h"
 
 #ifdef _WIN32
 #define BINEXT ".exe"

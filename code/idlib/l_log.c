@@ -37,9 +37,11 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "botlib.h"
-#include "be_interface.h"			//for botimport.Print
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "idlib_local.h"
 #include "l_libvar.h"
 #include "l_log.h"
 
@@ -48,11 +50,11 @@ Suite 120, Rockville, Maryland 20850 USA.
 typedef struct logfile_s
 {
 	char filename[MAX_LOGFILENAMESIZE];
-	qhandle_t fp;
+	fileHandle_t fp;
 	int numwrites;
 } logfile_t;
 
-logfile_t logfile;
+static logfile_t logfile;
 
 //===========================================================================
 //
@@ -65,23 +67,21 @@ void Log_Open(char *filename)
 	if (!LibVarValue("log", "0")) return;
 	if (!filename || !strlen(filename))
 	{
-		botimport.Print(PRT_MESSAGE, "openlog <filename>\n");
+		ii.Com_Printf("openlog <filename>\n");
 		return;
 	} //end if
 	if (logfile.fp)
 	{
-		botimport.Print(PRT_ERROR, "log file %s is already opened\n", logfile.filename);
+		ii.Com_Printf("log file %s is already opened\n", logfile.filename);
 		return;
 	} //end if
-	botimport.FS_FOpenFile(filename, &logfile.fp, FS_APPEND_SYNC);
-	if (!logfile.fp)
-	{
-		botimport.Print(PRT_ERROR, "can't open the log file %s\n", filename);
+	if ( ii.FS_FOpenFile( filename, &logfile.fp, FS_WRITE ) ) {
+		ii.Com_Error( ERR_DROP, "can't open the log file %s\n", filename );
 		return;
-	} //end if
-	strncpy(logfile.filename, filename, MAX_LOGFILENAMESIZE);
-	botimport.Print(PRT_MESSAGE, "Opened log %s\n", logfile.filename);
-} //end of the function Log_Open
+	}
+	Q_strncpyz(logfile.filename, filename, MAX_LOGFILENAMESIZE);
+	ii.Com_Printf("Opened log %s\n", logfile.filename);
+} //end of the function Log_Create
 //===========================================================================
 //
 // Parameter:				-
@@ -91,9 +91,9 @@ void Log_Open(char *filename)
 void Log_Close(void)
 {
 	if (!logfile.fp) return;
-	botimport.FS_FCloseFile(logfile.fp);
+	ii.FS_FCloseFile( logfile.fp );
 	logfile.fp = 0;
-	botimport.Print(PRT_MESSAGE, "Closed log %s\n", logfile.filename);
+	ii.Com_Printf("Closed log %s\n", logfile.filename);
 } //end of the function Log_Close
 //===========================================================================
 //
@@ -111,18 +111,23 @@ void Log_Shutdown(void)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
+extern int FS_WriteFloatStringImpl( char *buf, const char *fmt, va_list argPtr );
 void QDECL Log_Write(char *fmt, ...)
 {
-	va_list		argptr;
-	char		string[1024];
+	char buf[MAX_STRING_CHARS];
+	int len;
+	va_list argPtr;
 
-	if ( !logfile.fp ) return;
+	if (!logfile.fp) {
+		return;
+	}
 
-	va_start( argptr, fmt );
-	Q_vsnprintf( string, sizeof(string), fmt, argptr );
-	va_end( argptr );
+	va_start( argPtr, fmt );
+	len = FS_WriteFloatStringImpl( buf, fmt, argPtr );
+	va_end( argPtr );
 
-	botimport.FS_Write( string, strlen( string ), logfile.fp );
+	ii.FS_Write( buf, len, logfile.fp );
+	// ii.FS_Flush( logfile.fp ); // TODO: make it flush
 } //end of the function Log_Write
 //===========================================================================
 //
@@ -132,29 +137,30 @@ void QDECL Log_Write(char *fmt, ...)
 //===========================================================================
 void QDECL Log_WriteTimeStamped(char *fmt, ...)
 {
-	va_list		argptr;
-	char		string[1024];
-	int			length;
+	char buf[MAX_STRING_CHARS];
+	int len;
+	va_list argPtr;
+	int time;
 
-	Com_sprintf( string, sizeof(string), "%d   %02d:%02d:%02d:%02d   ",
+	if (!logfile.fp) return;
+
+	time = ii.MilliSeconds();
+
+	Log_Write("%d   %02d:%02d:%02d:%02d   ",
 					logfile.numwrites,
-					(int) (botlibglobals.time / 60 / 60),
-					(int) (botlibglobals.time / 60),
-					(int) (botlibglobals.time),
-					(int) ((int) (botlibglobals.time * 100)) -
-							((int) botlibglobals.time) * 100);
+					(int) (time / 60 / 60),
+					(int) (time / 60),
+					(int) (time),
+					(int) ((int) (time * 100)) -
+							((int) time) * 100);
 
-	// time stamp length
-	length = strlen( string );
+	va_start( argPtr, fmt );
+	len = FS_WriteFloatStringImpl( buf, fmt, argPtr );
+	va_end( argPtr );
 
-	va_start( argptr, fmt );
-	Q_vsnprintf(string + length, sizeof(string) - length, fmt, argptr);
-	va_end( argptr );
-
-	Q_strcat( string, sizeof(string), "\r\n" );
-
+	ii.FS_Write( buf, len, logfile.fp );
 	logfile.numwrites++;
-	botimport.FS_Write( string, strlen( string ), logfile.fp );
+	// ii.FS_Flush( logfile.fp ); // TODO: make it flush
 } //end of the function Log_Write
 //===========================================================================
 //
@@ -162,10 +168,10 @@ void QDECL Log_WriteTimeStamped(char *fmt, ...)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
-qhandle_t Log_FileHandle(void)
+fileHandle_t Log_FilePointer(void)
 {
 	return logfile.fp;
-} //end of the function Log_FileHandle
+} //end of the function Log_FilePointer
 //===========================================================================
 //
 // Parameter:				-
@@ -174,6 +180,7 @@ qhandle_t Log_FileHandle(void)
 //===========================================================================
 void Log_Flush(void)
 {
-
+    // TODO: make this work
+	//if (logfile.fp) fflush(logfile.fp);
 } //end of the function Log_Flush
 

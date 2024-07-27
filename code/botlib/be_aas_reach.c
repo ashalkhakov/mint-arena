@@ -37,11 +37,12 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "../qcommon/surfaceflags.h"
-#include "l_log.h"
-#include "l_memory.h"
-#include "l_libvar.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/surfaceflags.h"
+#include "../idlib/l_log.h"
+#include "../idlib/l_memory.h"
+#include "../idlib/l_libvar.h"
+#include "../idlib/idlib_local.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -459,8 +460,9 @@ void AAS_SetupReachabilityHeap(void)
 {
 	int i;
 
-	reachabilityheap = (aas_lreachability_t *) GetClearedMemory(
+	reachabilityheap = (aas_lreachability_t *) ii.GetMemory(
 						AAS_MAX_REACHABILITYSIZE * sizeof(aas_lreachability_t));
+    memset(reachabilityheap, 0, AAS_MAX_REACHABILITYSIZE * sizeof(aas_lreachability_t));
 	for (i = 0; i < AAS_MAX_REACHABILITYSIZE-1; i++)
 	{
 		reachabilityheap[i].next = &reachabilityheap[i+1];
@@ -477,7 +479,7 @@ void AAS_SetupReachabilityHeap(void)
 //===========================================================================
 void AAS_ShutDownReachabilityHeap(void)
 {
-	FreeMemory(reachabilityheap);
+	ii.FreeMemory(reachabilityheap);
 	numlreachabilities = 0;
 } //end of the function AAS_ShutDownReachabilityHeap
 //===========================================================================
@@ -4314,8 +4316,9 @@ void AAS_StoreReachability(void)
 	aas_lreachability_t *lreach;
 	aas_reachability_t *reach;
 
-	if (aasworld.reachability) FreeMemory(aasworld.reachability);
-	aasworld.reachability = (aas_reachability_t *) GetClearedMemory((numlreachabilities + 10) * sizeof(aas_reachability_t));
+	if (aasworld.reachability) ii.FreeMemory(aasworld.reachability);
+	aasworld.reachability = (aas_reachability_t *) ii.GetMemory((numlreachabilities + 10) * sizeof(aas_reachability_t));
+    memset(aasworld.reachability, 0, (numlreachabilities + 10) * sizeof(aas_reachability_t));
 	aasworld.reachabilitysize = 1;
 	for (i = 0; i < aasworld.numareas; i++)
 	{
@@ -4491,7 +4494,7 @@ int AAS_ContinueInitReachability(float time)
 		//free the reachability link heap
 		AAS_ShutDownReachabilityHeap();
 		//
-		FreeMemory(areareachability);
+		ii.FreeMemory(areareachability);
 		//
 		aasworld.numreachabilityareas++;
 		//
@@ -4538,8 +4541,9 @@ void AAS_InitReachability(void)
 	//setup the heap with reachability links
 	AAS_SetupReachabilityHeap();
 	//allocate area reachability link array
-	areareachability = (aas_lreachability_t **) GetClearedMemory(
+	areareachability = (aas_lreachability_t **) ii.GetMemory(
 									aasworld.numareas * sizeof(aas_lreachability_t *));
+    memset(areareachability, 0, aasworld.numareas * sizeof(aas_lreachability_t *));
 	//
 	AAS_SetWeaponJumpAreaFlags();
 } //end of the function AAS_InitReachable

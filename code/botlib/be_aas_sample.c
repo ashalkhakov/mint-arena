@@ -37,11 +37,12 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "l_memory.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/l_memory.h"
 #ifndef BSPC
-#include "l_libvar.h"
+#include "../idlib/l_libvar.h"
 #endif
+#include "../idlib/idlib_local.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -112,7 +113,7 @@ void AAS_InitAASLinkHeap(void)
 #endif
 		if (max_aaslinks < 0) max_aaslinks = 0;
 		aasworld.linkheapsize = max_aaslinks;
-		aasworld.linkheap = (aas_link_t *) GetHunkMemory(max_aaslinks * sizeof(aas_link_t));
+		aasworld.linkheap = (aas_link_t *) ii.HunkAlloc(max_aaslinks * sizeof(aas_link_t));
 	} //end if
 	//link the links on the heap
 	aasworld.linkheap[0].prev_ent = NULL;
@@ -137,7 +138,7 @@ void AAS_InitAASLinkHeap(void)
 //===========================================================================
 void AAS_FreeAASLinkHeap(void)
 {
-	if (aasworld.linkheap) FreeMemory(aasworld.linkheap);
+	if (aasworld.linkheap) ii.FreeMemory(aasworld.linkheap);
 	aasworld.linkheap = NULL;
 	aasworld.linkheapsize = 0;
 } //end of the function AAS_FreeAASLinkHeap
@@ -192,9 +193,10 @@ void AAS_DeAllocAASLink(aas_link_t *link)
 void AAS_InitAASLinkedEntities(void)
 {
 	if (!aasworld.loaded) return;
-	if (aasworld.arealinkedentities) FreeMemory(aasworld.arealinkedentities);
-	aasworld.arealinkedentities = (aas_link_t **) GetClearedHunkMemory(
+	if (aasworld.arealinkedentities) ii.FreeMemory(aasworld.arealinkedentities);
+	aasworld.arealinkedentities = (aas_link_t **) ii.HunkAlloc(
 						aasworld.numareas * sizeof(aas_link_t *));
+    memset(aasworld.arealinkedentities, 0, aasworld.numareas * sizeof(aas_link_t *));
 } //end of the function AAS_InitAASLinkedEntities
 //===========================================================================
 //
@@ -204,7 +206,7 @@ void AAS_InitAASLinkedEntities(void)
 //===========================================================================
 void AAS_FreeAASLinkedEntities(void)
 {
-	if (aasworld.arealinkedentities) FreeMemory(aasworld.arealinkedentities);
+	if (aasworld.arealinkedentities) ii.FreeMemory(aasworld.arealinkedentities);
 	aasworld.arealinkedentities = NULL;
 } //end of the function AAS_InitAASLinkedEntities
 //===========================================================================

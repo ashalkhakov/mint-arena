@@ -37,7 +37,8 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
+#include "q_shared.h"
+#include "idlib_local.h"
 #include "l_memory.h"
 #include "l_libvar.h"
 
@@ -92,9 +93,9 @@ libvar_t *LibVarAlloc(const char *var_name)
 {
 	libvar_t *v;
 
-	v = (libvar_t *) GetMemory(sizeof(libvar_t));
+	v = (libvar_t *) ii.GetMemory(sizeof(libvar_t));
 	Com_Memset(v, 0, sizeof(libvar_t));
-	v->name = (char *) GetMemory(strlen(var_name)+1);
+	v->name = (char *) ii.GetMemory(strlen(var_name)+1);
 	strcpy(v->name, var_name);
 	//add the variable in the list
 	v->next = libvarlist;
@@ -109,9 +110,9 @@ libvar_t *LibVarAlloc(const char *var_name)
 //===========================================================================
 void LibVarDeAlloc(libvar_t *v)
 {
-	if (v->string) FreeMemory(v->string);
-	FreeMemory(v->name);
-	FreeMemory(v);
+	if (v->string) ii.FreeMemory(v->string);
+	ii.FreeMemory(v->name);
+	ii.FreeMemory(v);
 } //end of the function LibVarDeAlloc
 //===========================================================================
 //
@@ -203,7 +204,7 @@ libvar_t *LibVar(const char *var_name, const char *value)
 	//create new variable
 	v = LibVarAlloc(var_name);
 	//variable string
-	v->string = (char *) GetMemory(strlen(value) + 1);
+	v->string = (char *) ii.GetMemory(strlen(value) + 1);
 	strcpy(v->string, value);
 	//the value
 	v->value = LibVarStringValue(v->string);
@@ -251,14 +252,14 @@ void LibVarSet(const char *var_name, const char *value)
 	v = LibVarGet(var_name);
 	if (v)
 	{
-		FreeMemory(v->string);
+		ii.FreeMemory(v->string);
 	} //end if
 	else
 	{
 		v = LibVarAlloc(var_name);
 	} //end else
 	//variable string
-	v->string = (char *) GetMemory(strlen(value) + 1);
+	v->string = (char *) ii.GetMemory(strlen(value) + 1);
 	strcpy(v->string, value);
 	//the value
 	v->value = LibVarStringValue(v->string);

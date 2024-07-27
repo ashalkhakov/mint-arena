@@ -30,7 +30,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 
 // Unicode & UTF-8 handling
 
-#include "q_shared.h"
+#include "../idlib/q_shared.h"
 #include "q_unicode.h"
 
 #ifdef Q3_VM

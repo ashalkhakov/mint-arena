@@ -28,7 +28,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
 
-#include "../qcommon/q_shared.h"
+#include "../idlib/q_shared.h"
 #include "../renderercommon/tr_types.h"
 #include "../game/bg_public.h"
 #include "cg_public.h"
@@ -779,42 +779,6 @@ int trap_LAN_CompareServers( int source, int sortKey, int sortDir, int s1, int s
 
 qboolean trap_LAN_ServerIsInFavoriteList( int source, int n  ) {
 	return syscall( CG_LAN_SERVERISINFAVORITELIST, source, n );
-}
-
-int trap_PC_AddGlobalDefine( const char *define ) {
-	return syscall( CG_PC_ADD_GLOBAL_DEFINE, define );
-}
-
-int trap_PC_RemoveGlobalDefine( const char *define ) {
-	return syscall( CG_PC_REMOVE_GLOBAL_DEFINE, define );
-}
-
-void trap_PC_RemoveAllGlobalDefines( void ) {
-	syscall( CG_PC_REMOVE_ALL_GLOBAL_DEFINES );
-}
-
-int trap_PC_LoadSource( const char *filename, const char *basepath ) {
-	return syscall( CG_PC_LOAD_SOURCE, filename, basepath );
-}
-
-int trap_PC_FreeSource( int handle ) {
-	return syscall( CG_PC_FREE_SOURCE, handle );
-}
-
-int trap_PC_AddDefine( int handle, const char *define ) {
-	return syscall( CG_PC_ADD_DEFINE, handle, define );
-}
-
-int trap_PC_ReadToken( int handle, pc_token_t *pc_token ) {
-	return syscall( CG_PC_READ_TOKEN, handle, pc_token );
-}
-
-void trap_PC_UnreadToken( int handle ) {
-	syscall( CG_PC_UNREAD_TOKEN, handle );
-}
-
-int trap_PC_SourceFileAndLine( int handle, char *filename, int *line ) {
-	return syscall( CG_PC_SOURCE_FILE_AND_LINE, handle, filename, line );
 }
 
 void *trap_HeapMalloc( int size ) {

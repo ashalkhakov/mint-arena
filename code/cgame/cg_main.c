@@ -1924,17 +1924,17 @@ char *CG_GetMenuBuffer(const char *filename) {
 // ==============================
 //
 qboolean CG_Asset_Parse(int handle) {
-	pc_token_t token;
+	token_t token;
 	const char *tempStr;
 
-	if (!trap_PC_ReadToken(handle, &token))
+	if (!PC_ReadToken(handle, &token))
 		return qfalse;
 	if (Q_stricmp(token.string, "{") != 0) {
 		return qfalse;
 	}
     
 	while ( 1 ) {
-		if (!trap_PC_ReadToken(handle, &token))
+		if (!PC_ReadToken(handle, &token))
 			return qfalse;
 
 		if (Q_stricmp(token.string, "}") == 0) {
@@ -2101,17 +2101,17 @@ qboolean CG_Asset_Parse(int handle) {
 }
 
 void CG_ParseMenu(const char *menuFile) {
-	pc_token_t token;
-	int handle;
+	token_t token;
+	source_t *handle;
 
-	handle = trap_PC_LoadSource(menuFile, NULL);
+	handle = PC_LoadSource(menuFile, NULL, NULL);
 	if (!handle)
-		handle = trap_PC_LoadSource("ui/testhud.menu", NULL);
+		handle = PC_LoadSource("ui/testhud.menu", NULL, NULL);
 	if (!handle)
 		return;
 
 	while ( 1 ) {
-		if (!trap_PC_ReadToken( handle, &token )) {
+		if (!PC_ReadToken( handle, &token )) {
 			break;
 		}
 
@@ -2143,7 +2143,7 @@ void CG_ParseMenu(const char *menuFile) {
 			Menu_New(handle);
 		}
 	}
-	trap_PC_FreeSource(handle);
+	PC_FreeSource(handle);
 }
 
 qboolean CG_Load_Menu(char **p) {
@@ -2662,6 +2662,10 @@ Called after every cgame load, such as main menu, level change, or subsystem res
 =================
 */
 void CG_Init( connstate_t state, int maxSplitView, int playVideo ) {
+    BG_InitIdLib();
+
+    ie.Init();
+
 	Swap_Init();
 
 	// clear everything
@@ -2857,6 +2861,8 @@ void CG_Shutdown( void ) {
 
 	// some mods may need to do cleanup work here,
 	// like closing files or archiving session data
+
+    ie.Shutdown();
 }
 
 /*

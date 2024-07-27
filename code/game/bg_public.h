@@ -30,7 +30,11 @@ Suite 120, Rockville, Maryland 20850 USA.
 //
 // bg_public.h -- definitions shared by both the server game and client game modules
 
-#include "../qcommon/surfaceflags.h"
+#include "../idlib/surfaceflags.h"
+#include "../idlib/idlib_public.h"
+#include "../cm2/cm_public.h"
+
+extern idlib_export_t ie;
 
 #ifndef MODDIR
   #ifdef MISSIONPACK
@@ -1148,6 +1152,8 @@ void	BG_AddStringToList( char *list, size_t listSize, int *listLength, char *nam
 
 void	SnapVectorTowards( vec3_t v, vec3_t to );
 
+void    BG_InitIdLib( void );
+
 #define ARENAS_PER_TIER		4
 #define MAX_ARENAS			1024
 #define	MAX_ARENAS_TEXT		8192
@@ -1269,48 +1275,6 @@ int BG_GetTracemapGroundFloor( void );
 int BG_GetTracemapGroundCeil( void );
 void etpro_FinalizeTracemapClamp( int *x, int *y );
 
-void PC_SourceWarning(int handle, char *format, ...) __attribute__ ((format (printf, 2, 3)));
-void PC_SourceError(int handle, char *format, ...) __attribute__ ((format (printf, 2, 3)));
-int PC_CheckTokenString(int handle, char *string);
-int PC_ExpectTokenString(int handle, char *string);
-int PC_ExpectTokenType(int handle, int type, int subtype, pc_token_t *token);
-int PC_ExpectAnyToken(int handle, pc_token_t *token);
-
-#define MAX_STRINGFIELD				80
-//field types
-#define FT_CHAR						1			// char
-#define FT_INT							2			// int
-#define FT_FLOAT						3			// float
-#define FT_STRING						4			// char [MAX_STRINGFIELD]
-#define FT_STRUCT						6			// struct (sub structure)
-//type only mask
-#define FT_TYPE						0x00FF	// only type, clear subtype
-//sub types
-#define FT_ARRAY						0x0100	// array of type
-#define FT_BOUNDED					0x0200	// bounded value
-#define FT_UNSIGNED					0x0400
-
-//structure field definition
-typedef struct fielddef_s
-{
-	char *name;										//name of the field
-	int offset;										//offset in the structure
-	int type;										//type of the field
-	//type specific fields
-	int maxarray;									//maximum array size
-	float floatmin, floatmax;					//float min and max
-	struct structdef_s *substruct;			//sub structure
-} fielddef_t;
-
-//structure definition
-typedef struct structdef_s
-{
-	int size;
-	fielddef_t *fields;
-} structdef_t;
-
-qboolean PC_ReadStructure(int source, structdef_t *def, void *structure);
-
 //
 // System calls shared by game, cgame, and ui.
 //
@@ -1364,16 +1328,6 @@ void	trap_FS_FCloseFile( fileHandle_t f );
 int		trap_FS_GetFileList( const char *path, const char *extension, char *listbuf, int bufsize );
 int		trap_FS_Delete( const char *path );
 int		trap_FS_Rename( const char *from, const char *to );
-
-int		trap_PC_AddGlobalDefine( const char *define );
-int		trap_PC_RemoveGlobalDefine( const char *define );
-void	trap_PC_RemoveAllGlobalDefines( void );
-int		trap_PC_LoadSource( const char *filename, const char *basepath );
-int		trap_PC_FreeSource( int handle );
-int		trap_PC_AddDefine( int handle, const char *define );
-int		trap_PC_ReadToken( int handle, pc_token_t *pc_token );
-void	trap_PC_UnreadToken( int handle );
-int		trap_PC_SourceFileAndLine( int handle, char *filename, int *line );
 
 void	*trap_HeapMalloc( int size );
 int		trap_HeapAvailable( void );

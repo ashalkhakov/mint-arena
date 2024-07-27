@@ -40,6 +40,8 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
+#include "../idlib/l_script.h"
+#include "../idlib/l_precomp.h"
 //
 #include "ai_char.h"
 #include "ai_chat_sys.h"
@@ -61,11 +63,6 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "inv.h"				//indexes into the inventory
 #include "syn.h"				//synonyms
 #include "match.h"				//string matching types and vars
-
-#define GetClearedHunkMemory( _s ) trap_HeapMalloc( _s )
-#define GetClearedMemory( _s ) trap_HeapMalloc( _s )
-#define FreeMemory( _data ) trap_HeapFree( _data )
-
 
 //escape character
 #define ESCAPE_CHAR				0x01	//'_'
@@ -691,8 +688,8 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 	int pass, size, contextlevel, numsynonyms;
 	unsigned long int context, contextstack[32];
 	char *ptr = NULL;
-	int source;
-	pc_token_t token;
+	source_t *source;
+	token_t token;
 	bot_synonymlist_t *synlist, *lastsyn, *syn;
 	bot_synonym_t *synonym, *lastsynonym;
 
@@ -707,9 +704,9 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 	for (pass = 0; pass < 2; pass++)
 	{
 		//
-		if (pass && size) ptr = (char *) GetClearedHunkMemory(size);
+		if (pass && size) ptr = (char *) trap_HeapMalloc(size);
 		//
-		source = trap_PC_LoadSource(filename, BOTFILESBASEFOLDER);
+		source = PC_LoadSource(filename, BOTFILESBASEFOLDER, NULL);
 		if (!source)
 		{
 			BotAI_Print(PRT_ERROR, "counldn't load %s\n", filename);
@@ -721,7 +718,7 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 		synlist = NULL; //list synonyms
 		lastsyn = NULL; //last synonym in the list
 		//
-		while(trap_PC_ReadToken(source, &token))
+		while(PC_ReadToken(source, &token))
 		{
 			if (token.type == TT_NUMBER)
 			{
@@ -730,13 +727,13 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 				contextlevel++;
 				if (contextlevel >= 32)
 				{
-					PC_SourceError(source, "more than 32 context levels");
-					trap_PC_FreeSource(source);
+					SourceError(source, "more than 32 context levels");
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 				if (!PC_ExpectTokenString(source, "{"))
 				{
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 			} //end if
@@ -747,8 +744,8 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 					contextlevel--;
 					if (contextlevel < 0)
 					{
-						PC_SourceError(source, "too many }");
-						trap_PC_FreeSource(source);
+						SourceError(source, "too many }");
+						PC_FreeSource(source);
 						return NULL;
 					} //end if
 					context &= ~contextstack[contextlevel];
@@ -775,13 +772,13 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 						if (!PC_ExpectTokenString(source, "(") ||
 							!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 						{
-							trap_PC_FreeSource(source);
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 						if (strlen(token.string) <= 0)
 						{
-							PC_SourceError(source, "empty string");
-							trap_PC_FreeSource(source);
+							SourceError(source, "empty string");
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 						len = strlen(token.string) + 1;
@@ -804,7 +801,7 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 							!PC_ExpectTokenType(source, TT_NUMBER, 0, &token) ||
 							!PC_ExpectTokenString(source, ")"))
 						{
-							trap_PC_FreeSource(source);
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 						if (pass && ptr)
@@ -815,31 +812,31 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 						if (PC_CheckTokenString(source, "]")) break;
 						if (!PC_ExpectTokenString(source, ","))
 						{
-							trap_PC_FreeSource(source);
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 					} //end while
 					if (numsynonyms < 2)
 					{
-						PC_SourceError(source, "synonym must have at least two entries");
-						trap_PC_FreeSource(source);
+						SourceError(source, "synonym must have at least two entries");
+						PC_FreeSource(source);
 						return NULL;
 					} //end if
 				} //end else
 				else
 				{
-					PC_SourceError(source, "unexpected %s", token.string);
-					trap_PC_FreeSource(source);
+					SourceError(source, "unexpected %s", token.string);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 			} //end else if
 		} //end while
 		//
-		trap_PC_FreeSource(source);
+		PC_FreeSource(source);
 		//
 		if (contextlevel > 0)
 		{
-			PC_SourceError(source, "missing }");
+			SourceError(source, "missing }");
 			return NULL;
 		} //end if
 	} //end for
@@ -956,10 +953,10 @@ void BotReplaceReplySynonyms(char *string, unsigned long int context)
 // Returns:				-
 // Changes Globals:		-
 //===========================================================================
-int BotLoadChatMessage(int source, char *chatmessagestring)
+int BotLoadChatMessage(source_t *source, char *chatmessagestring)
 {
 	char *ptr;
-	pc_token_t token;
+	token_t token;
 
 	ptr = chatmessagestring;
 	*ptr = 0;
@@ -972,7 +969,7 @@ int BotLoadChatMessage(int source, char *chatmessagestring)
 		{
 			if (strlen(ptr) + strlen(token.string) + 1 > MAX_MESSAGE_SIZE)
 			{
-				PC_SourceError(source, "chat message too long");
+				SourceError(source, "chat message too long");
 				return qfalse;
 			} //end if
 			strcat(ptr, token.string);
@@ -982,24 +979,24 @@ int BotLoadChatMessage(int source, char *chatmessagestring)
 		{
 			if (strlen(ptr) + 7 > MAX_MESSAGE_SIZE)
 			{
-				PC_SourceError(source, "chat message too long");
+				SourceError(source, "chat message too long");
 				return qfalse;
 			} //end if
-			Com_sprintf(&ptr[strlen(ptr)], MAX_MESSAGE_SIZE - strlen(ptr), "%cv%d%c", ESCAPE_CHAR, token.intvalue, ESCAPE_CHAR);
+			Com_sprintf(&ptr[strlen(ptr)], MAX_MESSAGE_SIZE - strlen(ptr), "%cv%d%c", ESCAPE_CHAR, (int)token.intvalue, ESCAPE_CHAR);
 		} //end if
 		//random string
 		else if (token.type == TT_NAME)
 		{
 			if (strlen(ptr) + 7 > MAX_MESSAGE_SIZE)
 			{
-				PC_SourceError(source, "chat message too long");
+				SourceError(source, "chat message too long");
 				return qfalse;
 			} //end if
 			Com_sprintf(&ptr[strlen(ptr)], MAX_MESSAGE_SIZE - strlen(ptr), "%cr%s%c", ESCAPE_CHAR, token.string, ESCAPE_CHAR);
 		} //end else if
 		else
 		{
-			PC_SourceError(source, "unknown message component %s", token.string);
+			SourceError(source, "unknown message component %s", token.string);
 			return qfalse;
 		} //end else
 		if (PC_CheckTokenString(source, ";")) break;
@@ -1045,8 +1042,8 @@ bot_randomlist_t *BotLoadRandomStrings(char *filename)
 {
 	int pass, size;
 	char *ptr = NULL, chatmessagestring[MAX_MESSAGE_SIZE];
-	int source;
-	pc_token_t token;
+	source_t *source;
+	token_t token;
 	bot_randomlist_t *randomlist, *lastrandom, *random;
 	bot_randomstring_t *randomstring;
 
@@ -1064,9 +1061,9 @@ bot_randomlist_t *BotLoadRandomStrings(char *filename)
 	for (pass = 0; pass < 2; pass++)
 	{
 		//
-		if (pass && size) ptr = (char *) GetClearedHunkMemory(size);
+		if (pass && size) ptr = (char *) trap_HeapMalloc(size);
 		//
-		source = trap_PC_LoadSource(filename, BOTFILESBASEFOLDER);
+		source = PC_LoadSource(filename, BOTFILESBASEFOLDER, NULL);
 		if (!source)
 		{
 			BotAI_Print(PRT_ERROR, "counldn't load %s\n", filename);
@@ -1076,13 +1073,13 @@ bot_randomlist_t *BotLoadRandomStrings(char *filename)
 		randomlist = NULL; //list
 		lastrandom = NULL; //last
 		//
-		while(trap_PC_ReadToken(source, &token))
+		while(PC_ReadToken(source, &token))
 		{
 			size_t len;
 			if (token.type != TT_NAME)
 			{
-				PC_SourceError(source, "unknown random %s", token.string);
-				trap_PC_FreeSource(source);
+				SourceError(source, "unknown random %s", token.string);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			len = strlen(token.string) + 1;
@@ -1105,14 +1102,14 @@ bot_randomlist_t *BotLoadRandomStrings(char *filename)
 			if (!PC_ExpectTokenString(source, "=") ||
 				!PC_ExpectTokenString(source, "{"))
 			{
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			while(!PC_CheckTokenString(source, "}"))
 			{
 				if (!BotLoadChatMessage(source, chatmessagestring))
 				{
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 				len = strlen(chatmessagestring) + 1;
@@ -1133,7 +1130,7 @@ bot_randomlist_t *BotLoadRandomStrings(char *filename)
 			} //end while
 		} //end while
 		//free the source after one pass
-		trap_PC_FreeSource(source);
+		PC_FreeSource(source);
 	} //end for
 	BotAI_Print(PRT_DEVELOPER, "loaded %s\n", filename);
 	//
@@ -1231,10 +1228,10 @@ void BotFreeMatchPieces(bot_matchpiece_t *matchpieces)
 			for (ms = mp->firststring; ms; ms = nextms)
 			{
 				nextms = ms->next;
-				FreeMemory(ms);
+				trap_HeapFree(ms);
 			} //end for
 		} //end if
-		FreeMemory(mp);
+		trap_HeapFree(mp);
 	} //end for
 } //end of the function BotFreeMatchPieces
 //===========================================================================
@@ -1243,10 +1240,10 @@ void BotFreeMatchPieces(bot_matchpiece_t *matchpieces)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
-bot_matchpiece_t *BotLoadMatchPieces(int source, char *endtoken)
+bot_matchpiece_t *BotLoadMatchPieces(source_t *source, char *endtoken)
 {
 	int lastwasvariable, emptystring;
-	pc_token_t token;
+	token_t token;
 	bot_matchpiece_t *matchpiece, *firstpiece, *lastpiece;
 	bot_matchstring_t *matchstring, *lastmatchstring;
 
@@ -1255,27 +1252,27 @@ bot_matchpiece_t *BotLoadMatchPieces(int source, char *endtoken)
 	//
 	lastwasvariable = qfalse;
 	//
-	while(trap_PC_ReadToken(source, &token))
+	while(PC_ReadToken(source, &token))
 	{
 		if (token.type == TT_NUMBER && (token.subtype & TT_INTEGER))
 		{
 			if (token.intvalue >= MAX_MATCHVARIABLES)
 			{
-				PC_SourceError(source, "can't have more than %d match variables", MAX_MATCHVARIABLES);
-				trap_PC_FreeSource(source);
+				SourceError(source, "can't have more than %d match variables", MAX_MATCHVARIABLES);
+				PC_FreeSource(source);
 				BotFreeMatchPieces(firstpiece);
 				return NULL;
 			} //end if
 			if (lastwasvariable)
 			{
-				PC_SourceError(source, "not allowed to have adjacent variables");
-				trap_PC_FreeSource(source);
+				SourceError(source, "not allowed to have adjacent variables");
+				PC_FreeSource(source);
 				BotFreeMatchPieces(firstpiece);
 				return NULL;
 			} //end if
 			lastwasvariable = qtrue;
 			//
-			matchpiece = (bot_matchpiece_t *) GetClearedHunkMemory(sizeof(bot_matchpiece_t));
+			matchpiece = (bot_matchpiece_t *) trap_HeapMalloc(sizeof(bot_matchpiece_t));
 			matchpiece->type = MT_VARIABLE;
 			matchpiece->variable = token.intvalue;
 			matchpiece->next = NULL;
@@ -1286,7 +1283,7 @@ bot_matchpiece_t *BotLoadMatchPieces(int source, char *endtoken)
 		else if (token.type == TT_STRING)
 		{
 			//
-			matchpiece = (bot_matchpiece_t *) GetClearedHunkMemory(sizeof(bot_matchpiece_t));
+			matchpiece = (bot_matchpiece_t *) trap_HeapMalloc(sizeof(bot_matchpiece_t));
 			matchpiece->firststring = NULL;
 			matchpiece->type = MT_STRING;
 			matchpiece->variable = 0;
@@ -1304,12 +1301,12 @@ bot_matchpiece_t *BotLoadMatchPieces(int source, char *endtoken)
 				{
 					if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 					{
-						trap_PC_FreeSource(source);
+						PC_FreeSource(source);
 						BotFreeMatchPieces(firstpiece);
 						return NULL;
 					} //end if
 				} //end if
-				matchstring = (bot_matchstring_t *) GetClearedHunkMemory(sizeof(bot_matchstring_t) + strlen(token.string) + 1);
+				matchstring = (bot_matchstring_t *) trap_HeapMalloc(sizeof(bot_matchstring_t) + strlen(token.string) + 1);
 				matchstring->string = (char *) matchstring + sizeof(bot_matchstring_t);
 				strcpy(matchstring->string, token.string);
 				if (!strlen(token.string)) emptystring = qtrue;
@@ -1323,15 +1320,15 @@ bot_matchpiece_t *BotLoadMatchPieces(int source, char *endtoken)
 		} //end if
 		else
 		{
-			PC_SourceError(source, "invalid token %s", token.string);
-			trap_PC_FreeSource(source);
+			SourceError(source, "invalid token %s", token.string);
+			PC_FreeSource(source);
 			BotFreeMatchPieces(firstpiece);
 			return NULL;
 		} //end else
 		if (PC_CheckTokenString(source, endtoken)) break;
 		if (!PC_ExpectTokenString(source, ","))
 		{
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			BotFreeMatchPieces(firstpiece);
 			return NULL;
 		} //end if
@@ -1352,7 +1349,7 @@ void BotFreeMatchTemplates(bot_matchtemplate_t *mt)
 	{
 		nextmt = mt->next;
 		BotFreeMatchPieces(mt->first);
-		FreeMemory(mt);
+		trap_HeapFree(mt);
 	} //end for
 } //end of the function BotFreeMatchTemplates
 //===========================================================================
@@ -1363,15 +1360,15 @@ void BotFreeMatchTemplates(bot_matchtemplate_t *mt)
 //===========================================================================
 bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 {
-	int source;
-	pc_token_t token;
+	source_t *source;
+	token_t token;
 	bot_matchtemplate_t *matchtemplate, *matches, *lastmatch;
 	unsigned long int context;
 
 	if ( !*matchfile )
 		return NULL;
 
-	source = trap_PC_LoadSource(matchfile, BOTFILESBASEFOLDER);
+	source = PC_LoadSource(matchfile, BOTFILESBASEFOLDER, NULL);
 	if (!source)
 	{
 		BotAI_Print(PRT_ERROR, "counldn't load %s\n", matchfile);
@@ -1381,13 +1378,13 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 	matches = NULL; //list with matches
 	lastmatch = NULL; //last match in the list
 
-	while(trap_PC_ReadToken(source, &token))
+	while(PC_ReadToken(source, &token))
 	{
 		if (token.type != TT_NUMBER || !(token.subtype & TT_INTEGER))
 		{
-			PC_SourceError(source, "expected integer, found %s", token.string);
+			SourceError(source, "expected integer, found %s", token.string);
 			BotFreeMatchTemplates(matches);
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			return NULL;
 		} //end if
 		//the context
@@ -1396,17 +1393,17 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 		if (!PC_ExpectTokenString(source, "{"))
 		{
 			BotFreeMatchTemplates(matches);
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			return NULL;
 		} //end if
 		//
-		while(trap_PC_ReadToken(source, &token))
+		while(PC_ReadToken(source, &token))
 		{
 			if (!strcmp(token.string, "}")) break;
 			//
-			trap_PC_UnreadToken(source);
+			PC_UnreadToken(source, &token);
 			//
-			matchtemplate = (bot_matchtemplate_t *) GetClearedHunkMemory(sizeof(bot_matchtemplate_t));
+			matchtemplate = (bot_matchtemplate_t *) trap_HeapMalloc(sizeof(bot_matchtemplate_t));
 			matchtemplate->context = context;
 			matchtemplate->next = NULL;
 			//add the match template to the list
@@ -1425,7 +1422,7 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 				!PC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
 			{
 				BotFreeMatchTemplates(matches);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			matchtemplate->type = token.intvalue;
@@ -1434,7 +1431,7 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 				!PC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
 			{
 				BotFreeMatchTemplates(matches);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			matchtemplate->subtype = token.intvalue;
@@ -1443,13 +1440,13 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 				!PC_ExpectTokenString(source, ";"))
 			{
 				BotFreeMatchTemplates(matches);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 		} //end while
 	} //end while
 	//free the source
-	trap_PC_FreeSource(source);
+	PC_FreeSource(source);
 	BotAI_Print(PRT_DEVELOPER, "loaded %s\n", matchfile);
 	//
 	//BotDumpMatchTemplates(matches);
@@ -1699,7 +1696,7 @@ bot_stringlist_t *BotCheckChatMessageIntegrety(char *message, bot_stringlist_t *
 						if (!BotFindStringInList(stringlist, temp))
 						{
 							BotAI_Print(PRT_ERROR, "%s = {\"%s\"} //MISSING RANDOM\r\n", temp, temp);
-							s = GetClearedMemory(sizeof(bot_stringlist_t) + strlen(temp) + 1);
+							s = trap_HeapMalloc(sizeof(bot_stringlist_t) + strlen(temp) + 1);
 							s->string = (char *) s + sizeof(bot_stringlist_t);
 							strcpy(s->string, temp);
 							s->next = stringlist;
@@ -1745,7 +1742,7 @@ void BotCheckInitialChatIntegrety(bot_chat_t *chat)
 	for (s = stringlist; s; s = nexts)
 	{
 		nexts = s->next;
-		FreeMemory(s);
+		trap_HeapFree(s);
 	} //end for
 } //end of the function BotCheckInitialChatIntegrety
 //===========================================================================
@@ -1771,7 +1768,7 @@ void BotCheckReplyChatIntegrety(bot_replychat_t *replychat)
 	for (s = stringlist; s; s = nexts)
 	{
 		nexts = s->next;
-		FreeMemory(s);
+		trap_HeapFree(s);
 	} //end for
 } //end of the function BotCheckReplyChatIntegrety
 //===========================================================================
@@ -1850,15 +1847,15 @@ void BotFreeReplyChat(bot_replychat_t *replychat)
 		{
 			nextkey = key->next;
 			if (key->match) BotFreeMatchPieces(key->match);
-			if (key->string) FreeMemory(key->string);
-			FreeMemory(key);
+			if (key->string) trap_HeapFree(key->string);
+			trap_HeapFree(key);
 		} //end for
 		for (cm = rp->firstchatmessage; cm; cm = nextcm)
 		{
 			nextcm = cm->next;
-			FreeMemory(cm);
+			trap_HeapFree(cm);
 		} //end for
-		FreeMemory(rp);
+		trap_HeapFree(rp);
 	} //end for
 } //end of the function BotFreeReplyChat
 //===========================================================================
@@ -1867,7 +1864,7 @@ void BotFreeReplyChat(bot_replychat_t *replychat)
 // Returns:				-
 // Changes Globals:		-
 //===========================================================================
-void BotCheckValidReplyChatKeySet(int source, bot_replychatkey_t *keys)
+void BotCheckValidReplyChatKeySet(source_t *source, bot_replychatkey_t *keys)
 {
 	int allprefixed, hasvariableskey, hasstringkey;
 	bot_matchpiece_t *m;
@@ -1922,7 +1919,7 @@ void BotCheckValidReplyChatKeySet(int source, bot_replychatkey_t *keys)
 					} //end for
 					if (!m)
 					{
-						PC_SourceWarning(source, "one of the match templates does not "
+						SourceWarning(source, "one of the match templates does not "
 										"leave space for the key %s with the & prefix", key->string);
 					} //end if
 				} //end if
@@ -1938,7 +1935,7 @@ void BotCheckValidReplyChatKeySet(int source, bot_replychatkey_t *keys)
 				{
 					if (StringContains(key2->string, key->string, qfalse) != -1)
 					{
-						PC_SourceWarning(source, "the key %s with prefix ! is inside the key %s", key->string, key2->string);
+						SourceWarning(source, "the key %s with prefix ! is inside the key %s", key->string, key2->string);
 					} //end if
 				} //end if
 				else if (key2->flags & RCKFL_VARIABLES)
@@ -1951,7 +1948,7 @@ void BotCheckValidReplyChatKeySet(int source, bot_replychatkey_t *keys)
 							{
 								if (StringContains(ms->string, key->string, qfalse) != -1)
 								{
-									PC_SourceWarning(source, "the key %s with prefix ! is inside "
+									SourceWarning(source, "the key %s with prefix ! is inside "
 												"the match template string %s", key->string, ms->string);
 								} //end if
 							} //end for
@@ -1961,10 +1958,10 @@ void BotCheckValidReplyChatKeySet(int source, bot_replychatkey_t *keys)
 			} //end for
 		} //end if
 	} //end for
-	if (allprefixed) PC_SourceWarning(source, "all keys have a & or ! prefix");
+	if (allprefixed) SourceWarning(source, "all keys have a & or ! prefix");
 	if (hasvariableskey && hasstringkey)
 	{
-		PC_SourceWarning(source, "variables from the match template(s) could be "
+		SourceWarning(source, "variables from the match template(s) could be "
 								"invalid when outputting one of the chat messages");
 	} //end if
 } //end of the function BotCheckValidReplyChatKeySet
@@ -1978,8 +1975,8 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 {
 	char chatmessagestring[MAX_MESSAGE_SIZE];
 	char namebuffer[MAX_MESSAGE_SIZE];
-	int source;
-	pc_token_t token;
+	source_t *source;
+	token_t token;
 	bot_chatmessage_t *chatmessage = NULL;
 	bot_replychat_t *replychat, *replychatlist;
 	bot_replychatkey_t *key;
@@ -1987,7 +1984,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 	if ( !*filename )
 		return NULL;
 
-	source = trap_PC_LoadSource(filename, BOTFILESBASEFOLDER);
+	source = PC_LoadSource(filename, BOTFILESBASEFOLDER, NULL);
 	if (!source)
 	{
 		BotAI_Print(PRT_ERROR, "counldn't load %s\n", filename);
@@ -1996,17 +1993,17 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 	//
 	replychatlist = NULL;
 	//
-	while(trap_PC_ReadToken(source, &token))
+	while(PC_ReadToken(source, &token))
 	{
 		if (strcmp(token.string, "["))
 		{
-			PC_SourceError(source, "expected [, found %s", token.string);
+			SourceError(source, "expected [, found %s", token.string);
 			BotFreeReplyChat(replychatlist);
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			return NULL;
 		} //end if
 		//
-		replychat = GetClearedHunkMemory(sizeof(bot_replychat_t));
+		replychat = trap_HeapMalloc(sizeof(bot_replychat_t));
 		replychat->keys = NULL;
 		replychat->next = replychatlist;
 		replychatlist = replychat;
@@ -2014,7 +2011,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 		do
 		{
 			//allocate a key
-			key = (bot_replychatkey_t *) GetClearedHunkMemory(sizeof(bot_replychatkey_t));
+			key = (bot_replychatkey_t *) trap_HeapMalloc(sizeof(bot_replychatkey_t));
 			key->flags = 0;
 			key->string = NULL;
 			key->match = NULL;
@@ -2047,7 +2044,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 					if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 					{
 						BotFreeReplyChat(replychatlist);
-						trap_PC_FreeSource(source);
+						PC_FreeSource(source);
 						return NULL;
 					} //end if
 					if (strlen(namebuffer)) strcat(namebuffer, "\\");
@@ -2056,10 +2053,10 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 				if (!PC_ExpectTokenString(source, ">"))
 				{
 					BotFreeReplyChat(replychatlist);
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
-				key->string = (char *) GetClearedHunkMemory(strlen(namebuffer) + 1);
+				key->string = (char *) trap_HeapMalloc(strlen(namebuffer) + 1);
 				strcpy(key->string, namebuffer);
 			} //end else if
 			else //normal string key
@@ -2068,10 +2065,10 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 				if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 				{
 					BotFreeReplyChat(replychatlist);
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
-				key->string = (char *) GetClearedHunkMemory(strlen(token.string) + 1);
+				key->string = (char *) trap_HeapMalloc(strlen(token.string) + 1);
 				strcpy(key->string, token.string);
 			} //end else
 			//
@@ -2084,7 +2081,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 			!PC_ExpectTokenType(source, TT_NUMBER, 0, &token))
 		{
 			BotFreeReplyChat(replychatlist);
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			return NULL;
 		} //end if
 		replychat->priority = token.floatvalue;
@@ -2092,7 +2089,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 		if (!PC_ExpectTokenString(source, "{"))
 		{
 			BotFreeReplyChat(replychatlist);
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			return NULL;
 		} //end if
 		replychat->numchatmessages = 0;
@@ -2102,10 +2099,10 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 			if (!BotLoadChatMessage(source, chatmessagestring))
 			{
 				BotFreeReplyChat(replychatlist);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
-			chatmessage = (bot_chatmessage_t *) GetClearedHunkMemory(sizeof(bot_chatmessage_t) + strlen(chatmessagestring) + 1);
+			chatmessage = (bot_chatmessage_t *) trap_HeapMalloc(sizeof(bot_chatmessage_t) + strlen(chatmessagestring) + 1);
 			chatmessage->chatmessage = (char *) chatmessage + sizeof(bot_chatmessage_t);
 			strcpy(chatmessage->chatmessage, chatmessagestring);
 			chatmessage->time = -2*CHATMESSAGE_RECENTTIME;
@@ -2115,7 +2112,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 			replychat->numchatmessages++;
 		} //end while
 	} //end while
-	trap_PC_FreeSource(source);
+	PC_FreeSource(source);
 	BotAI_Print(PRT_DEVELOPER, "loaded %s\n", filename);
 	//
 	//BotDumpReplyChat(replychatlist);
@@ -2166,8 +2163,8 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 	int pass, foundchat, indent, size;
 	char *ptr = NULL;
 	char chatmessagestring[MAX_MESSAGE_SIZE];
-	int source;
-	pc_token_t token;
+	source_t *source;
+	token_t token;
 	bot_chat_t *chat = NULL;
 	bot_chattype_t *chattype = NULL;
 	bot_chatmessage_t *chatmessage = NULL;
@@ -2183,9 +2180,9 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 	for (pass = 0; pass < 2; pass++)
 	{
 		//allocate memory
-		if (pass && size) ptr = (char *) GetClearedMemory(size);
+		if (pass && size) ptr = (char *) trap_HeapMalloc(size);
 		//load the source file
-		source = trap_PC_LoadSource(chatfile, BOTFILESBASEFOLDER);
+		source = PC_LoadSource(chatfile, BOTFILESBASEFOLDER, NULL);
 		if (!source)
 		{
 			BotAI_Print(PRT_ERROR, "counldn't load %s\n", chatfile);
@@ -2199,19 +2196,19 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 		} //end if
 		size = sizeof(bot_chat_t);
 		//
-		while(trap_PC_ReadToken(source, &token))
+		while(PC_ReadToken(source, &token))
 		{
 			if (!strcmp(token.string, "chat"))
 			{
 				if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 				{
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 				//after the chat name we expect an opening brace
 				if (!PC_ExpectTokenString(source, "{"))
 				{
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 				//if the chat name is found
@@ -2223,21 +2220,21 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 					{
 						if (!PC_ExpectAnyToken(source, &token))
 						{
-							trap_PC_FreeSource(source);
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 						if (!strcmp(token.string, "}")) break;
 						if (strcmp(token.string, "type"))
 						{
-							PC_SourceError(source, "expected type found %s", token.string);
-							trap_PC_FreeSource(source);
+							SourceError(source, "expected type found %s", token.string);
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 						//expect the chat type name
 						if (!PC_ExpectTokenType(source, TT_STRING, 0, &token) ||
 							!PC_ExpectTokenString(source, "{"))
 						{
-							trap_PC_FreeSource(source);
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 						if (pass && ptr)
@@ -2258,7 +2255,7 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 							size_t len;
 							if (!BotLoadChatMessage(source, chatmessagestring))
 							{
-								trap_PC_FreeSource(source);
+								PC_FreeSource(source);
 								return NULL;
 							} //end if
 							len = strlen(chatmessagestring) + 1;
@@ -2289,7 +2286,7 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 					{
 						if (!PC_ExpectAnyToken(source, &token))
 						{
-							trap_PC_FreeSource(source);
+							PC_FreeSource(source);
 							return NULL;
 						} //end if
 						if (!strcmp(token.string, "{")) indent++;
@@ -2299,13 +2296,13 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 			} //end if
 			else
 			{
-				PC_SourceError(source, "unknown definition %s", token.string);
-				trap_PC_FreeSource(source);
+				SourceError(source, "unknown definition %s", token.string);
+				PC_FreeSource(source);
 				return NULL;
 			} //end else
 		} //end while
 		//free the source
-		trap_PC_FreeSource(source);
+		PC_FreeSource(source);
 		//if the requested character is not found
 		if (!foundchat)
 		{
@@ -2339,7 +2336,7 @@ void BotFreeChatFile(int chatstate)
 
 	cs = BotChatStateFromHandle(chatstate);
 	if (!cs) return;
-	if (cs->chat) FreeMemory(cs->chat);
+	if (cs->chat) trap_HeapFree(cs->chat);
 	cs->chat = NULL;
 } //end of the function BotFreeChatFile
 //===========================================================================
@@ -2392,7 +2389,7 @@ int BotLoadChatFile(int chatstate, char *chatfile, char *chatname)
 	} //end if
 	if (!bot_reloadcharacters.integer)
 	{
-		ichatdata[avail] = GetClearedMemory( sizeof(bot_ichatdata_t) );
+		ichatdata[avail] = trap_HeapMalloc( sizeof(bot_ichatdata_t) );
 		ichatdata[avail]->chat = cs->chat;
 		Q_strncpyz( ichatdata[avail]->chatname, chatname, sizeof(ichatdata[avail]->chatname) );
 		Q_strncpyz( ichatdata[avail]->filename, chatfile, sizeof(ichatdata[avail]->filename) );
@@ -3049,7 +3046,7 @@ int BotAllocChatState(void)
 	{
 		if (!botchatstates[i])
 		{
-			botchatstates[i] = GetClearedMemory(sizeof(bot_chatstate_t));
+			botchatstates[i] = trap_HeapMalloc(sizeof(bot_chatstate_t));
 			return i;
 		} //end if
 	} //end for
@@ -3086,7 +3083,7 @@ void BotFreeChatState(int handle)
 		//remove the console message
 		BotRemoveConsoleMessage(handle, h);
 	} //end for
-	FreeMemory(botchatstates[handle]);
+	trap_HeapFree(botchatstates[handle]);
 	botchatstates[handle] = NULL;
 } //end of the function BotFreeChatState
 //===========================================================================
@@ -3140,8 +3137,8 @@ void BotShutdownChatAI(void)
 	{
 		if (ichatdata[i])
 		{
-			FreeMemory(ichatdata[i]->chat);
-			FreeMemory(ichatdata[i]);
+			trap_HeapFree(ichatdata[i]->chat);
+			trap_HeapFree(ichatdata[i]);
 			ichatdata[i] = NULL;
 		} //end if
 	} //end for
@@ -3150,9 +3147,9 @@ void BotShutdownChatAI(void)
 	freeconsolemessages = NULL;
 	if (matchtemplates) BotFreeMatchTemplates(matchtemplates);
 	matchtemplates = NULL;
-	if (randomstrings) FreeMemory(randomstrings);
+	if (randomstrings) trap_HeapFree(randomstrings);
 	randomstrings = NULL;
-	if (synonyms) FreeMemory(synonyms);
+	if (synonyms) trap_HeapFree(synonyms);
 	synonyms = NULL;
 	if (replychats) BotFreeReplyChat(replychats);
 	replychats = NULL;

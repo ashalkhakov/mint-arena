@@ -113,7 +113,7 @@ void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	}
 
 	// unlink to make sure it can't possibly interfere with G_KillBox
-	trap_UnlinkEntity (player);
+	G_UnlinkEntity (player);
 
 	VectorCopy ( origin, player->player->ps.origin );
 	player->player->ps.origin[2] += 1;
@@ -140,7 +140,7 @@ void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	VectorCopy( player->player->ps.origin, player->r.currentOrigin );
 
 	if ( player->player->sess.sessionTeam != TEAM_SPECTATOR ) {
-		trap_LinkEntity (player);
+		G_LinkEntity (player);
 	}
 
 	// we don't want players being backward-reconciled back through teleporters
@@ -168,7 +168,7 @@ void SP_misc_model( gentity_t *ent ) {
 	ent->s.modelindex = G_ModelIndex( ent->model );
 	VectorSet (ent->s.mins, -16, -16, -16);
 	VectorSet (ent->s.maxs, 16, 16, 16);
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 
 	G_SetOrigin( ent, ent->s.origin );
 	VectorCopy( ent->s.angles, ent->s.apos.trBase );
@@ -223,7 +223,7 @@ void SP_misc_vis_dummy( gentity_t *ent ) {
 
 	ent->r.svFlags |= SVF_VISDUMMY;
 	G_SetOrigin( ent, ent->s.origin );
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 
 	ent->think = locateMaster;
 	ent->nextthink = level.time + 1000;
@@ -244,7 +244,7 @@ void SP_misc_vis_dummy_multiple( gentity_t *ent ) {
 
 	ent->r.svFlags |= SVF_VISDUMMY_MULTIPLE;
 	G_SetOrigin( ent, ent->s.origin );
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 
 }
 
@@ -303,7 +303,7 @@ This must be within 64 world units of the surface!
 void SP_misc_portal_surface(gentity_t *ent) {
 	VectorClear( ent->s.mins );
 	VectorClear( ent->s.maxs );
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 
 	ent->r.svFlags = SVF_PORTAL;
 	ent->s.eType = ET_PORTAL;
@@ -325,7 +325,7 @@ void SP_misc_portal_camera(gentity_t *ent) {
 
 	VectorClear( ent->s.mins );
 	VectorClear( ent->s.maxs );
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 
 	G_SpawnFloat( "roll", "0", &roll );
 
@@ -404,7 +404,7 @@ void InitShooter( gentity_t *ent, int weapon ) {
 		ent->think = InitShooter_Finish;
 		ent->nextthink = level.time + 500;
 	}
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 /*QUAKED shooter_rocket (1 0 0) (-16 -16 -16) (16 16 16)
@@ -444,9 +444,9 @@ use_corona
 */
 void use_corona( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 	if ( ent->r.linked ) {
-		trap_UnlinkEntity( ent );
+		G_UnlinkEntity( ent );
 	} else {
-		trap_LinkEntity( ent );
+		G_LinkEntity( ent );
 	}
 }
 
@@ -479,7 +479,7 @@ void SP_corona( gentity_t *ent ) {
 	ent->use = use_corona;
 
 	if ( !( ent->spawnflags & 1 ) ) {
-		trap_LinkEntity( ent );
+		G_LinkEntity( ent );
 	}
 }
 
@@ -568,7 +568,7 @@ void shutoff_dlight( gentity_t *ent ) {
 		return;
 	}
 
-	trap_UnlinkEntity( ent );
+	G_UnlinkEntity( ent );
 	ent->think = 0;
 	ent->nextthink = 0;
 }
@@ -581,9 +581,9 @@ use_dlight
 */
 void use_dlight( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 	if ( ent->r.linked ) {
-		trap_UnlinkEntity( ent );
+		G_UnlinkEntity( ent );
 	} else {
-		trap_LinkEntity( ent );
+		G_LinkEntity( ent );
 
 		if ( ent->spawnflags & 4 ) {   // ONETIME
 			ent->think = shutoff_dlight;
@@ -657,7 +657,7 @@ void SP_dlight( gentity_t *ent ) {
 	ent->use = use_dlight;
 
 	if ( !( ent->spawnflags & 2 ) ) {
-		trap_LinkEntity( ent );
+		G_LinkEntity( ent );
 	}
 }
 
@@ -695,7 +695,7 @@ void DropPortalDestination( gentity_t *player ) {
 	ent->think = G_FreeEntity;
 	ent->nextthink = level.time + 2 * 60 * 1000;
 
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 
 	player->player->portalID = ++level.portalSequence;
 	ent->count = player->player->portalID;
@@ -772,7 +772,7 @@ void DropPortalSource( gentity_t *player ) {
 	ent->health = 200;
 	ent->die = PortalDie;
 
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 
 	ent->count = player->player->portalID;
 	player->player->portalID = 0;

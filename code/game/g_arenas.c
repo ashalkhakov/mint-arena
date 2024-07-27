@@ -199,7 +199,7 @@ static gentity_t *SpawnModelOnVictoryPad( gentity_t *pad, vec3_t offset, gentity
 
 	G_SetOrigin( body, vec );
 
-	trap_LinkEntity (body);
+	G_LinkEntity (body);
 
 	body->count = place;
 
@@ -319,7 +319,7 @@ static gentity_t *SpawnPodium( void ) {
 
 	VectorSubtract( level.intermission_origin, podium->r.currentOrigin, vec );
 	podium->s.apos.trBase[YAW] = vectoyaw( vec );
-	trap_LinkEntity (podium);
+	G_LinkEntity (podium);
 
 	podium->think = PodiumPlacementThink;
 	podium->nextthink = level.time + 100;

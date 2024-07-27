@@ -112,7 +112,7 @@ int Pickup_Powerup( gentity_t *ent, gentity_t *other ) {
 		}
 
 		// if not line of sight, no sound
-		trap_Trace( &tr, player->ps.origin, NULL, NULL, ent->s.pos.trBase, ENTITYNUM_NONE, CONTENTS_SOLID );
+		G_Trace( &tr, player->ps.origin, NULL, NULL, ent->s.pos.trBase, ENTITYNUM_NONE, CONTENTS_SOLID, TT_AABB );
 		if ( tr.fraction != 1.0 ) {
 			continue;
 		}
@@ -350,7 +350,7 @@ void RespawnItem( gentity_t *ent ) {
 	ent->s.contents = CONTENTS_TRIGGER;
 	ent->s.eFlags &= ~EF_NODRAW;
 	ent->r.svFlags &= ~SVF_NOCLIENT;
-	trap_LinkEntity (ent);
+    G_LinkEntity (ent);
 
 	if ( ent->item->giType == IT_POWERUP ) {
 		// play powerup spawn sound to all players
@@ -527,7 +527,7 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 		ent->nextthink = level.time + respawn * 1000;
 		ent->think = RespawnItem;
 	}
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 
@@ -585,7 +585,7 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity ) {
 
 	dropped->flags = FL_DROPPED_ITEM;
 
-	trap_LinkEntity (dropped);
+	G_LinkEntity (dropped);
 
 	return dropped;
 }
@@ -663,7 +663,7 @@ void FinishSpawningItem( gentity_t *ent ) {
 	} else {
 		// drop to floor
 		VectorSet( dest, ent->s.origin[0], ent->s.origin[1], ent->s.origin[2] - 4096 );
-		trap_Trace( &tr, ent->s.origin, ent->s.mins, ent->s.maxs, dest, ent->s.number, MASK_SOLID );
+		G_Trace( &tr, ent->s.origin, ent->s.mins, ent->s.maxs, dest, ent->s.number, MASK_SOLID, TT_AABB );
 		if ( tr.startsolid ) {
 			G_Printf ("FinishSpawningItem: %s startsolid at %s\n", ent->classname, vtos(ent->s.origin));
 			G_FreeEntity( ent );
@@ -696,7 +696,7 @@ void FinishSpawningItem( gentity_t *ent ) {
 	}
 
 
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 }
 
 
@@ -984,8 +984,8 @@ void G_RunItem( gentity_t *ent ) {
 	} else {
 		mask = MASK_PLAYERSOLID & ~CONTENTS_BODY;//MASK_SOLID;
 	}
-	trap_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, origin, 
-		ent->r.ownerNum, mask );
+	G_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, origin, 
+		ent->r.ownerNum, mask, TT_AABB );
 
 	VectorCopy( tr.endpos, ent->r.currentOrigin );
 
@@ -993,7 +993,7 @@ void G_RunItem( gentity_t *ent ) {
 		tr.fraction = 0;
 	}
 
-	trap_LinkEntity( ent );	// FIXME: avoid this for stationary?
+	G_LinkEntity( ent );	// FIXME: avoid this for stationary?
 
 	// check think function
 	G_RunThink( ent );
@@ -1003,7 +1003,7 @@ void G_RunItem( gentity_t *ent ) {
 	}
 
 	// if it is in a nodrop volume, remove it
-	contents = trap_PointContents( ent->r.currentOrigin, -1 );
+	contents = G_PointContents( ent->r.currentOrigin, -1 );
 	if ( contents & CONTENTS_NODROP ) {
 		if (ent->item && ent->item->giType == IT_TEAM) {
 			Team_FreeEntity(ent);

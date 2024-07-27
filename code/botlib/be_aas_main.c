@@ -37,9 +37,10 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "l_memory.h"
-#include "l_libvar.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/l_memory.h"
+#include "../idlib/l_libvar.h"
+#include "../idlib/idlib_local.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -169,12 +170,14 @@ int AAS_StartFrame(float time)
 		} //end if
 		if (LibVarGetValue("showmemoryusage"))
 		{
-			PrintUsedMemorySize();
+            // TODO: implement
+			//PrintUsedMemorySize();
 			LibVarSet("showmemoryusage", "0");
 		} //end if
 		if (LibVarGetValue("memorydump"))
 		{
-			PrintMemoryLabels();
+            // TODO: implement
+			//PrintMemoryLabels();
 			LibVarSet("memorydump", "0");
 		} //end if
 	} //end if
@@ -299,8 +302,9 @@ int AAS_Setup(void)
 	// as soon as it's set to 1 the routing cache will be saved
 	saveroutingcache = LibVar("saveroutingcache", "0");
 	//allocate memory for the entities
-	if (aasworld.entities) FreeMemory(aasworld.entities);
-	aasworld.entities = (aas_entity_t *) GetClearedHunkMemory(aasworld.maxentities * sizeof(aas_entity_t));
+	if (aasworld.entities) ii.FreeMemory(aasworld.entities);
+	aasworld.entities = (aas_entity_t *) ii.HunkAlloc(aasworld.maxentities * sizeof(aas_entity_t));
+    memset(aasworld.entities, 0, aasworld.maxentities * sizeof(aas_entity_t));
 	//invalidate all the entities
 	AAS_InvalidateEntities();
 	//force some recalculations
@@ -329,7 +333,7 @@ void AAS_Shutdown(void)
 	//free the aas data
 	AAS_DumpAASData();
 	//free the entities
-	if (aasworld.entities) FreeMemory(aasworld.entities);
+	if (aasworld.entities) ii.FreeMemory(aasworld.entities);
 	//clear the aasworld structure
 	Com_Memset(&aasworld, 0, sizeof(aas_t));
 	//aas has not been initialized

@@ -94,7 +94,7 @@ qboolean SpotWouldTelefrag( gentity_t *spot ) {
 
 	VectorAdd( spot->s.origin, playerMins, mins );
 	VectorAdd( spot->s.origin, playerMaxs, maxs );
-	num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
+	num = G_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
 
 	for (i=0 ; i<num ; i++) {
 		hit = &g_entities[touch[i]];
@@ -389,7 +389,7 @@ The body ques are never actually freed, they are just unlinked
 =============
 */
 void BodyQueFree( gentity_t *ent ) {
-	trap_UnlinkEntity( ent );
+	G_UnlinkEntity( ent );
 	ent->physicsObject = qfalse;
 }
 
@@ -409,10 +409,10 @@ void CopyToBodyQue( gentity_t *ent ) {
 	gentity_t		*body;
 	int			contents;
 
-	trap_UnlinkEntity (ent);
+	G_UnlinkEntity (ent);
 
 	// if player is in a nodrop area, don't leave the body
-	contents = trap_PointContents( ent->s.origin, -1 );
+	contents = G_PointContents( ent->s.origin, -1 );
 	if ( contents & CONTENTS_NODROP ) {
 		return;
 	}
@@ -511,7 +511,7 @@ void CopyToBodyQue( gentity_t *ent ) {
 
 
 	VectorCopy ( body->s.pos.trBase, body->r.currentOrigin );
-	trap_LinkEntity (body);
+	G_LinkEntity (body);
 }
 
 //======================================================================
@@ -993,7 +993,7 @@ void PlayerBegin( int playerNum ) {
 	player = level.players + playerNum;
 
 	if ( ent->r.linked ) {
-		trap_UnlinkEntity( ent );
+		G_UnlinkEntity( ent );
 	}
 	G_InitGentity( ent );
 	ent->touch = 0;
@@ -1234,7 +1234,7 @@ void PlayerSpawn(gentity_t *ent) {
 			tent = G_TempEntity(ent->player->ps.origin, EV_PLAYER_TELEPORT_IN);
 			tent->s.playerNum = ent->s.playerNum;
 
-			trap_LinkEntity (ent);
+			G_LinkEntity (ent);
 		}
 	} else {
 		// move players to intermission
@@ -1343,7 +1343,7 @@ qboolean PlayerDisconnect( int playerNum, qboolean force ) {
 		level.intermissiontime = 0;
 	}
 
-	trap_UnlinkEntity (ent);
+	G_UnlinkEntity (ent);
 	ent->s.modelindex = 0;
 	ent->inuse = qfalse;
 	ent->classname = "disconnected";

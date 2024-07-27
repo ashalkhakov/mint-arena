@@ -27,7 +27,7 @@ terms, you may contact in writing id Software LLC, c/o ZeniMax Media Inc.,
 Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
-
+#if 0
 /*****************************************************************************
  * name:		l_memory.h
  *
@@ -59,15 +59,10 @@ void *GetMemory(unsigned long size);
 //allocate a memory block of the given size and clear it
 void *GetClearedMemory(unsigned long size);
 //
-#ifdef BSPC
-#define GetHunkMemory GetMemory
-#define GetClearedHunkMemory GetClearedMemory
-#else
 //allocate a memory block of the given size
 void *GetHunkMemory(unsigned long size);
 //allocate a memory block of the given size and clear it
 void *GetClearedHunkMemory(unsigned long size);
-#endif
 #endif
 
 //free the given memory block
@@ -82,3 +77,5 @@ void PrintMemoryLabels(void);
 int MemoryByteSize(void *ptr);
 //free all allocated memory
 void DumpMemory(void);
+
+#endif

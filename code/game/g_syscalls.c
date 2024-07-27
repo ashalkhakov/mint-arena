@@ -206,31 +206,6 @@ void trap_GetServerinfo( char *buffer, int bufferSize ) {
 	syscall( G_GET_SERVERINFO, buffer, bufferSize );
 }
 
-void trap_GetBrushBounds( int modelindex, vec3_t mins, vec3_t maxs ) {
-	syscall( G_GET_BRUSH_BOUNDS, modelindex, mins, maxs );
-}
-
-void trap_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask ) {
-	syscall( G_TRACE, results, start, mins, maxs, end, passEntityNum, contentmask );
-}
-
-void trap_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask ) {
-	syscall( G_TRACECAPSULE, results, start, mins, maxs, end, passEntityNum, contentmask );
-}
-
-void trap_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask ) {
-	syscall( G_CLIPTOENTITIES, results, start, mins, maxs, end, passEntityNum, contentmask );
-}
-
-void trap_ClipToEntitiesCapsule( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask ) {
-	syscall( G_CLIPTOENTITIESCAPSULE, results, start, mins, maxs, end, passEntityNum, contentmask );
-}
-
-int trap_PointContents( const vec3_t point, int passEntityNum ) {
-	return syscall( G_POINT_CONTENTS, point, passEntityNum );
-}
-
-
 qboolean trap_InPVS( const vec3_t p1, const vec3_t p2 ) {
 	return syscall( G_IN_PVS, p1, p2 );
 }
@@ -253,18 +228,6 @@ void trap_LinkEntity( gentity_t *ent ) {
 
 void trap_UnlinkEntity( gentity_t *ent ) {
 	syscall( G_UNLINKENTITY, ent );
-}
-
-int trap_EntitiesInBox( const vec3_t mins, const vec3_t maxs, int *list, int maxcount ) {
-	return syscall( G_ENTITIES_IN_BOX, mins, maxs, list, maxcount );
-}
-
-qboolean trap_EntityContact( const vec3_t mins, const vec3_t maxs, const gentity_t *ent ) {
-	return syscall( G_ENTITY_CONTACT, mins, maxs, ent );
-}
-
-qboolean trap_EntityContactCapsule( const vec3_t mins, const vec3_t maxs, const gentity_t *ent ) {
-	return syscall( G_ENTITY_CONTACTCAPSULE, mins, maxs, ent );
 }
 
 int trap_BotAllocateClient( void ) {
@@ -363,43 +326,6 @@ void trap_BotUserCommand(int playerNum, usercmd_t *ucmd) {
 	syscall( G_BOT_USER_COMMAND, playerNum, ucmd );
 }
 
-
-int trap_PC_AddGlobalDefine( const char *define ) {
-	return syscall( G_PC_ADD_GLOBAL_DEFINE, define );
-}
-
-int trap_PC_RemoveGlobalDefine( const char *define ) {
-	return syscall( G_PC_REMOVE_GLOBAL_DEFINE, define );
-}
-
-void trap_PC_RemoveAllGlobalDefines( void ) {
-	syscall( G_PC_REMOVE_ALL_GLOBAL_DEFINES );
-}
-
-int trap_PC_LoadSource( const char *filename, const char *basepath ) {
-	return syscall( G_PC_LOAD_SOURCE, filename, basepath );
-}
-
-int trap_PC_FreeSource( int handle ) {
-	return syscall( G_PC_FREE_SOURCE, handle );
-}
-
-int trap_PC_AddDefine( int handle, const char *define ) {
-	return syscall( G_PC_ADD_DEFINE, handle, define );
-}
-
-int trap_PC_ReadToken( int handle, pc_token_t *pc_token ) {
-	return syscall( G_PC_READ_TOKEN, handle, pc_token );
-}
-
-void trap_PC_UnreadToken( int handle ) {
-	syscall( G_PC_UNREAD_TOKEN, handle );
-}
-
-int trap_PC_SourceFileAndLine( int handle, char *filename, int *line ) {
-	return syscall( G_PC_SOURCE_FILE_AND_LINE, handle, filename, line );
-}
-
 void *trap_HeapMalloc( int size ) {
 	return (void *)syscall( G_HEAP_MALLOC, size );
 }
@@ -422,4 +348,100 @@ void trap_Field_CompleteCommand( const char *cmd, qboolean doCommands, qboolean 
 
 void	trap_Field_CompleteList( const char *list ) {
 	syscall( G_FIELD_COMPLETELIST, list );
+}
+
+
+// Gets the clip handle for a model.
+cmHandle_t	trap_CM_LoadModel( const char *modelName, const qboolean precache ) {
+    return syscall( G_CM_LOADMODEL, modelName, precache );
+}
+// Sets up a trace model for collision with other trace models.
+cmHandle_t	trap_CM_SetupTrmModel( const traceModel_t *trm, qhandle_t material ) {
+    return syscall( G_CM_SETUPTRMMODEL, trm, material );
+}
+// Creates a trace model from a collision model, returns true if succesfull.
+qboolean    trap_CM_TrmFromModel( const char *modelName, traceModel_t *trm ) {
+    return syscall( G_CM_TRMFROMMODEL, modelName, trm );
+}
+
+// Gets the name of a model.
+void trap_CM_GetModelName( cmHandle_t model, char *buffer, int bufferSize ) {
+    syscall( G_CM_GETMODELNAME, model, buffer, bufferSize );
+}
+// Gets the bounds of a model.
+qboolean	trap_CM_GetModelBounds( cmHandle_t model, vec3_t bounds[2] ) {
+    return syscall( G_CM_GETMODELBOUNDS, model, bounds );
+}
+// Gets all contents flags of brushes and polygons of a model ored together.
+qboolean	trap_CM_GetModelContents( cmHandle_t model, int *contents ) {
+    return syscall( G_CM_GETMODELCONTENTS, model, contents );
+}
+// Gets a vertex of a model.
+qboolean	trap_CM_GetModelVertex( cmHandle_t model, int vertexNum, vec3_t vertex ) {
+    return syscall( G_CM_GETMODELVERTEX, model, vertexNum, vertex );
+}
+// Gets an edge of a model.
+qboolean	trap_CM_GetModelEdge( cmHandle_t model, int edgeNum, vec3_t start, vec3_t end ) {
+    return syscall( G_CM_GETMODELEDGE, model, edgeNum, start, end );
+}
+// Gets a polygon of a model.
+qboolean	trap_CM_GetModelPolygon( cmHandle_t model, int polygonNum, fixedWinding_t *winding ) {
+    return syscall( G_CM_GETMODELPOLYGON, model, polygonNum, winding );
+}
+
+// Translates a trace model and reports the first collision if any.
+void		trap_CM_Translation( cm_trace_t *results, const vec3_t start, const vec3_t end,
+                                const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                                cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+    syscall( G_CM_TRANSLATION, results, start, end, trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+// Rotates a trace model and reports the first collision if any.
+void		trap_CM_Rotation( cm_trace_t *results, const vec3_t start, const rotation_t *rotation,
+                                const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                                cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+    syscall( G_CM_ROTATION, results, start, rotation, trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+// Returns the contents touched by the trace model or 0 if the trace model is in free space.
+int			trap_CM_Contents( const vec3_t start,
+                            const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                            cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+    return syscall( G_CM_CONTENTS, start, trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+// Stores all contact points of the trace model with the model, returns the number of contacts.
+int			trap_CM_Contacts( contactInfo_t *contacts, const int maxContacts, const vec3_t start, const vec6_t dir, const float depth,
+                            const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                            cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+    return syscall( G_CM_CONTACTS, contacts, maxContacts, start, dir, PASSFLOAT(depth), trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+
+// Tests collision detection.
+void		trap_CM_DebugOutput( const vec3_t origin ) {
+    syscall( G_CM_DEBUGOUTPUT, origin );
+}
+// Draws a model.
+void		trap_CM_DrawModel( cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3],
+                                                const vec3_t viewOrigin, const float radius ) {
+    syscall( G_CM_DRAWMODEL, model, modelOrigin, modelAxis, viewOrigin, PASSFLOAT(radius) );
+}
+
+// Prints model information, use -1 handle for accumulated model info.
+void		trap_CM_ModelInfo( cmHandle_t model ) {
+    syscall( G_CM_MODELINFO, model );
+}
+// Lists all loaded models.
+void		trap_CM_ListModels( void ) {
+    syscall( G_CM_LISTMODELS );
+}
+
+qhandle_t   trap_CM_RegisterMaterial( const char *name ) {
+    return syscall( G_CM_REGISTERMATERIAL, name );
+}
+void		trap_CM_GetMaterialName( qhandle_t hShader, char *buffer, int bufferSize ) {
+    syscall( G_CM_GETMATERIALNAME, hShader, buffer, bufferSize );
+}
+int			trap_CM_GetMaterialContentFlags( qhandle_t material ) {
+    return syscall( G_CM_GETMATERIALCONTENTFLAGS, material );
+}
+int         trap_CM_GetMaterialSurfaceFlags( qhandle_t material ) {
+    return syscall( G_CM_GETMATERIALSURFACEFLAGS, material );
 }

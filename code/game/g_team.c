@@ -1344,7 +1344,7 @@ gentity_t *SpawnObelisk( vec3_t origin, vec3_t mins, vec3_t maxs, int team ) {
 
 	ent->spawnflags = team;
 
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 
 	return ent;
 }
@@ -1369,7 +1369,7 @@ void ObeliskInit( gentity_t *ent ) {
 
 		// drop to floor
 		VectorSet( dest, ent->s.origin[0], ent->s.origin[1], ent->s.origin[2] - 4096 );
-		trap_Trace( &tr, ent->s.origin, ent->s.mins, ent->s.maxs, dest, ent->s.number, MASK_SOLID );
+		G_Trace( &tr, ent->s.origin, ent->s.mins, ent->s.maxs, dest, ent->s.number, MASK_SOLID, TT_AABB );
 		if ( tr.startsolid ) {
 			ent->s.origin[2] -= 1;
 			G_Printf( "SpawnObelisk: %s startsolid at %s\n", ent->classname, vtos(ent->s.origin) );
@@ -1407,7 +1407,7 @@ void SP_team_redobelisk( gentity_t *ent ) {
 		obelisk->activator = ent;
 	}
 	ent->s.modelindex = TEAM_RED;
-	trap_LinkEntity(ent);
+	G_LinkEntity(ent);
 }
 
 /*QUAKED team_blueobelisk (0 0 1) (-16 -16 0) (16 16 88)
@@ -1432,7 +1432,7 @@ void SP_team_blueobelisk( gentity_t *ent ) {
 		obelisk->activator = ent;
 	}
 	ent->s.modelindex = TEAM_BLUE;
-	trap_LinkEntity(ent);
+	G_LinkEntity(ent);
 }
 
 /*QUAKED team_neutralobelisk (0 0 1) (-16 -16 0) (16 16 88)
@@ -1448,7 +1448,7 @@ void SP_team_neutralobelisk( gentity_t *ent ) {
 		neutralObelisk->activator = ent;
 	}
 	ent->s.modelindex = TEAM_FREE;
-	trap_LinkEntity(ent);
+	G_LinkEntity(ent);
 }
 
 

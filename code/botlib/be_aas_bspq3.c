@@ -37,8 +37,9 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "l_memory.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/idlib_local.h"
+#include "../idlib/l_memory.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -309,9 +310,9 @@ void AAS_FreeBSPEntities(void)
 		{
 			nextepair = epair->next;
 			//
-			if (epair->key) FreeMemory(epair->key);
-			if (epair->value) FreeMemory(epair->value);
-			FreeMemory(epair);
+			if (epair->key) ii.FreeMemory(epair->key);
+			if (epair->value) ii.FreeMemory(epair->value);
+			ii.FreeMemory(epair);
 		} //end for
 	} //end for
 	bspworld.numentities = 0;
@@ -380,14 +381,15 @@ void AAS_ParseBSPEntities(void)
 				return;
 			}
 
-			epair = (bsp_epair_t *) GetClearedHunkMemory(sizeof(bsp_epair_t));
+			epair = (bsp_epair_t *) ii.HunkAlloc(sizeof(bsp_epair_t));
+            memset(epair, 0, sizeof(bsp_epair_t));
 			epair->next = ent->epairs;
 			ent->epairs = epair;
 
-			epair->key = (char *) GetHunkMemory(strlen(keyname) + 1);
+			epair->key = (char *) ii.HunkAlloc(strlen(keyname) + 1);
 			strcpy(epair->key, keyname);
 
-			epair->value = (char *) GetHunkMemory(strlen(com_token) + 1);
+			epair->value = (char *) ii.HunkAlloc(strlen(com_token) + 1);
 			strcpy(epair->value, com_token);
 		}
 	}

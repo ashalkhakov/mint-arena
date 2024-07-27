@@ -261,7 +261,7 @@ void	G_TouchTriggers( gentity_t *ent ) {
 	VectorSubtract( ent->player->ps.origin, range, mins );
 	VectorAdd( ent->player->ps.origin, range, maxs );
 
-	num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
+	num = G_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
 
 	// can't use ent->absmin, because that has a one unit pad
 	VectorAdd( ent->player->ps.origin, ent->s.mins, mins );
@@ -294,7 +294,7 @@ void	G_TouchTriggers( gentity_t *ent ) {
 				continue;
 			}
 		} else {
-			if ( !trap_EntityContact( mins, maxs, hit ) ) {
+			if ( !G_EntityContact( mins, maxs, ( sharedEntity_t * ) hit, TT_AABB ) ) {
 				continue;
 			}
 		}
@@ -346,11 +346,11 @@ void SpectatorThink( gentity_t *ent, usercmd_t *ucmd ) {
 		pm.cmd = *ucmd;
 		pm.tracemask = MASK_PLAYERSOLID & ~CONTENTS_BODY;	// spectators can fly through bodies
 		if (player->ps.collisionType == CT_CAPSULE) {
-			pm.trace = trap_TraceCapsule;
+			pm.trace = G_TraceCapsule;
 		} else {
-			pm.trace = trap_Trace;
+			pm.trace = G_TraceBox;
 		}
-		pm.pointcontents = trap_PointContents;
+		pm.pointcontents = G_PointContents;
 
 		// perform a pmove
 		Pmove (&pm);
@@ -358,7 +358,7 @@ void SpectatorThink( gentity_t *ent, usercmd_t *ucmd ) {
 		VectorCopy( player->ps.origin, ent->s.origin );
 
 		G_TouchTriggers( ent );
-		trap_UnlinkEntity( ent );
+		G_UnlinkEntity( ent );
 	}
 
 	player->oldbuttons = player->buttons;
@@ -866,7 +866,7 @@ void PlayerThink_real( gentity_t *ent ) {
 			// expand
 			VectorCopy (mins, ent->s.mins);
 			VectorCopy (maxs, ent->s.maxs);
-			trap_LinkEntity(ent);
+			G_LinkEntity(ent);
 			// check if this would get anyone stuck in this player
 			if ( !StuckInOtherPlayer(ent) ) {
 				// set flag so the expanded size will be set in PM_CheckDuck
@@ -875,7 +875,7 @@ void PlayerThink_real( gentity_t *ent ) {
 			// set back
 			VectorCopy (oldmins, ent->s.mins);
 			VectorCopy (oldmaxs, ent->s.maxs);
-			trap_LinkEntity(ent);
+			G_LinkEntity(ent);
 		}
 	}
 #endif
@@ -892,11 +892,11 @@ void PlayerThink_real( gentity_t *ent ) {
 		pm.tracemask = MASK_PLAYERSOLID;
 	}
 	if (player->ps.collisionType == CT_CAPSULE) {
-		pm.trace = trap_TraceCapsule;
+		pm.trace = G_TraceCapsule;
 	} else {
-		pm.trace = trap_Trace;
+		pm.trace = G_TraceBox;
 	}
-	pm.pointcontents = trap_PointContents;
+	pm.pointcontents = G_PointContents;
 	pm.debugLevel = g_debugMove.integer;
 	pm.noFootsteps = ( g_dmflags.integer & DF_NO_FOOTSTEPS ) > 0;
 
@@ -950,7 +950,7 @@ void PlayerThink_real( gentity_t *ent ) {
 	PlayerEvents( ent, oldEventSequence );
 
 	// link entity now, after any personal teleporters have been used
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 	if ( !ent->player->noclip ) {
 		G_TouchTriggers( ent );
 	}

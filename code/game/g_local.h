@@ -30,10 +30,11 @@ Suite 120, Rockville, Maryland 20850 USA.
 //
 // g_local.h -- local definitions for game module
 
-#include "../qcommon/q_shared.h"
+#include "../idlib/q_shared.h"
 #include "bg_public.h"
 #include "g_public.h"
 #include "ai_ea.h"
+#include "g_clip.h"
 
 //==================================================================
 
@@ -202,6 +203,9 @@ struct gentity_s {
 	vec3_t		lastMins;
 	vec3_t		lastMaxs;
 	int			areanum;
+
+    // physics
+    clipModel_t     clipModel;
 };
 
 
@@ -719,6 +723,23 @@ void G_WriteSessionData( void );
 void UpdateTournamentInfo( void );
 void SpawnModelsOnVictoryPads( void );
 void Svcmd_AbortPodium_f( void );
+
+//
+// g_world.c
+//
+extern clip_t g_clip;
+
+void G_SectorList_f( void );
+void G_GetBrushBounds( int modelindex, vec3_t mins, vec3_t maxs );
+void G_LinkEntity( gentity_t *ent );
+void G_UnlinkEntity( gentity_t *ent );
+qboolean G_EntityContact( const vec3_t mins, const vec3_t maxs, const sharedEntity_t *gEnt, traceType_t type );
+int G_EntitiesInBox( const vec3_t mins, const vec3_t maxs, int *entityList, int maxcount );
+void G_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask, traceType_t type );
+void G_TraceBox( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
+void G_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
+void G_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask, traceType_t type );
+int G_PointContents( const vec3_t p, int passEntityNum );
 
 //
 // g_bot.c

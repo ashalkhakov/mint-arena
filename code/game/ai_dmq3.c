@@ -2706,7 +2706,7 @@ void BotRoamGoal(bot_state_t *bs, vec3_t goal) {
 			//
 			if (!trace.startsolid) {
 				trace.endpos[2]++;
-				pc = trap_PointContents(trace.endpos, bs->entitynum);
+				pc = G_PointContents(trace.endpos, bs->entitynum);
 				if (!(pc & (CONTENTS_LAVA | CONTENTS_SLIME))) {
 					VectorCopy(bestorg, goal);
 					return;
@@ -4690,7 +4690,7 @@ void BotCheckBlockedTeammates(bot_state_t *bs) {
 		// now check if the teammate is blocked, increase the distance accordingly
 		trap_AAS_PresenceTypeBoundingBox(PRESENCE_NORMAL, mins, maxs);
 		VectorMA(bs->origin, mindist, v1, end);
-		trap_ClipToEntities(&trace, bs->origin, mins, maxs, end, bs->entitynum, MASK_PLAYERSOLID);
+		G_ClipToEntities(&trace, bs->origin, mins, maxs, end, bs->entitynum, MASK_PLAYERSOLID, TT_AABB);
 		// if the teammate is too close (blocked)
 		if (trace.entityNum == i && (trace.startsolid || trace.fraction < 1.0)) {
 			// stop crouching to gain speed
@@ -4782,7 +4782,7 @@ void BotAIBlocked(bot_state_t *bs, bot_moveresult_t *moveresult, bot_aienter_t a
 		if (DotProduct(v1, v2) > 0.0 || !BotSameTeam(bs, moveresult->blockentity)) {
 			trap_AAS_PresenceTypeBoundingBox(PRESENCE_NORMAL, mins, maxs);
 			VectorMA(bs->origin, 24, v2, end);
-			trap_ClipToEntities(&trace, bs->origin, mins, maxs, end, bs->entitynum, MASK_PLAYERSOLID);
+			G_ClipToEntities(&trace, bs->origin, mins, maxs, end, bs->entitynum, MASK_PLAYERSOLID, TT_AABB);
 			// if nothing is hit
 			if (trace.fraction >= 1.0) {
 				return;

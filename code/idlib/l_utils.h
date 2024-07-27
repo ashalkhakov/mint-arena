@@ -29,26 +29,13 @@ Suite 120, Rockville, Maryland 20850 USA.
 */
 
 /*****************************************************************************
- * name:		l_log.h
+ * name:		l_util.h
  *
- * desc:		log file
+ * desc:		utils
  *
- * $Archive: /source/code/botlib/l_log.h $
+ * $Archive: /source/code/botlib/l_util.h $
  *
  *****************************************************************************/
 
-//open a log file
-void Log_Open(char *filename);
-//close the current log file
-void Log_Close(void);
-//close log file if present
-void Log_Shutdown(void);
-//write to the current opened log file
-void QDECL Log_Write(char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
-//write to the current opened log file with a time stamp
-void QDECL Log_WriteTimeStamped(char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
-//returns a handle to the log file
-qhandle_t Log_FileHandle(void);
-//flush log file
-void Log_Flush(void);
-
+#define Maximum(x,y)			(x > y ? x : y)
+#define Minimum(x,y)			(x < y ? x : y)

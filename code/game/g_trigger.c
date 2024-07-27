@@ -112,7 +112,7 @@ void SP_trigger_multiple( gentity_t *ent ) {
 	ent->use = Use_Multi;
 
 	InitTrigger( ent );
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 }
 
 
@@ -217,7 +217,7 @@ void SP_trigger_push( gentity_t *self ) {
 	self->touch = trigger_push_touch;
 	self->think = AimAtTarget;
 	self->nextthink = level.time + FRAMETIME;
-	trap_LinkEntity (self);
+	G_LinkEntity (self);
 }
 
 
@@ -327,7 +327,7 @@ void SP_trigger_teleport( gentity_t *self ) {
 	self->s.eType = ET_TELEPORT_TRIGGER;
 	self->touch = trigger_teleporter_touch;
 
-	trap_LinkEntity (self);
+	G_LinkEntity (self);
 }
 
 
@@ -353,9 +353,9 @@ NO_PROTECTION	*nothing* stops the damage
 */
 void hurt_use( gentity_t *self, gentity_t *other, gentity_t *activator ) {
 	if ( self->r.linked ) {
-		trap_UnlinkEntity( self );
+		G_UnlinkEntity( self );
 	} else {
-		trap_LinkEntity( self );
+		G_LinkEntity( self );
 	}
 }
 
@@ -402,10 +402,10 @@ void SP_trigger_hurt( gentity_t *self ) {
 
 	// link in to the world if starting active
 	if ( self->spawnflags & 1 ) {
-		trap_UnlinkEntity (self);
+		G_UnlinkEntity (self);
 	}
 	else {
-		trap_LinkEntity (self);
+		G_LinkEntity (self);
 	}
 }
 

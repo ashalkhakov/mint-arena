@@ -47,7 +47,7 @@ static void BotImport_BSPModelMinsMaxsOrigin( int modelnum, vec3_t angles, vec3_
 	float max;
 	int	i;
 
-	trap_GetBrushBounds( modelnum, mins, maxs );
+	G_GetBrushBounds( modelnum, mins, maxs );
 
 	//if the model is rotated
 	if ((angles[0] || angles[1] || angles[2])) {

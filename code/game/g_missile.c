@@ -97,7 +97,7 @@ void G_ExplodeMissile( gentity_t *ent ) {
 		}
 	}
 
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 
@@ -200,7 +200,7 @@ static void ProximityMine_Activate( gentity_t *ent ) {
 	trigger->s.contents = CONTENTS_TRIGGER;
 	trigger->touch = ProximityMine_Trigger;
 
-	trap_LinkEntity (trigger);
+	G_LinkEntity (trigger);
 
 	// set pointer to trigger so the entity can be freed when the mine explodes
 	ent->activator = trigger;
@@ -363,7 +363,7 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 		VectorCopy(trace->plane.normal, ent->movedir);
 		VectorSet(ent->s.mins, -4, -4, -4);
 		VectorSet(ent->s.maxs, 4, 4, 4);
-		trap_LinkEntity(ent);
+		G_LinkEntity(ent);
 
 		return;
 	}
@@ -408,8 +408,8 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 		ent->parent->player->ps.pm_flags |= PMF_GRAPPLE_PULL;
 		VectorCopy( ent->r.currentOrigin, ent->parent->player->ps.grapplePoint);
 
-		trap_LinkEntity( ent );
-		trap_LinkEntity( nent );
+		G_LinkEntity( ent );
+		G_LinkEntity( nent );
 
 		return;
 	}
@@ -445,7 +445,7 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 		}
 	}
 
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 /*
@@ -476,18 +476,18 @@ void G_RunMissile( gentity_t *ent ) {
 		passent = ent->r.ownerNum;
 	}
 	// trace a line from the previous position to the current position
-	trap_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, origin, passent, ent->clipmask );
+	G_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, origin, passent, ent->clipmask, TT_AABB );
 
 	if ( tr.startsolid || tr.allsolid ) {
 		// make sure the tr.entityNum is set to the entity we're stuck in
-		trap_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, ent->r.currentOrigin, passent, ent->clipmask );
+		G_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, ent->r.currentOrigin, passent, ent->clipmask, TT_AABB );
 		tr.fraction = 0;
 	}
 	else {
 		VectorCopy( tr.endpos, ent->r.currentOrigin );
 	}
 
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 
 	if ( tr.fraction != 1 ) {
 		// never explode or bounce on sky
@@ -508,7 +508,7 @@ void G_RunMissile( gentity_t *ent ) {
 	// if the prox mine wasn't yet outside the player body
 	if (ent->s.weapon == WP_PROX_LAUNCHER && !ent->count) {
 		// check if the prox mine is outside the owner bbox
-		trap_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, ent->r.currentOrigin, ENTITYNUM_NONE, ent->clipmask );
+		G_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, ent->r.currentOrigin, ENTITYNUM_NONE, ent->clipmask, TT_AABB );
 		if (!tr.startsolid || tr.entityNum != ent->r.ownerNum) {
 			ent->count = 1;
 		}

@@ -40,6 +40,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
+#include "../idlib/l_script.h"
+#include "../idlib/l_precomp.h"
+#include "../idlib/l_struct.h"
 //
 #include "ai_char.h"
 #include "ai_chat_sys.h"
@@ -195,15 +198,15 @@ void DumpWeaponConfig(weaponconfig_t *wc)
 //===========================================================================
 qboolean LoadWeaponConfig(char *filename)
 {
-	pc_token_t token;
+	token_t token;
 	char path[MAX_QPATH];
 	int i, j;
-	int source;
+	source_t *source;
 	weaponconfig_t *wc;
 	weaponinfo_t weaponinfo;
 
 	Q_strncpyz(path, filename, sizeof(path));
-	source = trap_PC_LoadSource(path, BOTFILESBASEFOLDER);
+	source = PC_LoadSource(path, BOTFILESBASEFOLDER, NULL);
 	if (!source)
 	{
 		BotAI_Print(PRT_ERROR, "counldn't load %s\n", path);
@@ -215,20 +218,20 @@ qboolean LoadWeaponConfig(char *filename)
 	wc->numweapons = MAX_WEAPONS;
 	wc->numprojectiles = 0;
 	//parse the source file
-	while(trap_PC_ReadToken(source, &token))
+	while(PC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "weaponinfo"))
 		{
 			Com_Memset(&weaponinfo, 0, sizeof(weaponinfo_t));
-			if (!PC_ReadStructure(source, &weaponinfo_struct, (void *) &weaponinfo))
+			if (!ReadStructure(source, &weaponinfo_struct, (void *) &weaponinfo))
 			{
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return qfalse;
 			} //end if
 			if (weaponinfo.number < 0 || weaponinfo.number >= MAX_WEAPONS)
 			{
 				BotAI_Print(PRT_ERROR, "weapon info number %d out of range in %s\n", weaponinfo.number, path);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return qfalse;
 			} //end if
 			Com_Memcpy(&wc->weaponinfo[weaponinfo.number], &weaponinfo, sizeof(weaponinfo_t));
@@ -239,13 +242,13 @@ qboolean LoadWeaponConfig(char *filename)
 			if (wc->numprojectiles >= MAX_WEAPONS)
 			{
 				BotAI_Print(PRT_ERROR, "more than %d projectiles defined in %s\n", MAX_WEAPONS, path);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return qfalse;
 			} //end if
 			Com_Memset(&wc->projectileinfo[wc->numprojectiles], 0, sizeof(projectileinfo_t));
-			if (!PC_ReadStructure(source, &projectileinfo_struct, (void *) &wc->projectileinfo[wc->numprojectiles]))
+			if (!ReadStructure(source, &projectileinfo_struct, (void *) &wc->projectileinfo[wc->numprojectiles]))
 			{
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return qfalse;
 			} //end if
 			wc->numprojectiles++;
@@ -253,11 +256,11 @@ qboolean LoadWeaponConfig(char *filename)
 		else
 		{
 			BotAI_Print(PRT_ERROR, "unknown definition %s in %s\n", token.string, path);
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			return qfalse;
 		} //end else
 	} //end while
-	trap_PC_FreeSource(source);
+	PC_FreeSource(source);
 	//fix up weapons
 	for (i = 0; i < wc->numweapons; i++)
 	{

@@ -30,6 +30,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 //
 
 #include "g_local.h"
+#include "../idlib/idlib_local.h"
 
 level_locals_t	level;
 
@@ -487,6 +488,11 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	srand( randomSeed );
 
+    BG_InitIdLib();
+    ie.Init();
+
+    ClipInit( &g_clip );
+
 	Swap_Init();
 
 	G_BotInitBotLib();
@@ -629,6 +635,10 @@ void G_ShutdownGame( int restart ) {
 	if ( trap_Cvar_VariableIntegerValue( "bot_enable" ) ) {
 		BotAIShutdown( restart );
 	}
+
+    ClipFree( &g_clip );
+
+    ie.Shutdown();
 }
 
 
@@ -1216,7 +1226,7 @@ void BeginIntermission( void ) {
 			PlayerRespawn(player);
 		}
 		MovePlayerToIntermission( player );
-		trap_UnlinkEntity(player);
+		G_UnlinkEntity(player);
 	}
 #ifdef MISSIONPACK
 	if (g_singlePlayer.integer) {
@@ -2000,7 +2010,7 @@ void G_RunFrame( int levelTime ) {
 			} else if ( ent->unlinkAfterEvent ) {
 				// items that will respawn will hide themselves after their pickup event
 				ent->unlinkAfterEvent = qfalse;
-				trap_UnlinkEntity( ent );
+				G_UnlinkEntity( ent );
 			}
 		}
 
@@ -2075,3 +2085,4 @@ void G_RunFrame( int levelTime ) {
 	// accepting commands from connected clients
 	level.frameStartTime = trap_Milliseconds();
 }
+

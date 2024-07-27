@@ -260,7 +260,7 @@ int BotReachabilityArea(vec3_t origin, int passEnt)
 	//check if the bot is standing on something
 	trap_AAS_PresenceTypeBoundingBox(PRESENCE_CROUCH, mins, maxs);
 	VectorMA(origin, -3, up, end);
-	trap_Trace(&bsptrace, origin, mins, maxs, end, passEnt, CONTENTS_SOLID|CONTENTS_PLAYERCLIP);
+	G_Trace(&bsptrace, origin, mins, maxs, end, passEnt, CONTENTS_SOLID|CONTENTS_PLAYERCLIP, TT_AABB);
 	if (!bsptrace.startsolid && bsptrace.fraction < 1 && bsptrace.entityNum != ENTITYNUM_NONE)
 	{
 		//if standing on the world the bot should be in a valid area
@@ -450,7 +450,7 @@ int BotOnMover(vec3_t origin, int entnum, aas_reachability_t *reach)
 	VectorCopy(origin, end);
 	end[2] -= 48;
 	//
-	trap_Trace(&trace, org, boxmins, boxmaxs, end, entnum, CONTENTS_SOLID|CONTENTS_PLAYERCLIP);
+	G_Trace(&trace, org, boxmins, boxmaxs, end, entnum, CONTENTS_SOLID|CONTENTS_PLAYERCLIP, TT_AABB);
 	if (!trace.startsolid && !trace.allsolid)
 	{
 		//NOTE: the reachability face number is the model number of the elevator
@@ -535,7 +535,7 @@ int BotOnTopOfEntity(bot_movestate_t *ms)
 
 	trap_AAS_PresenceTypeBoundingBox(ms->presencetype, mins, maxs);
 	VectorMA(ms->origin, -3, up, end);
-	trap_Trace(&trace, ms->origin, mins, maxs, end, ms->entitynum, CONTENTS_SOLID|CONTENTS_PLAYERCLIP);
+	G_Trace(&trace, ms->origin, mins, maxs, end, ms->entitynum, CONTENTS_SOLID|CONTENTS_PLAYERCLIP, TT_AABB);
 	if (!trace.startsolid && (trace.entityNum != ENTITYNUM_WORLD && trace.entityNum != ENTITYNUM_NONE) )
 	{
 		return trace.entityNum;
@@ -890,7 +890,7 @@ int BotVisible(int ent, vec3_t eye, vec3_t target)
 {
 	trace_t trace;
 
-	trap_Trace(&trace, eye, NULL, NULL, target, ent, CONTENTS_SOLID|CONTENTS_PLAYERCLIP);
+	G_Trace(&trace, eye, NULL, NULL, target, ent, CONTENTS_SOLID|CONTENTS_PLAYERCLIP, TT_AABB);
 	if (trace.fraction >= 1) return qtrue;
 	return qfalse;
 } //end of the function BotVisible
@@ -1347,7 +1347,7 @@ void BotCheckBlocked(bot_movestate_t *ms, vec3_t dir, int checkbottom, bot_mover
 	} //end if
 	// check for entities nearby
 	VectorMA(ms->origin, 3, dir, end);
-	trap_ClipToEntities(&trace, ms->origin, mins, maxs, end, ms->entitynum, MASK_PLAYERSOLID);
+	G_ClipToEntities(&trace, ms->origin, mins, maxs, end, ms->entitynum, MASK_PLAYERSOLID, TT_AABB);
 	//if not started in solid and hitting an entity
 	if (!trace.startsolid && trace.entityNum != ENTITYNUM_NONE)
 	{
@@ -1360,7 +1360,7 @@ void BotCheckBlocked(bot_movestate_t *ms, vec3_t dir, int checkbottom, bot_mover
 	{
 		//check if the bot is standing on something
 		VectorMA(ms->origin, -3, up, end);
-		trap_ClipToEntities(&trace, ms->origin, mins, maxs, end, ms->entitynum, CONTENTS_SOLID|CONTENTS_PLAYERCLIP);
+		G_ClipToEntities(&trace, ms->origin, mins, maxs, end, ms->entitynum, CONTENTS_SOLID|CONTENTS_PLAYERCLIP, TT_AABB);
 		//if not started in solid and hitting an entity
 		if (!trace.startsolid && trace.entityNum != ENTITYNUM_NONE)
 		{
@@ -1376,7 +1376,7 @@ void BotCheckBlocked(bot_movestate_t *ms, vec3_t dir, int checkbottom, bot_mover
 		currentspeed = DotProduct(ms->velocity, dir);
 		// do a full trace to check for obstacles to avoid, depending on current speed
 		VectorMA(ms->origin, currentspeed + 3, dir, end);
-		trap_Trace(&trace, ms->origin, mins, maxs, end, ms->entitynum, MASK_PLAYERSOLID);
+		G_Trace(&trace, ms->origin, mins, maxs, end, ms->entitynum, MASK_PLAYERSOLID, TT_AABB);
 		// if not started in solid and not hitting the world entity
 		if (!trace.startsolid && trace.entityNum != ENTITYNUM_NONE && trace.entityNum != ENTITYNUM_WORLD) {
 			result->blocked = qtrue;
@@ -1877,7 +1877,7 @@ bot_moveresult_t BotTravel_Jump(bot_movestate_t *ms, aas_reachability_t *reach)
 	//
 	trap_AAS_PresenceTypeBoundingBox(PRESENCE_NORMAL, mins, maxs);
 	//check for solids
-	trap_Trace(&trace, start, mins, maxs, end, ms->entitynum, MASK_PLAYERSOLID);
+	G_Trace(&trace, start, mins, maxs, end, ms->entitynum, MASK_PLAYERSOLID, TT_AABB);
 	if (trace.startsolid) VectorCopy(start, trace.endpos);
 	//check for a gap
 	for (gapdist = 0; gapdist < 80; gapdist += 10)
@@ -2742,7 +2742,7 @@ bot_moveresult_t BotTravel_Grapple(bot_movestate_t *ms, aas_reachability_t *reac
 #endif //DEBUG_GRAPPLE
 			//check if the grapple missile path is clear
 			VectorAdd(ms->origin, ms->viewoffset, org);
-			trap_Trace(&trace, org, NULL, NULL, reach->end, ms->entitynum, CONTENTS_SOLID);
+			G_Trace(&trace, org, NULL, NULL, reach->end, ms->entitynum, CONTENTS_SOLID, TT_AABB);
 			VectorSubtract(reach->end, trace.endpos, dir);
 			if (VectorLength(dir) > 16)
 			{

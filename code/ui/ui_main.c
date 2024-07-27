@@ -378,10 +378,10 @@ char *GetMenuBuffer(const char *filename) {
 }
 
 qboolean Asset_Parse(int handle) {
-	pc_token_t token;
+	token_t token;
 	const char *tempStr;
 
-	if (!trap_PC_ReadToken(handle, &token))
+	if (!PC_ReadToken(handle, &token))
 		return qfalse;
 	if (Q_stricmp(token.string, "{") != 0) {
 		return qfalse;
@@ -389,9 +389,9 @@ qboolean Asset_Parse(int handle) {
     
 	while ( 1 ) {
 
-		memset(&token, 0, sizeof(pc_token_t));
+		memset(&token, 0, sizeof(token_t));
 
-		if (!trap_PC_ReadToken(handle, &token))
+		if (!PC_ReadToken(handle, &token))
 			return qfalse;
 
 		if (Q_stricmp(token.string, "}") == 0) {
@@ -569,18 +569,18 @@ void UI_Report( void ) {
 
 void UI_ParseMenu(const char *menuFile) {
 	int handle;
-	pc_token_t token;
+	token_t token;
 
 	Com_DPrintf("Parsing menu file: %s\n", menuFile);
 
-	handle = trap_PC_LoadSource(menuFile, NULL);
+	handle = PC_LoadSource(menuFile, NULL);
 	if (!handle) {
 		return;
 	}
 
 	while ( 1 ) {
-		memset(&token, 0, sizeof(pc_token_t));
-		if (!trap_PC_ReadToken( handle, &token )) {
+		memset(&token, 0, sizeof(token_t));
+		if (!PC_ReadToken( handle, &token )) {
 			break;
 		}
 
@@ -611,13 +611,13 @@ void UI_ParseMenu(const char *menuFile) {
 			Menu_New(handle);
 		}
 	}
-	trap_PC_FreeSource(handle);
+	PC_FreeSource(handle);
 }
 
 qboolean Load_Menu(int handle) {
-	pc_token_t token;
+	token_t token;
 
-	if (!trap_PC_ReadToken(handle, &token))
+	if (!PC_ReadToken(handle, &token))
 		return qfalse;
 	if (token.string[0] != '{') {
 		return qfalse;
@@ -625,7 +625,7 @@ qboolean Load_Menu(int handle) {
 
 	while ( 1 ) {
 
-		if (!trap_PC_ReadToken(handle, &token))
+		if (!PC_ReadToken(handle, &token))
 			return qfalse;
     
 		if ( token.string[0] == 0 ) {
@@ -642,7 +642,7 @@ qboolean Load_Menu(int handle) {
 }
 
 void UI_LoadMenus(const char *menuFile, qboolean reset) {
-	pc_token_t token;
+	token_t token;
 	int handle;
 	int start;
 
@@ -650,10 +650,10 @@ void UI_LoadMenus(const char *menuFile, qboolean reset) {
 
 	Init_Display(&uiInfo.uiDC);
 
-	handle = trap_PC_LoadSource( menuFile, NULL );
+	handle = PC_LoadSource( menuFile, NULL );
 	if (!handle) {
 		Com_Printf( S_COLOR_YELLOW "menu file not found: %s, using default\n", menuFile );
-		handle = trap_PC_LoadSource( "ui/menus.txt", NULL );
+		handle = PC_LoadSource( "ui/menus.txt", NULL );
 		if (!handle) {
 			trap_Error( S_COLOR_RED "default menu file not found: ui/menus.txt, unable to continue!" );
 		}
@@ -666,7 +666,7 @@ void UI_LoadMenus(const char *menuFile, qboolean reset) {
 	}
 
 	while ( 1 ) {
-		if (!trap_PC_ReadToken(handle, &token))
+		if (!PC_ReadToken(handle, &token))
 			break;
 		if( token.string[0] == 0 || token.string[0] == '}') {
 			break;
@@ -687,7 +687,7 @@ void UI_LoadMenus(const char *menuFile, qboolean reset) {
 
 	Com_DPrintf("UI menu load time = %d milli seconds\n", trap_Milliseconds() - start);
 
-	trap_PC_FreeSource( handle );
+	PC_FreeSource( handle );
 }
 
 void UI_Load(void) {

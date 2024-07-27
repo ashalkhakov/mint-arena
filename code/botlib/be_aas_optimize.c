@@ -38,8 +38,9 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "l_memory.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/l_memory.h"
+#include "../idlib/idlib_local.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -221,22 +222,31 @@ void AAS_OptimizeArea(optimized_t *optimized, int areanum)
 //===========================================================================
 void AAS_OptimizeAlloc(optimized_t *optimized)
 {
-	optimized->vertexes = (aas_vertex_t *) GetClearedMemory(aasworld.numvertexes * sizeof(aas_vertex_t));
+	optimized->vertexes = (aas_vertex_t *) ii.GetMemory(aasworld.numvertexes * sizeof(aas_vertex_t));
+    memset(optimized->vertexes, 0, aasworld.numvertexes * sizeof(aas_vertex_t));
 	optimized->numvertexes = 0;
-	optimized->edges = (aas_edge_t *) GetClearedMemory(aasworld.numedges * sizeof(aas_edge_t));
+	optimized->edges = (aas_edge_t *) ii.GetMemory(aasworld.numedges * sizeof(aas_edge_t));
+    memset(optimized->edges, 0, aasworld.numedges * sizeof(aas_edge_t));
 	optimized->numedges = 1; //edge zero is a dummy
-	optimized->edgeindex = (aas_edgeindex_t *) GetClearedMemory(aasworld.edgeindexsize * sizeof(aas_edgeindex_t));
+	optimized->edgeindex = (aas_edgeindex_t *) ii.GetMemory(aasworld.edgeindexsize * sizeof(aas_edgeindex_t));
+    memset(optimized->edgeindex, 0, aasworld.edgeindexsize * sizeof(aas_edgeindex_t));
 	optimized->edgeindexsize = 0;
-	optimized->faces = (aas_face_t *) GetClearedMemory(aasworld.numfaces * sizeof(aas_face_t));
+	optimized->faces = (aas_face_t *) ii.GetMemory(aasworld.numfaces * sizeof(aas_face_t));
+    memset(optimized->faces, 0, aasworld.numfaces * sizeof(aas_face_t));
 	optimized->numfaces = 1; //face zero is a dummy
-	optimized->faceindex = (aas_faceindex_t *) GetClearedMemory(aasworld.faceindexsize * sizeof(aas_faceindex_t));
+	optimized->faceindex = (aas_faceindex_t *) ii.GetMemory(aasworld.faceindexsize * sizeof(aas_faceindex_t));
+    memset(optimized->faceindex, 0, aasworld.faceindexsize * sizeof(aas_faceindex_t));
 	optimized->faceindexsize = 0;
-	optimized->areas = (aas_area_t *) GetClearedMemory(aasworld.numareas * sizeof(aas_area_t));
+	optimized->areas = (aas_area_t *) ii.GetMemory(aasworld.numareas * sizeof(aas_area_t));
+    memset(optimized->areas, 0, aasworld.numareas * sizeof(aas_area_t));
 	optimized->numareas = aasworld.numareas;
 	//
-	optimized->vertexoptimizeindex = (int *) GetClearedMemory(aasworld.numvertexes * sizeof(int));
-	optimized->edgeoptimizeindex = (int *) GetClearedMemory(aasworld.numedges * sizeof(int));
-	optimized->faceoptimizeindex = (int *) GetClearedMemory(aasworld.numfaces * sizeof(int));
+	optimized->vertexoptimizeindex = (int *) ii.GetMemory(aasworld.numvertexes * sizeof(int));
+    memset(optimized->vertexoptimizeindex, 0, aasworld.numvertexes * sizeof(int));
+	optimized->edgeoptimizeindex = (int *) ii.GetMemory(aasworld.numedges * sizeof(int));
+    memset(optimized->edgeoptimizeindex, 0, aasworld.numedges * sizeof(int));
+	optimized->faceoptimizeindex = (int *) ii.GetMemory(aasworld.numfaces * sizeof(int));
+    memset(optimized->faceoptimizeindex, 0, aasworld.numfaces * sizeof(int));
 } //end of the function AAS_OptimizeAlloc
 //===========================================================================
 //
@@ -247,33 +257,33 @@ void AAS_OptimizeAlloc(optimized_t *optimized)
 void AAS_OptimizeStore(optimized_t *optimized)
 {
 	//store the optimized vertexes
-	if (aasworld.vertexes) FreeMemory(aasworld.vertexes);
+	if (aasworld.vertexes) ii.FreeMemory(aasworld.vertexes);
 	aasworld.vertexes = optimized->vertexes;
 	aasworld.numvertexes = optimized->numvertexes;
 	//store the optimized edges
-	if (aasworld.edges) FreeMemory(aasworld.edges);
+	if (aasworld.edges) ii.FreeMemory(aasworld.edges);
 	aasworld.edges = optimized->edges;
 	aasworld.numedges = optimized->numedges;
 	//store the optimized edge index
-	if (aasworld.edgeindex) FreeMemory(aasworld.edgeindex);
+	if (aasworld.edgeindex) ii.FreeMemory(aasworld.edgeindex);
 	aasworld.edgeindex = optimized->edgeindex;
 	aasworld.edgeindexsize = optimized->edgeindexsize;
 	//store the optimized faces
-	if (aasworld.faces) FreeMemory(aasworld.faces);
+	if (aasworld.faces) ii.FreeMemory(aasworld.faces);
 	aasworld.faces = optimized->faces;
 	aasworld.numfaces = optimized->numfaces;
 	//store the optimized face index
-	if (aasworld.faceindex) FreeMemory(aasworld.faceindex);
+	if (aasworld.faceindex) ii.FreeMemory(aasworld.faceindex);
 	aasworld.faceindex = optimized->faceindex;
 	aasworld.faceindexsize = optimized->faceindexsize;
 	//store the optimized areas
-	if (aasworld.areas) FreeMemory(aasworld.areas);
+	if (aasworld.areas) ii.FreeMemory(aasworld.areas);
 	aasworld.areas = optimized->areas;
 	aasworld.numareas = optimized->numareas;
 	//free optimize indexes
-	FreeMemory(optimized->vertexoptimizeindex);
-	FreeMemory(optimized->edgeoptimizeindex);
-	FreeMemory(optimized->faceoptimizeindex);
+	ii.FreeMemory(optimized->vertexoptimizeindex);
+	ii.FreeMemory(optimized->edgeoptimizeindex);
+	ii.FreeMemory(optimized->faceoptimizeindex);
 } //end of the function AAS_OptimizeStore
 //===========================================================================
 //

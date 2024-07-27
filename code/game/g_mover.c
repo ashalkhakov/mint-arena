@@ -77,9 +77,9 @@ gentity_t	*G_TestEntityPosition( gentity_t *ent ) {
 	}
 
 	if ( collisionType == CT_CAPSULE ) {
-		trap_TraceCapsule( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, mask );
+		G_Trace( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, mask, TT_CAPSULE );
 	} else {
-		trap_Trace( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, mask );
+		G_Trace( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, mask, TT_AABB );
 	}
 	
 	if (tr.startsolid)
@@ -194,7 +194,7 @@ qboolean	G_TryPushingEntity( gentity_t *check, gentity_t *pusher, vec3_t move, v
 		} else {
 			VectorCopy( check->s.pos.trBase, check->r.currentOrigin );
 		}
-		trap_LinkEntity (check);
+		G_LinkEntity (check);
 		return qtrue;
 	}
 
@@ -228,7 +228,7 @@ qboolean G_CheckProxMinePosition( gentity_t *check ) {
 
 	VectorMA(check->s.pos.trBase, 0.125, check->movedir, start);
 	VectorMA(check->s.pos.trBase, 2, check->movedir, end);
-	trap_Trace( &tr, start, NULL, NULL, end, check->s.number, MASK_SOLID );
+	G_Trace( &tr, start, NULL, NULL, end, check->s.number, MASK_SOLID, TT_AABB );
 	
 	if (tr.startsolid || tr.fraction < 1)
 		return qfalse;
@@ -264,7 +264,7 @@ qboolean G_TryPushingProxMine( gentity_t *check, gentity_t *pusher, vec3_t move,
 	ret = G_CheckProxMinePosition( check );
 	if (ret) {
 		VectorCopy( check->s.pos.trBase, check->r.currentOrigin );
-		trap_LinkEntity (check);
+		G_LinkEntity (check);
 	}
 	return ret;
 }
@@ -323,14 +323,14 @@ qboolean G_MoverPush( gentity_t *pusher, vec3_t move, vec3_t amove, gentity_t **
 	}
 
 	// unlink the pusher so we don't get it in the entityList
-	trap_UnlinkEntity( pusher );
+	G_UnlinkEntity( pusher );
 
-	listedEntities = trap_EntitiesInBox( totalMins, totalMaxs, entityList, MAX_GENTITIES );
+	listedEntities = G_EntitiesInBox( totalMins, totalMaxs, entityList, MAX_GENTITIES );
 
 	// move the pusher to its final position
 	VectorAdd( pusher->r.currentOrigin, move, pusher->r.currentOrigin );
 	VectorAdd( pusher->r.currentAngles, amove, pusher->r.currentAngles );
-	trap_LinkEntity( pusher );
+	G_LinkEntity( pusher );
 
 	// see if any solid entities are inside the final position
 	for ( e = 0 ; e < listedEntities ; e++ ) {
@@ -435,7 +435,7 @@ qboolean G_MoverPush( gentity_t *pusher, vec3_t move, vec3_t amove, gentity_t **
 				p->ent->player->ps.delta_angles[YAW] = p->deltayaw;
 				VectorCopy (p->origin, p->ent->player->ps.origin);
 			}
-			trap_LinkEntity (p->ent);
+			G_LinkEntity (p->ent);
 		}
 		return qfalse;
 	}
@@ -478,7 +478,7 @@ void G_MoverTeam( gentity_t *ent ) {
 			part->s.apos.trTime += level.time - level.previousTime;
 			BG_EvaluateTrajectory( &part->s.pos, level.time, part->r.currentOrigin );
 			BG_EvaluateTrajectory( &part->s.apos, level.time, part->r.currentAngles );
-			trap_LinkEntity( part );
+			G_LinkEntity( part );
 		}
 
 		// if the pusher has a "blocked" function, call it
@@ -593,7 +593,7 @@ void SetMoverState( gentity_t *ent, moverState_t moverState, int time ) {
 		break;
 	}
 	BG_EvaluateTrajectory( &ent->s.pos, level.time, ent->r.currentOrigin );	
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 /*
@@ -817,7 +817,7 @@ void InitMover( gentity_t *ent ) {
 	ent->r.svFlags = SVF_USE_CURRENT_ORIGIN;
 	ent->s.eType = ET_MOVER;
 	VectorCopy (ent->pos1, ent->r.currentOrigin);
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 
 	ent->s.pos.trType = TR_STATIONARY;
 	VectorCopy( ent->pos1, ent->s.pos.trBase );
@@ -895,7 +895,7 @@ void InitRotator( gentity_t *ent ) {
 	ent->r.svFlags = SVF_USE_CURRENT_ORIGIN;
 	ent->s.eType = ET_MOVER;
 	VectorCopy( ent->pos1, ent->r.currentAngles );
-	trap_LinkEntity (ent);
+	G_LinkEntity (ent);
 
 	ent->s.apos.trType = TR_STATIONARY;
 	VectorCopy( ent->pos1, ent->s.apos.trBase );
@@ -1054,7 +1054,7 @@ void Think_SpawnNewDoorTrigger( gentity_t *ent ) {
 	other->touch = Touch_DoorTrigger;
 	// remember the thinnest axis
 	other->count = best;
-	trap_LinkEntity (other);
+	G_LinkEntity (other);
 
 	MatchTeam( ent, ent->moverState, level.time );
 }
@@ -1352,7 +1352,7 @@ void SpawnPlatTrigger( gentity_t *ent ) {
 	VectorCopy (tmin, trigger->s.mins);
 	VectorCopy (tmax, trigger->s.maxs);
 
-	trap_LinkEntity (trigger);
+	G_LinkEntity (trigger);
 }
 
 
@@ -1718,9 +1718,9 @@ STATIC
 
 void Use_Static(gentity_t* ent, gentity_t* other, gentity_t* activator) {
 	if ( ent->r.linked )
-		trap_UnlinkEntity( ent );
+		G_UnlinkEntity( ent );
 	else
-		trap_LinkEntity( ent );
+		G_LinkEntity( ent );
 }
 
 /*QUAKED func_static (0 .5 .8) ?
@@ -1736,7 +1736,7 @@ void SP_func_static( gentity_t *ent ) {
 	VectorCopy( ent->s.origin, ent->r.currentOrigin );
 
 	if ( ent->spawnflags & 1 ) {
-		trap_UnlinkEntity( ent );
+		G_UnlinkEntity( ent );
 	}
 
 	ent->use = Use_Static;
@@ -1933,7 +1933,7 @@ void SP_func_rotating (gentity_t *ent) {
 	VectorCopy( ent->s.pos.trBase, ent->r.currentOrigin );
 	VectorCopy( ent->s.apos.trBase, ent->r.currentAngles );
 
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 
 	ent->use = Use_Rotating;
 

@@ -37,9 +37,8 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "botlib.h"
-#include "be_interface.h"			//for botimport.Print
+#include "q_shared.h"
+#include "idlib_local.h"
 #include "l_crc.h"
 
 

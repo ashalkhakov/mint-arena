@@ -277,7 +277,7 @@ void TossPlayerPersistantPowerups( gentity_t *ent ) {
 	powerup->r.svFlags &= ~SVF_NOCLIENT;
 	powerup->s.eFlags &= ~EF_NODRAW;
 	powerup->s.contents = CONTENTS_TRIGGER;
-	trap_LinkEntity( powerup );
+	G_LinkEntity( powerup );
 
 	ent->player->ps.stats[STAT_PERSISTANT_POWERUP] = 0;
 	ent->player->persistantPowerup = NULL;
@@ -705,7 +705,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	memset( self->player->ps.powerups, 0, sizeof(self->player->ps.powerups) );
 
 	// never gib in a nodrop
-	contents = trap_PointContents( self->r.currentOrigin, -1 );
+	contents = G_PointContents( self->r.currentOrigin, -1 );
 
 	gibPlayer = ( (self->health <= GIB_HEALTH && !(contents & CONTENTS_NODROP)) || meansOfDeath == MOD_SUICIDE );
 
@@ -749,7 +749,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	// globally cycle through the different death animations
 	rndAnim = ( rndAnim + 1 ) % 3;
 
-	trap_LinkEntity (self);
+	G_LinkEntity (self);
 
 }
 
@@ -1156,7 +1156,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	VectorScale (midpoint, 0.5, midpoint);
 
 	VectorCopy(midpoint, dest);
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0 || tr.entityNum == targ->s.number)
 		return qtrue;
@@ -1167,7 +1167,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmaxs[0];
 	dest[1] += offsetmaxs[1];
 	dest[2] += offsetmaxs[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1176,7 +1176,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmaxs[0];
 	dest[1] += offsetmins[1];
 	dest[2] += offsetmaxs[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1185,7 +1185,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmins[0];
 	dest[1] += offsetmaxs[1];
 	dest[2] += offsetmaxs[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1194,7 +1194,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmins[0];
 	dest[1] += offsetmins[1];
 	dest[2] += offsetmaxs[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1203,7 +1203,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmaxs[0];
 	dest[1] += offsetmaxs[1];
 	dest[2] += offsetmins[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1212,7 +1212,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmaxs[0];
 	dest[1] += offsetmins[1];
 	dest[2] += offsetmins[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1221,7 +1221,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmins[0];
 	dest[1] += offsetmaxs[1];
 	dest[2] += offsetmins[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1230,7 +1230,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 	dest[0] += offsetmins[0];
 	dest[1] += offsetmins[1];
 	dest[2] += offsetmins[2];
-	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
+	G_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID, TT_AABB);
 
 	if (tr.fraction == 1.0)
 		return qtrue;
@@ -1265,7 +1265,7 @@ qboolean G_RadiusDamage ( vec3_t origin, gentity_t *attacker, float damage, floa
 		maxs[i] = origin[i] + radius;
 	}
 
-	numListedEntities = trap_EntitiesInBox( mins, maxs, entityList, MAX_GENTITIES );
+	numListedEntities = G_EntitiesInBox( mins, maxs, entityList, MAX_GENTITIES );
 
 	for ( e = 0 ; e < numListedEntities ; e++ ) {
 		ent = &g_entities[entityList[ e ]];

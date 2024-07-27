@@ -37,7 +37,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // major > 0 means each major is an API break and each minor extends API.
 // ZTM: FIXME: There is no way for the VM to know what the engine support API is
 //             so there is no way to add more system calls.
-#define	GAME_API_MAJOR_VERSION	1
+#define	GAME_API_MAJOR_VERSION	2
 #define	GAME_API_MINOR_VERSION	0
 
 
@@ -223,15 +223,6 @@ typedef enum {
 	G_GET_SERVERINFO,	// ( char *buffer, int bufferSize );
 	// the serverinfo info string has all the cvars visible to server browsers
 
-	G_GET_BRUSH_BOUNDS,	// ( int modelindex, vec3_t mins, vec3_t maxs );
-	// gets mins and maxs for inline brush model
-
-	G_TRACE,	// ( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
-	// collision detection against all linked entities
-
-	G_POINT_CONTENTS,	// ( const vec3_t point, int passEntityNum );
-	// point contents against all linked entities
-
 	G_IN_PVS,			// ( const vec3_t p1, const vec3_t p2 );
 
 	G_IN_PVS_IGNORE_PORTALS,	// ( const vec3_t p1, const vec3_t p2 );
@@ -247,13 +238,6 @@ typedef enum {
 
 	G_UNLINKENTITY,		// ( gentity_t *ent );		
 	// call before removing an interactive entity
-
-	G_ENTITIES_IN_BOX,	// ( const vec3_t mins, const vec3_t maxs, gentity_t **list, int maxcount );
-	// EntitiesInBox will return brush models based on their bounding box,
-	// so exact determination must still be done with EntityContact
-
-	G_ENTITY_CONTACT,	// ( const vec3_t mins, const vec3_t maxs, const gentity_t *ent );
-	// perform an exact check against inline brush models of non-square shape
 
 	// access for bots to get and free a server client
 	G_BOT_ALLOCATE_CLIENT,			// ( void );
@@ -273,9 +257,6 @@ typedef enum {
 	G_DEBUG_POLYGON_SHOW, // ( int id, int color, int numPoints, vec3_t *points );
 	G_DEBUG_POLYGON_DELETE, // ( int id );
 
-	G_TRACECAPSULE,	// ( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
-	G_ENTITY_CONTACTCAPSULE,	// ( const vec3_t mins, const vec3_t maxs, const gentity_t *ent );
-
 	G_SET_NET_FIELDS,
 
 	G_R_REGISTERMODEL, // ( const char *name );
@@ -285,8 +266,57 @@ typedef enum {
 	                   //   const vec3_t *torsoAxis, qhandle_t torsoFrameModel, int torsoFrame, qhandle_t oldTorsoFrameModel, int oldTorsoFrame, float torsoFrac );
 	G_R_MODELBOUNDS, // ( qhandle_t handle, vec3_t mins, vec3_t maxs, int startFrame, int endFrame, float frac );
 
-	G_CLIPTOENTITIES, // ( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
-	G_CLIPTOENTITIESCAPSULE, // ( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
+	// Gets the clip handle for a model.
+	G_CM_LOADMODEL, // ( const char *modelName, const qboolean precache );
+	// Sets up a trace model for collision with other trace models.
+	G_CM_SETUPTRMMODEL, // ( const traceModel_t *trm, qhandle_t material );
+	// Creates a trace model from a collision model, returns true if succesfull.
+	G_CM_TRMFROMMODEL, // ( const char *modelName, traceModel_t *trm );
+
+	// Gets the name of a model.
+	G_CM_GETMODELNAME, // ( cmHandle_t model );
+	// Gets the bounds of a model.
+	G_CM_GETMODELBOUNDS, // ( cmHandle_t model, vec3_t bounds[2] );
+	// Gets all contents flags of brushes and polygons of a model ored together.
+	G_CM_GETMODELCONTENTS, // ( cmHandle_t model, int *contents );
+	// Gets a vertex of a model.
+	G_CM_GETMODELVERTEX, // ( cmHandle_t model, int vertexNum, vec3_t vertex );
+	// Gets an edge of a model.
+	G_CM_GETMODELEDGE, // ( cmHandle_t model, int edgeNum, vec3_t start, vec3_t end );
+	// Gets a polygon of a model.
+	G_CM_GETMODELPOLYGON, // ( cmHandle_t model, int polygonNum, fixedWinding_t *winding );
+
+	// Translates a trace model and reports the first collision if any.
+	G_CM_TRANSLATION, // ( cm_trace_t *results, const vec3_t start, const vec3_t end,
+					//				const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+					//				cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+	// Rotates a trace model and reports the first collision if any.
+	G_CM_ROTATION, // ( cm_trace_t *results, const vec3_t start, const rotation_t *rotation,
+					//				const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+					//				cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+	// Returns the contents touched by the trace model or 0 if the trace model is in free space.
+	G_CM_CONTENTS, // ( const vec3_t start,
+					//			const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+					//			cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+	// Stores all contact points of the trace model with the model, returns the number of contacts.
+	G_CM_CONTACTS, // ( contactInfo_t *contacts, const int maxContacts, const vec3_t start, const vec6_t dir, const float depth,
+					//			const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+					//			cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+
+	// Tests collision detection.
+	G_CM_DEBUGOUTPUT, // ( const vec3_t origin );
+	// Draws a model.
+	G_CM_DRAWMODEL, // ( cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3],
+					//								const vec3_t viewOrigin, const float radius );
+	// Prints model information, use -1 handle for accumulated model info.
+	G_CM_MODELINFO, // ( cmHandle_t model );
+	// Lists all loaded models.
+	G_CM_LISTMODELS, // ( void );
+
+	G_CM_REGISTERMATERIAL, // ( const char *name );
+	G_CM_GETMATERIALNAME, // ( qhandle_t hShader, char *buffer, int bufferSize );
+	G_CM_GETMATERIALCONTENTFLAGS, // ( qhandle_t material );
+    G_CM_GETMATERIALSURFACEFLAGS, // ( qhandle_t material );
 
 } gameImport_t;
 

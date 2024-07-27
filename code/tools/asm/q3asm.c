@@ -28,10 +28,10 @@ Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
 
-#include "../../qcommon/q_platform.h"
+#include "../../idlib/q_platform.h"
 #include "cmdlib.h"
 #include "mathlib.h"
-#include "../../qcommon/qfiles.h"
+#include "../../idlib/qfiles.h"
 
 /* 19079 total symbols in FI, 2002 Jan 23 */
 #define DEFAULT_HASHTABLE_SIZE 2048

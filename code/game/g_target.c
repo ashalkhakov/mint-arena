@@ -57,7 +57,7 @@ void Use_Target_Give( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 
 		// make sure it isn't going to respawn or show any events
 		t->nextthink = 0;
-		trap_UnlinkEntity( t );
+		G_UnlinkEntity( t );
 	}
 }
 
@@ -270,7 +270,7 @@ void SP_target_speaker( gentity_t *ent ) {
 
 	// must link the entity so we get areas and clusters so
 	// the server can determine who to send updates to
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 
@@ -296,7 +296,7 @@ void target_laser_think (gentity_t *self) {
 	// fire forward and see what we hit
 	VectorMA (self->s.origin, 2048, self->movedir, end);
 
-	trap_Trace( &tr, self->s.origin, NULL, NULL, end, self->s.number, CONTENTS_SOLID|CONTENTS_BODY|CONTENTS_CORPSE);
+	G_Trace( &tr, self->s.origin, NULL, NULL, end, self->s.number, CONTENTS_SOLID|CONTENTS_BODY|CONTENTS_CORPSE, TT_AABB);
 
 	if ( tr.entityNum ) {
 		// hurt it if we can
@@ -306,7 +306,7 @@ void target_laser_think (gentity_t *self) {
 
 	VectorCopy (tr.endpos, self->s.origin2);
 
-	trap_LinkEntity( self );
+	G_LinkEntity( self );
 	self->nextthink = level.time + FRAMETIME;
 }
 
@@ -319,7 +319,7 @@ void target_laser_on (gentity_t *self)
 
 void target_laser_off (gentity_t *self)
 {
-	trap_UnlinkEntity( self );
+	G_UnlinkEntity( self );
 	self->nextthink = 0;
 }
 

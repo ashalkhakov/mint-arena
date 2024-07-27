@@ -376,14 +376,14 @@ void G_SetBrushModel( gentity_t *ent, const char *name ) {
 
 	ent->s.modelindex = atoi( name + 1 );
 
-	trap_GetBrushBounds( ent->s.modelindex, mins, maxs );
+	G_GetBrushBounds( ent->s.modelindex, mins, maxs );
 	VectorCopy (mins, ent->s.mins);
 	VectorCopy (maxs, ent->s.maxs);
 	ent->s.collisionType = CT_SUBMODEL;
 
 	ent->s.contents = -1;		// we don't know exactly what is in the brushes
 
-	trap_LinkEntity( ent );		// FIXME: remove
+	G_LinkEntity( ent );		// FIXME: remove
 }
 
 
@@ -538,7 +538,7 @@ Marks the entity as free
 =================
 */
 void G_FreeEntity( gentity_t *ed ) {
-	trap_UnlinkEntity (ed);		// unlink from world
+	G_UnlinkEntity (ed);		// unlink from world
 
 	if ( ed->neverFree ) {
 		return;
@@ -575,7 +575,7 @@ gentity_t *G_TempEntity( vec3_t origin, int event ) {
 	G_SetOrigin( e, snapped );
 
 	// find cluster for PVS
-	trap_LinkEntity( e );
+	G_LinkEntity( e );
 
 	return e;
 }
@@ -605,7 +605,7 @@ void G_KillBox (gentity_t *ent) {
 
 	VectorAdd( ent->player->ps.origin, ent->s.mins, mins );
 	VectorAdd( ent->player->ps.origin, ent->s.maxs, maxs );
-	num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
+	num = G_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
 
 	for (i=0 ; i<num ; i++) {
 		hit = &g_entities[touch[i]];

@@ -40,6 +40,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
+#include "../idlib/l_script.h"
+#include "../idlib/l_precomp.h"
+#include "../idlib/l_struct.h"
 //
 #include "ai_char.h"
 #include "ai_chat_sys.h"
@@ -76,25 +79,25 @@ weightconfig_t	*weightFileList[MAX_WEIGHT_FILES];
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
-int ReadValue(int source, float *value)
+int ReadValue(source_t *source, float *value)
 {
-	pc_token_t token;
+	token_t token;
 
 	if (!PC_ExpectAnyToken(source, &token)) return qfalse;
 	if (!strcmp(token.string, "-"))
 	{
-		PC_SourceWarning(source, "negative value set to zero");
+		SourceWarning(source, "negative value set to zero");
 
 		if(!PC_ExpectAnyToken(source, &token))
 		{
-			PC_SourceError(source, "Missing return value");
+			SourceError(source, "Missing return value");
 			return qfalse;
 		}
 	}
 
 	if (token.type != TT_NUMBER)
 	{
-		PC_SourceError(source, "invalid return value %s", token.string);
+		SourceError(source, "invalid return value %s", token.string);
 		return qfalse;
 	}
 	
@@ -107,7 +110,7 @@ int ReadValue(int source, float *value)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
-int ReadFuzzyWeight(int source, fuzzyseperator_t *fs)
+int ReadFuzzyWeight(source_t *source, fuzzyseperator_t *fs)
 {
 	if (PC_CheckTokenString(source, "balance"))
 	{
@@ -177,10 +180,10 @@ void FreeWeightConfig(weightconfig_t *config)
 // Returns:				-
 // Changes Globals:		-
 //===========================================================================
-fuzzyseperator_t *ReadFuzzySeperators_r(int source)
+fuzzyseperator_t *ReadFuzzySeperators_r(source_t *source)
 {
 	int newindent, index, def, founddefault;
-	pc_token_t token;
+	token_t token;
 	fuzzyseperator_t *fs, *lastfs, *firstfs;
 
 	founddefault = qfalse;
@@ -206,7 +209,7 @@ fuzzyseperator_t *ReadFuzzySeperators_r(int source)
 			{
 				if (founddefault)
 				{
-					PC_SourceError(source, "switch already has a default");
+					SourceError(source, "switch already has a default");
 					FreeFuzzySeperators_r(firstfs);
 					return NULL;
 				} //end if
@@ -256,7 +259,7 @@ fuzzyseperator_t *ReadFuzzySeperators_r(int source)
 			} //end else if
 			else
 			{
-				PC_SourceError(source, "invalid name %s", token.string);
+				SourceError(source, "invalid name %s", token.string);
 				return NULL;
 			} //end else
 			if (newindent)
@@ -271,7 +274,7 @@ fuzzyseperator_t *ReadFuzzySeperators_r(int source)
 		else
 		{
 			FreeFuzzySeperators_r(firstfs);
-			PC_SourceError(source, "invalid name %s", token.string);
+			SourceError(source, "invalid name %s", token.string);
 			return NULL;
 		} //end else
 		if (!PC_ExpectAnyToken(source, &token))
@@ -283,7 +286,7 @@ fuzzyseperator_t *ReadFuzzySeperators_r(int source)
 	//
 	if (!founddefault)
 	{
-		PC_SourceWarning(source, "switch without default");
+		SourceWarning(source, "switch without default");
 		fs = (fuzzyseperator_t *) trap_HeapMalloc(sizeof(fuzzyseperator_t));
 		fs->index = index;
 		fs->value = MAX_INVENTORYVALUE;
@@ -305,8 +308,8 @@ fuzzyseperator_t *ReadFuzzySeperators_r(int source)
 weightconfig_t *ReadWeightConfig(char *filename)
 {
 	int newindent, avail = 0, n;
-	pc_token_t token;
-	int source;
+	token_t token;
+	source_t *source;
 	fuzzyseperator_t *fs;
 	weightconfig_t *config = NULL;
 	int starttime;
@@ -341,7 +344,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 		} //end if
 	} //end if
 
-	source = trap_PC_LoadSource(filename, BOTFILESBASEFOLDER);
+	source = PC_LoadSource(filename, BOTFILESBASEFOLDER, NULL);
 	if (!source)
 	{
 		BotAI_Print(PRT_ERROR, "counldn't load %s\n", filename);
@@ -352,19 +355,19 @@ weightconfig_t *ReadWeightConfig(char *filename)
 	config->numweights = 0;
 	Q_strncpyz( config->filename, filename, sizeof(config->filename) );
 	//parse the item config file
-	while(trap_PC_ReadToken(source, &token))
+	while(PC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "weight"))
 		{
 			if (config->numweights >= MAX_WEIGHTS)
 			{
-				PC_SourceWarning(source, "too many fuzzy weights");
+				SourceWarning(source, "too many fuzzy weights");
 				break;
 			} //end if
 			if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 			{
 				FreeWeightConfig(config);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			config->weights[config->numweights].name = (char *) trap_HeapMalloc(strlen(token.string) + 1);
@@ -372,7 +375,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 			if (!PC_ExpectAnyToken(source, &token))
 			{
 				FreeWeightConfig(config);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			newindent = qfalse;
@@ -382,7 +385,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 				if (!PC_ExpectAnyToken(source, &token))
 				{
 					FreeWeightConfig(config);
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 			} //end if
@@ -392,7 +395,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 				if (!fs)
 				{
 					FreeWeightConfig(config);
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 				config->weights[config->numweights].firstseperator = fs;
@@ -408,16 +411,16 @@ weightconfig_t *ReadWeightConfig(char *filename)
 				{
 					trap_HeapFree(fs);
 					FreeWeightConfig(config);
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 				config->weights[config->numweights].firstseperator = fs;
 			} //end else if
 			else
 			{
-				PC_SourceError(source, "invalid name %s", token.string);
+				SourceError(source, "invalid name %s", token.string);
 				FreeWeightConfig(config);
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end else
 			if (newindent)
@@ -425,7 +428,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 				if (!PC_ExpectTokenString(source, "}"))
 				{
 					FreeWeightConfig(config);
-					trap_PC_FreeSource(source);
+					PC_FreeSource(source);
 					return NULL;
 				} //end if
 			} //end if
@@ -433,14 +436,14 @@ weightconfig_t *ReadWeightConfig(char *filename)
 		} //end if
 		else
 		{
-			PC_SourceError(source, "invalid name %s", token.string);
+			SourceError(source, "invalid name %s", token.string);
 			FreeWeightConfig(config);
-			trap_PC_FreeSource(source);
+			PC_FreeSource(source);
 			return NULL;
 		} //end else
 	} //end while
 	//free the source at the end of a pass
-	trap_PC_FreeSource(source);
+	PC_FreeSource(source);
 	//if the file was located in a pak file
 	BotAI_Print(PRT_DEVELOPER, "loaded %s\n", filename);
 	BotAI_Print(PRT_DEVELOPER, "weights loaded in %d msec\n", trap_Milliseconds() - starttime);

@@ -40,6 +40,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
+#include "../idlib/l_script.h"
+#include "../idlib/l_precomp.h"
+#include "../idlib/l_struct.h"
 //
 #include "ai_char.h"
 #include "ai_chat_sys.h"
@@ -240,14 +243,14 @@ void BotMutateGoalFuzzyLogic(int goalstate, float range)
 //===========================================================================
 itemconfig_t *LoadItemConfig(char *filename)
 {
-	pc_token_t token;
+	token_t token;
 	char path[MAX_QPATH];
-	int source;
+	source_t *source;
 	itemconfig_t *ic;
 	iteminfo_t *ii;
 
 	Q_strncpyz( path, filename, sizeof( path ) );
-	source = trap_PC_LoadSource( path, BOTFILESBASEFOLDER );
+	source = PC_LoadSource( path, BOTFILESBASEFOLDER, NULL );
 	if( !source ) {
 		BotAI_Print( PRT_ERROR, "counldn't load %s\n", path );
 		return NULL;
@@ -257,27 +260,27 @@ itemconfig_t *LoadItemConfig(char *filename)
 	Com_Memset( ic, 0, sizeof (itemconfig_t) );
 	ic->numiteminfo = 0;
 	//parse the item config file
-	while(trap_PC_ReadToken(source, &token))
+	while(PC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "iteminfo"))
 		{
 			if (ic->numiteminfo >= MAX_ITEMS)
 			{
-				PC_SourceError(source, "more than %d item info defined", MAX_ITEMS);
-				trap_PC_FreeSource(source);
+				SourceError(source, "more than %d item info defined", MAX_ITEMS);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			ii = &ic->iteminfo[ic->numiteminfo];
 			Com_Memset(ii, 0, sizeof(iteminfo_t));
 			if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
 			{
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			Q_strncpyz(ii->classname, token.string, sizeof(ii->classname));
-			if (!PC_ReadStructure(source, &iteminfo_struct, (void *) ii))
+			if (!ReadStructure(source, &iteminfo_struct, (void *) ii))
 			{
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				return NULL;
 			} //end if
 			ii->number = ic->numiteminfo;
@@ -285,12 +288,12 @@ itemconfig_t *LoadItemConfig(char *filename)
 		} //end if
 		else
 		{
-			PC_SourceError(source, "unknown definition %s", token.string);
-			trap_PC_FreeSource(source);
+			SourceError(source, "unknown definition %s", token.string);
+			PC_FreeSource(source);
 			return NULL;
 		} //end else
 	} //end while
-	trap_PC_FreeSource(source);
+	PC_FreeSource(source);
 	//
 	if (!ic->numiteminfo) BotAI_Print(PRT_WARNING, "no item info loaded\n");
 	BotAI_Print(PRT_DEVELOPER, "loaded %s\n", path);
@@ -474,9 +477,9 @@ void BotUnlinkSolidItems(qboolean unlink) {
 		if ( ent->s.eType == ET_GENERAL && ent->activator && ent->activator->s.eType == ET_TEAM
 			&& ( !Q_stricmp( ent->activator->classname, "team_blueobelisk" ) || !Q_stricmp( ent->activator->classname, "team_redobelisk" ) ) ) {
 			if ( unlink ) {
-				trap_UnlinkEntity( ent );
+				G_UnlinkEntity( ent );
 			} else {
-				trap_LinkEntity( ent );
+				G_LinkEntity( ent );
 			}
 		}
 	}
@@ -558,7 +561,7 @@ void BotInitLevelItems(void)
 			{
 				VectorCopy(origin, end);
 				end[2] -= 32;
-				trap_Trace(&trace, origin, ic->iteminfo[i].mins, ic->iteminfo[i].maxs, end, -1, CONTENTS_SOLID|CONTENTS_PLAYERCLIP);
+				G_Trace(&trace, origin, ic->iteminfo[i].mins, ic->iteminfo[i].maxs, end, -1, CONTENTS_SOLID|CONTENTS_PLAYERCLIP, TT_AABB);
 				//if the item not near the ground
 				if (trace.fraction >= 1)
 				{
@@ -1616,7 +1619,7 @@ int BotItemGoalInVisButNotVisible(int viewer, vec3_t eye, vec3_t viewangles, bot
 	VectorScale(middle, 0.5, middle);
 	VectorAdd(goal->origin, middle, middle);
 	//
-	trap_Trace(&trace, eye, NULL, NULL, middle, viewer, CONTENTS_SOLID);
+	G_Trace(&trace, eye, NULL, NULL, middle, viewer, CONTENTS_SOLID, TT_AABB);
 	//if the goal middle point is visible
 	if (trace.fraction >= 1)
 	{

@@ -37,10 +37,11 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "l_memory.h"
-#include "l_log.h"
-#include "l_libvar.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/idlib_local.h"
+#include "../idlib/l_memory.h"
+#include "../idlib/l_log.h"
+#include "../idlib/l_libvar.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -1488,14 +1489,17 @@ void AAS_InitClustering(void)
 	//remove all portals that are not closing a cluster
 	//AAS_RemoveNotClusterClosingPortals();
 	//initialize portal memory
-	if (aasworld.portals) FreeMemory(aasworld.portals);
-	aasworld.portals = (aas_portal_t *) GetClearedMemory(AAS_MAX_PORTALS * sizeof(aas_portal_t));
+	if (aasworld.portals) ii.FreeMemory(aasworld.portals);
+	aasworld.portals = (aas_portal_t *) ii.GetMemory(AAS_MAX_PORTALS * sizeof(aas_portal_t));
+    memset(aasworld.portals, 0, AAS_MAX_PORTALS * sizeof(aas_portal_t));
 	//initialize portal index memory
-	if (aasworld.portalindex) FreeMemory(aasworld.portalindex);
-	aasworld.portalindex = (aas_portalindex_t *) GetClearedMemory(AAS_MAX_PORTALINDEXSIZE * sizeof(aas_portalindex_t));
+	if (aasworld.portalindex) ii.FreeMemory(aasworld.portalindex);
+	aasworld.portalindex = (aas_portalindex_t *) ii.GetMemory(AAS_MAX_PORTALINDEXSIZE * sizeof(aas_portalindex_t));
+    memset(aasworld.portalindex, 0, AAS_MAX_PORTALINDEXSIZE * sizeof(aas_portalindex_t));
 	//initialize cluster memory
-	if (aasworld.clusters) FreeMemory(aasworld.clusters);
-	aasworld.clusters = (aas_cluster_t *) GetClearedMemory(AAS_MAX_CLUSTERS * sizeof(aas_cluster_t));
+	if (aasworld.clusters) ii.FreeMemory(aasworld.clusters);
+	aasworld.clusters = (aas_cluster_t *) ii.GetMemory(AAS_MAX_CLUSTERS * sizeof(aas_cluster_t));
+    memset(aasworld.clusters, 0, AAS_MAX_CLUSTERS * sizeof(aas_cluster_t));
 	//
 	removedPortalAreas = 0;
 	botimport.Print(PRT_MESSAGE, "\r%6d removed portal areas", removedPortalAreas);

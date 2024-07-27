@@ -49,20 +49,12 @@ void	trap_SetConfigstringRestrictions( int num, const clientList_t *clientList )
 void	trap_GetUserinfo( int num, char *buffer, int bufferSize );
 void	trap_SetUserinfo( int num, const char *buffer );
 void	trap_GetServerinfo( char *buffer, int bufferSize );
-void	trap_GetBrushBounds( int modelindex, vec3_t mins, vec3_t maxs );
-void	trap_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
-void	trap_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
-void	trap_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
-void	trap_ClipToEntitiesCapsule( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
-int		trap_PointContents( const vec3_t point, int passEntityNum );
 qboolean trap_InPVS( const vec3_t p1, const vec3_t p2 );
 qboolean trap_InPVSIgnorePortals( const vec3_t p1, const vec3_t p2 );
 void	trap_AdjustAreaPortalState( gentity_t *ent, qboolean open );
 qboolean trap_AreasConnected( int area1, int area2 );
 void	trap_LinkEntity( gentity_t *ent );
 void	trap_UnlinkEntity( gentity_t *ent );
-int		trap_EntitiesInBox( const vec3_t mins, const vec3_t maxs, int *entityList, int maxcount );
-qboolean trap_EntityContact( const vec3_t mins, const vec3_t maxs, const gentity_t *ent );
 int		trap_BotAllocateClient( void );
 void	trap_BotFreeClient( int clientNum );
 void	trap_GetUsercmd( int playerNum, usercmd_t *cmd );
@@ -179,6 +171,58 @@ void	trap_AAS_JumpReachRunStart(void /* struct aas_reachability_s */ *reach, vec
 int		trap_AAS_AgainstLadder(vec3_t origin);
 int		trap_AAS_HorizontalVelocityForJump(float zvel, vec3_t start, vec3_t end, float *velocity);
 int		trap_AAS_DropToFloor(vec3_t origin, vec3_t mins, vec3_t maxs, int passent, int contentmask);
+
+// Gets the clip handle for a model.
+cmHandle_t	trap_CM_LoadModel( const char *modelName, const qboolean precache );
+// Sets up a trace model for collision with other trace models.
+cmHandle_t	trap_CM_SetupTrmModel( const traceModel_t *trm, qhandle_t material );
+// Creates a trace model from a collision model, returns true if succesfull.
+qboolean    trap_CM_TrmFromModel( const char *modelName, traceModel_t *trm );
+
+// Gets the name of a model.
+void        trap_CM_GetModelName( cmHandle_t model, char *buffer, int bufferSize );
+// Gets the bounds of a model.
+qboolean	trap_CM_GetModelBounds( cmHandle_t model, vec3_t bounds[2] );
+// Gets all contents flags of brushes and polygons of a model ored together.
+qboolean	trap_CM_GetModelContents( cmHandle_t model, int *contents );
+// Gets a vertex of a model.
+qboolean	trap_CM_GetModelVertex( cmHandle_t model, int vertexNum, vec3_t vertex );
+// Gets an edge of a model.
+qboolean	trap_CM_GetModelEdge( cmHandle_t model, int edgeNum, vec3_t start, vec3_t end );
+// Gets a polygon of a model.
+qboolean	trap_CM_GetModelPolygon( cmHandle_t model, int polygonNum, fixedWinding_t *winding );
+
+// Translates a trace model and reports the first collision if any.
+void		trap_CM_Translation( cm_trace_t *results, const vec3_t start, const vec3_t end,
+                                const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                                cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+// Rotates a trace model and reports the first collision if any.
+void		trap_CM_Rotation( cm_trace_t *results, const vec3_t start, const rotation_t *rotation,
+                                const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                                cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+// Returns the contents touched by the trace model or 0 if the trace model is in free space.
+int			trap_CM_Contents( const vec3_t start,
+                            const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                            cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+// Stores all contact points of the trace model with the model, returns the number of contacts.
+int			trap_CM_Contacts( contactInfo_t *contacts, const int maxContacts, const vec3_t start, const vec6_t dir, const float depth,
+                            const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+                            cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+
+// Tests collision detection.
+void		trap_CM_DebugOutput( const vec3_t origin );
+// Draws a model.
+void		trap_CM_DrawModel( cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3],
+                                                const vec3_t viewOrigin, const float radius );
+// Prints model information, use -1 handle for accumulated model info.
+void		trap_CM_ModelInfo( cmHandle_t model );
+// Lists all loaded models.
+void		trap_CM_ListModels( void );
+
+qhandle_t   trap_CM_RegisterMaterial( const char *name );
+void		trap_CM_GetMaterialName( qhandle_t hShader, char *buffer, int bufferSize );
+int			trap_CM_GetMaterialContentFlags( qhandle_t material );
+int         trap_CM_GetMaterialSurfaceFlags( qhandle_t material );
 
 #endif
 

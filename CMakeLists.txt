@@ -1079,6 +1079,42 @@ list(APPEND BASE_CFLAGS -Werror-implicit-function-declaration)
 # ## BASEGAME CGAME
 # #############################################################################
 
+set(idlib_files
+  idlib/idlib_main.c
+  idlib/l_precomp.c
+  idlib/l_script.c
+  idlib/l_struct.c
+  idlib/l_crc.c
+  idlib/l_libvar.c
+  idlib/l_log.c
+  idlib/q_math.c
+  idlib/q_shared.c
+  idlib/q_extramath.c
+  idlib/q_containers.c
+  idlib/surface.c
+  idlib/surfacepatch.c
+
+  idlib/hashindex.c
+  idlib/dict.c
+
+  idlib/md4.c
+  idlib/md5.c
+
+  idlib/bsp/bsp.c
+  idlib/bsp/bsp_q3.c
+  idlib/bsp/bsp_q3ihv.c
+  idlib/bsp/bsp_q3test103.c
+  idlib/bsp/bsp_q3test106.c
+  idlib/bsp/bsp_fakk.c
+  idlib/bsp/bsp_sof2.c
+  idlib/bsp/bsp_ef2.c
+  idlib/bsp/bsp_mohaa.c
+
+  idlib/polylib.c
+
+  idlib/mapfile.c
+  )
+
 set(Q3CGOBJ
   cgame/cg_main.c
   game/bg_misc.c
@@ -1158,8 +1194,7 @@ set(Q3CGOBJ
   q3_ui/ui_teamorders.c
   q3_ui/ui_video.c
   
-  qcommon/q_math.c
-  qcommon/q_shared.c
+  ${idlib_files}
   qcommon/q_unicode.c)
 
 if(${USE_BASEGAME_MP_HUD})
@@ -1353,6 +1388,9 @@ set(Q3GOBJ
   game/g_unlagged.c
   game/g_utils.c
   game/g_weapon.c
+
+  game/g_clip.c
+  game/g_world.c
   
   botlib/be_aas_bspq3.c
   botlib/be_aas_cluster.c
@@ -1367,13 +1405,8 @@ set(Q3GOBJ
   botlib/be_aas_routealt.c
   botlib/be_aas_sample.c
   botlib/be_interface.c
-  botlib/l_crc.c
-  botlib/l_libvar.c
-  botlib/l_log.c
-  botlib/l_memory.c
-  
-  qcommon/q_math.c
-  qcommon/q_shared.c)
+
+  ${idlib_files})
 
 list(TRANSFORM Q3GOBJ PREPEND code/)
 

@@ -628,6 +628,24 @@ void	Svcmd_TellComplete( char *args, int argNum ) {
 	}
 }
 
+/*
+===================
+Svcmd_SectorList_f
+===================
+*/
+void	Svcmd_SectorList_f( void ) {
+    G_SectorList_f();
+}
+
+/*
+===================
+Svcmd_SectorListComplete
+===================
+*/
+void	Svcmd_SectorListComplete( char *args, int argNum ) {
+
+}
+
 struct svcmd
 {
   char     *cmd;
@@ -647,6 +665,7 @@ struct svcmd
   { "say", qtrue, Svcmd_Say_f },
   { "teleport", qfalse, Svcmd_Teleport_f, Svcmd_TeleportComplete },
   { "tell", qtrue, Svcmd_Tell_f, Svcmd_TellComplete },
+  { "sectorlist", qfalse, Svcmd_SectorList_f, Svcmd_SectorListComplete }
 };
 
 const size_t numSvCmds = ARRAY_LEN(svcmds);

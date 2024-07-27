@@ -31,7 +31,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define __UI_SHARED_H
 
 
-#include "../qcommon/q_shared.h"
+#include "../idlib/q_shared.h"
 #include "../renderercommon/tr_types.h"
 #include "../client/keycodes.h"
 

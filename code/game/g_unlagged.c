@@ -210,7 +210,7 @@ void G_TimeShiftClient( gentity_t *ent, int time, qboolean debug, gentity_t *deb
 			}
 
 			// this will recalculate absmin and absmax
-			trap_LinkEntity( ent );
+			G_LinkEntity( ent );
 		} else {
 			// we wrapped, so grab the earliest
 			VectorCopy( ent->player->playerMarkers[k].origin, ent->r.currentOrigin );
@@ -218,7 +218,7 @@ void G_TimeShiftClient( gentity_t *ent, int time, qboolean debug, gentity_t *deb
 			VectorCopy( ent->player->playerMarkers[k].maxs, ent->s.maxs );
 
 			// this will recalculate absmin and absmax
-			trap_LinkEntity( ent );
+			G_LinkEntity( ent );
 		}
 	}
 	else {
@@ -326,7 +326,7 @@ void G_UnTimeShiftClient( gentity_t *ent ) {
 		ent->player->backupMarker.time = 0;
 
 		// this will recalculate absmin and absmax
-		trap_LinkEntity( ent );
+		G_LinkEntity( ent );
 	}
 }
 
@@ -441,7 +441,7 @@ qboolean G_PredictPlayerSlideMove( gentity_t *ent, float frametime ) {
 		VectorMA( origin, time_left, velocity, end );
 
 		// see if we can make it there
-		trap_Trace( &trace, origin, ent->s.mins, ent->s.maxs, end, ent->s.number, ent->clipmask );
+		G_Trace( &trace, origin, ent->s.mins, ent->s.maxs, end, ent->s.number, ent->clipmask, TT_AABB );
 
 		if (trace.allsolid) {
 			// entity is completely trapped in another solid
@@ -596,7 +596,7 @@ void G_PredictPlayerStepSlideMove( gentity_t *ent, float frametime ) {
 	up[2] += STEPSIZE;
 
 	// test the player position if they were a stepheight higher
-	trap_Trace( &trace, start_o, ent->s.mins, ent->s.maxs, up, ent->s.number, ent->clipmask );
+	G_Trace( &trace, start_o, ent->s.mins, ent->s.maxs, up, ent->s.number, ent->clipmask, TT_AABB );
 	if ( trace.allsolid ) {
 		return;		// can't step up
 	}
@@ -612,7 +612,7 @@ void G_PredictPlayerStepSlideMove( gentity_t *ent, float frametime ) {
 	// push down the final amount
 	VectorCopy( ent->s.pos.trBase, down );
 	down[2] -= stepSize;
-	trap_Trace( &trace, ent->s.pos.trBase, ent->s.mins, ent->s.maxs, down, ent->s.number, ent->clipmask );
+	G_Trace( &trace, ent->s.pos.trBase, ent->s.mins, ent->s.maxs, down, ent->s.number, ent->clipmask, TT_AABB );
 	if ( !trace.allsolid ) {
 		VectorCopy( trace.endpos, ent->s.pos.trBase );
 	}

@@ -37,9 +37,10 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
-#include "../qcommon/q_shared.h"
-#include "l_memory.h"
-#include "l_libvar.h"
+#include "../idlib/q_shared.h"
+#include "../idlib/l_memory.h"
+#include "../idlib/l_libvar.h"
+#include "../idlib/idlib_local.h"
 #include "aasfile.h"
 #include "botlib.h"
 #include "be_aas.h"
@@ -187,46 +188,46 @@ void AAS_SwapAASData(void)
 void AAS_DumpAASData(void)
 {
 	aasworld.numbboxes = 0;
-	if (aasworld.bboxes) FreeMemory(aasworld.bboxes);
+	if (aasworld.bboxes) ii.FreeMemory(aasworld.bboxes);
 	aasworld.bboxes = NULL;
 	aasworld.numvertexes = 0;
-	if (aasworld.vertexes) FreeMemory(aasworld.vertexes);
+	if (aasworld.vertexes) ii.FreeMemory(aasworld.vertexes);
 	aasworld.vertexes = NULL;
 	aasworld.numplanes = 0;
-	if (aasworld.planes) FreeMemory(aasworld.planes);
+	if (aasworld.planes) ii.FreeMemory(aasworld.planes);
 	aasworld.planes = NULL;
 	aasworld.numedges = 0;
-	if (aasworld.edges) FreeMemory(aasworld.edges);
+	if (aasworld.edges) ii.FreeMemory(aasworld.edges);
 	aasworld.edges = NULL;
 	aasworld.edgeindexsize = 0;
-	if (aasworld.edgeindex) FreeMemory(aasworld.edgeindex);
+	if (aasworld.edgeindex) ii.FreeMemory(aasworld.edgeindex);
 	aasworld.edgeindex = NULL;
 	aasworld.numfaces = 0;
-	if (aasworld.faces) FreeMemory(aasworld.faces);
+	if (aasworld.faces) ii.FreeMemory(aasworld.faces);
 	aasworld.faces = NULL;
 	aasworld.faceindexsize = 0;
-	if (aasworld.faceindex) FreeMemory(aasworld.faceindex);
+	if (aasworld.faceindex) ii.FreeMemory(aasworld.faceindex);
 	aasworld.faceindex = NULL;
 	aasworld.numareas = 0;
-	if (aasworld.areas) FreeMemory(aasworld.areas);
+	if (aasworld.areas) ii.FreeMemory(aasworld.areas);
 	aasworld.areas = NULL;
 	aasworld.numareasettings = 0;
-	if (aasworld.areasettings) FreeMemory(aasworld.areasettings);
+	if (aasworld.areasettings) ii.FreeMemory(aasworld.areasettings);
 	aasworld.areasettings = NULL;
 	aasworld.reachabilitysize = 0;
-	if (aasworld.reachability) FreeMemory(aasworld.reachability);
+	if (aasworld.reachability) ii.FreeMemory(aasworld.reachability);
 	aasworld.reachability = NULL;
 	aasworld.numnodes = 0;
-	if (aasworld.nodes) FreeMemory(aasworld.nodes);
+	if (aasworld.nodes) ii.FreeMemory(aasworld.nodes);
 	aasworld.nodes = NULL;
 	aasworld.numportals = 0;
-	if (aasworld.portals) FreeMemory(aasworld.portals);
+	if (aasworld.portals) ii.FreeMemory(aasworld.portals);
 	aasworld.portals = NULL;
 	aasworld.numportals = 0;
-	if (aasworld.portalindex) FreeMemory(aasworld.portalindex);
+	if (aasworld.portalindex) ii.FreeMemory(aasworld.portalindex);
 	aasworld.portalindex = NULL;
 	aasworld.portalindexsize = 0;
-	if (aasworld.clusters) FreeMemory(aasworld.clusters);
+	if (aasworld.clusters) ii.FreeMemory(aasworld.clusters);
 	aasworld.clusters = NULL;
 	aasworld.numclusters = 0;
 	//
@@ -298,7 +299,9 @@ char *AAS_LoadAASLump(fileHandle_t fp, int offset, int length, int *lastoffset, 
 	if (!length)
 	{
 		//just alloc a dummy
-		return (char *) GetClearedHunkMemory(size+1);
+		buf = (char *) ii.HunkAlloc(size+1);
+        memset(buf, 0, size+1);
+        return buf;
 	} //end if
 	//seek to the data
 	if (offset != *lastoffset)
@@ -313,7 +316,8 @@ char *AAS_LoadAASLump(fileHandle_t fp, int offset, int length, int *lastoffset, 
 		} //end if
 	} //end if
 	//allocate memory
-	buf = (char *) GetClearedHunkMemory(length+1);
+	buf = (char *) ii.HunkAlloc(length+1);
+    memset(buf, 0, length+1);
 	//read the data
 	if (length)
 	{

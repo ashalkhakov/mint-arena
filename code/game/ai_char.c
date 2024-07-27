@@ -40,7 +40,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
-#include "../botlib/l_log.h"
+#include "../idlib/l_log.h"
+#include "../idlib/l_script.h"
+#include "../idlib/l_precomp.h"
 //
 #include "ai_char.h"
 #include "ai_chat_sys.h"
@@ -231,12 +233,12 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 {
 	int indent, index, foundcharacter;
 	bot_character_t *ch;
-	int	source;
-	pc_token_t token;
+	source_t	*source;
+	token_t token;
 
 	foundcharacter = qfalse;
 	//a bot character is parsed in two phases
-	source = trap_PC_LoadSource(charfile, BOTFILESBASEFOLDER);
+	source = PC_LoadSource(charfile, BOTFILESBASEFOLDER, NULL);
 	if (!source)
 	{
 		BotAI_Print(PRT_ERROR, "counldn't load %s\n", charfile);
@@ -245,20 +247,20 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 	ch = (bot_character_t *) trap_HeapMalloc(sizeof(bot_character_t) +
 					MAX_CHARACTERISTICS * sizeof(bot_characteristic_t));
 	strcpy(ch->filename, charfile);
-	while(trap_PC_ReadToken(source, &token))
+	while(PC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "skill"))
 		{
 			if (!PC_ExpectTokenType(source, TT_NUMBER, 0, &token))
 			{
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				BotFreeCharacterStrings(ch);
 				trap_HeapFree(ch);
 				return NULL;
 			} //end if
 			if (!PC_ExpectTokenString(source, "{"))
 			{
-				trap_PC_FreeSource(source);
+				PC_FreeSource(source);
 				BotFreeCharacterStrings(ch);
 				trap_HeapFree(ch);
 				return NULL;
@@ -273,8 +275,8 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 					if (!strcmp(token.string, "}")) break;
 					if (token.type != TT_NUMBER || !(token.subtype & TT_INTEGER))
 					{
-						PC_SourceError(source, "expected integer index, found %s", token.string);
-						trap_PC_FreeSource(source);
+						SourceError(source, "expected integer index, found %s", token.string);
+						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);
 						trap_HeapFree(ch);
 						return NULL;
@@ -282,23 +284,23 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 					index = token.intvalue;
 					if (index < 0 || index > MAX_CHARACTERISTICS)
 					{
-						PC_SourceError(source, "characteristic index out of range [0, %d]", MAX_CHARACTERISTICS);
-						trap_PC_FreeSource(source);
+						SourceError(source, "characteristic index out of range [0, %d]", MAX_CHARACTERISTICS);
+						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);
 						trap_HeapFree(ch);
 						return NULL;
 					} //end if
 					if (ch->c[index].type)
 					{
-						PC_SourceError(source, "characteristic %d already initialized", index);
-						trap_PC_FreeSource(source);
+						SourceError(source, "characteristic %d already initialized", index);
+						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);
 						trap_HeapFree(ch);
 						return NULL;
 					} //end if
 					if (!PC_ExpectAnyToken(source, &token))
 					{
-						trap_PC_FreeSource(source);
+						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);
 						trap_HeapFree(ch);
 						return NULL;
@@ -324,8 +326,8 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 					} //end else if
 					else
 					{
-						PC_SourceError(source, "expected integer, float or string, found %s", token.string);
-						trap_PC_FreeSource(source);
+						SourceError(source, "expected integer, float or string, found %s", token.string);
+						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);
 						trap_HeapFree(ch);
 						return NULL;
@@ -340,7 +342,7 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 				{
 					if (!PC_ExpectAnyToken(source, &token))
 					{
-						trap_PC_FreeSource(source);
+						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);
 						trap_HeapFree(ch);
 						return NULL;
@@ -352,14 +354,14 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 		} //end if
 		else
 		{
-			PC_SourceError(source, "unknown definition %s", token.string);
-			trap_PC_FreeSource(source);
+			SourceError(source, "unknown definition %s", token.string);
+			PC_FreeSource(source);
 			BotFreeCharacterStrings(ch);
 			trap_HeapFree(ch);
 			return NULL;
 		} //end else
 	} //end while
-	trap_PC_FreeSource(source);
+	PC_FreeSource(source);
 	//
 	if (!foundcharacter)
 	{
