@@ -392,8 +392,8 @@ static void CG_PhysicsProp( centity_t *cent ) {
 			poly[j].st[0] = ( DotProduct( xyz, u ) - umin ) / du;
 			poly[j].st[1] = ( DotProduct( xyz, v ) - vmin ) / dv;
 			for ( c = 0; c < 3; c++ ) {
-				// polygons don't get the overbright scaling models get, and dark maps need a floor
-				poly[j].modulate[c] = Com_Clamp( 0, 255, 48.0f + ( ambient[c] + directed[c] * light ) * 2.0f );
+				// vertex colors are used as is, dark maps need a floor
+				poly[j].modulate[c] = Com_Clamp( 0, 255, 32.0f + ambient[c] + directed[c] * light );
 			}
 			poly[j].modulate[3] = 255;
 		}
