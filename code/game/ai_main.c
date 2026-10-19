@@ -170,7 +170,8 @@ BotAI_EntityTrace
 ==================
 */
 void BotAI_EntityTrace(bsp_trace_t *bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int entnum, int contentmask) {
-	G_ClipToEntities(bsptrace, start, mins, maxs, end, entnum, contentmask, TT_AABB);
+	// trace against just this entity, like the original SV_ClipToEntity
+	G_ClipToEntity(bsptrace, start, mins, maxs, end, entnum, contentmask, TT_AABB);
 }
 
 /*
@@ -179,7 +180,7 @@ BotAI_PointContents
 ==================
 */
 int BotAI_PointContents(vec3_t point) {
-	return G_PointContents(point, -1);
+	return G_PointContents(point, ENTITYNUM_NONE);
 }
 
 /*

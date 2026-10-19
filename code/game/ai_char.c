@@ -43,6 +43,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../idlib/l_log.h"
 #include "../idlib/l_script.h"
 #include "../idlib/l_precomp.h"
+#include "ai_parse.h"
 //
 #include "ai_char.h"
 #include "ai_chat_sys.h"
@@ -247,11 +248,11 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 	ch = (bot_character_t *) trap_HeapMalloc(sizeof(bot_character_t) +
 					MAX_CHARACTERISTICS * sizeof(bot_characteristic_t));
 	strcpy(ch->filename, charfile);
-	while(PC_ReadToken(source, &token))
+	while(BotPC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "skill"))
 		{
-			if (!PC_ExpectTokenType(source, TT_NUMBER, 0, &token))
+			if (!BotPC_ExpectTokenType(source, TT_NUMBER, 0, &token))
 			{
 				PC_FreeSource(source);
 				BotFreeCharacterStrings(ch);
@@ -270,7 +271,7 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 			{
 				foundcharacter = qtrue;
 				ch->skill = token.intvalue;
-				while(PC_ExpectAnyToken(source, &token))
+				while(BotPC_ExpectAnyToken(source, &token))
 				{
 					if (!strcmp(token.string, "}")) break;
 					if (token.type != TT_NUMBER || !(token.subtype & TT_INTEGER))
@@ -298,7 +299,7 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 						trap_HeapFree(ch);
 						return NULL;
 					} //end if
-					if (!PC_ExpectAnyToken(source, &token))
+					if (!BotPC_ExpectAnyToken(source, &token))
 					{
 						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);
@@ -340,7 +341,7 @@ bot_character_t *BotLoadCharacterFromFile(char *charfile, int skill)
 				indent = 1;
 				while(indent)
 				{
-					if (!PC_ExpectAnyToken(source, &token))
+					if (!BotPC_ExpectAnyToken(source, &token))
 					{
 						PC_FreeSource(source);
 						BotFreeCharacterStrings(ch);

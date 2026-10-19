@@ -141,9 +141,7 @@ punctuation_t default_punctuations[] =
 	{NULL, 0, NULL}
 };
 
-#ifdef BOTLIB
 char basefolder[MAX_QPATH];
-#endif
 
 //===========================================================================
 //
@@ -1260,26 +1258,6 @@ int ScriptSkipTo(script_t *script, char *value)
 		script->script_p++;
 	} while(1);
 } //end of the function ScriptSkipTo
-#ifndef BOTLIB
-//============================================================================
-//
-// Parameter:				-
-// Returns:					-
-// Changes Globals:		-
-//============================================================================
-int FileLength(FILE *fp)
-{
-	int pos;
-	int end;
-
-	pos = ftell(fp);
-	fseek(fp, 0, SEEK_END);
-	end = ftell(fp);
-	fseek(fp, pos, SEEK_SET);
-
-	return end;
-} //end of the function FileLength
-#endif
 //============================================================================
 //
 // Parameter:				-
@@ -1288,29 +1266,19 @@ int FileLength(FILE *fp)
 //============================================================================
 script_t *LoadScriptFile(const char *filename)
 {
-#ifdef BOTLIB
 	fileHandle_t fp;
 	char pathname[MAX_QPATH];
-#else
-	FILE *fp;
-#endif
 	int length;
 	void *buffer;
 	script_t *script;
 
-#ifdef BOTLIB
+	// always go through the engine's virtual filesystem so pk3 files are found
 	if (strlen(basefolder))
 		Com_sprintf(pathname, sizeof(pathname), "%s/%s", basefolder, filename);
 	else
 		Com_sprintf(pathname, sizeof(pathname), "%s", filename);
-	length = FS_FOpenFileByMode( pathname, &fp, FS_READ );
+	length = ii.FS_FOpenFile( pathname, &fp, FS_READ );
 	if (!fp) return NULL;
-#else
-	fp = fopen(filename, "rb");
-	if (!fp) return NULL;
-
-	length = FileLength(fp);
-#endif
 
 	buffer = ii.GetMemory(sizeof(script_t) + length + 1);
 	memset( buffer, 0, sizeof(script_t) + length + 1 );
@@ -1334,17 +1302,8 @@ script_t *LoadScriptFile(const char *filename)
 	//
 	SetScriptPunctuations(script, NULL);
 	//
-#ifdef BOTLIB
-	FS_Read(script->buffer, length, fp);
-	FS_FCloseFile(fp);
-#else
-	if (fread(script->buffer, length, 1, fp) != 1)
-	{
-		ii.FreeMemory(buffer);
-		script = NULL;
-	} //end if
-	fclose(fp);
-#endif
+	ii.FS_Read(script->buffer, length, fp);
+	ii.FS_FCloseFile(fp);
 
 	return script;
 } //end of the function LoadScriptFile
@@ -1406,10 +1365,8 @@ void FreeScript(script_t *script)
 //============================================================================
 void PS_SetBaseFolder(const char *path)
 {
-#ifdef BOTLIB
 	if (path)
 		Com_sprintf(basefolder, sizeof(basefolder), "%s", path);
 	else
 		basefolder[0] = '\0';
-#endif
 } //end of the function PS_SetBaseFolder

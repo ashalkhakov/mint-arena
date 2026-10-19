@@ -87,9 +87,59 @@ typedef int cmHandle_t;
 
 #define CM_CLIP_EPSILON		0.25f			// always stay this distance away from any model
 #define CM_BOX_EPSILON		1.0f			// should always be larger than clip epsilon
-#define CM_MAX_TRACE_DIST	4096.0f			// maximum distance a trace model may be traced, point traces are unlimited
+// Doom 3 limits trace models to 4096 units, but Quake 3 regularly traces boxes
+// across the whole map. Float precision is still well inside CM_CLIP_EPSILON here.
+#define CM_MAX_TRACE_DIST	131072.0f		// maximum distance a trace model may be traced, point traces are unlimited
 
 #define	CM_API_VERSION		1
+
+/*
+================
+CM_TraceToQuakeTrace
+
+Converts a collision model trace into a Quake 3 trace_t. The collision model
+doesn't report starting in solid, so the caller does a position test at the
+start (and end) of the move and passes the results in. entityNum is left to
+the caller, it's set to ENTITYNUM_WORLD on any hit.
+================
+*/
+static ID_INLINE void CM_TraceToQuakeTrace( trace_t *trace, const cm_trace_t *t, const vec3_t start,
+											int surfaceFlags, qboolean startSolid, qboolean allSolid ) {
+	memset( trace, 0, sizeof( *trace ) );
+
+	if ( allSolid ) {
+		// never got out of solid
+		trace->allsolid = qtrue;
+		trace->startsolid = qtrue;
+		trace->fraction = 0.0f;
+		VectorCopy( start, trace->endpos );
+		trace->contents = t->c.contents;
+		trace->entityNum = ENTITYNUM_WORLD;
+		return;
+	}
+
+	trace->startsolid = startSolid;
+	trace->fraction = t->fraction;
+	// the collision model already returns where the trace model stopped,
+	// t->c.point is the point of contact on the surface
+	VectorCopy( t->endpos, trace->endpos );
+
+	if ( t->fraction < 1.0f ) {
+		// both use normal * x = dist for the plane
+		VectorCopy( t->c.normal, trace->plane.normal );
+		trace->plane.dist = t->c.dist;
+		trace->plane.type = PlaneTypeForNormal( trace->plane.normal );
+		SetPlaneSignbits( &trace->plane );
+		trace->surfaceFlags = surfaceFlags;
+		trace->contents = t->c.contents;
+		trace->entityNum = ENTITYNUM_WORLD;
+	} else {
+		trace->entityNum = ENTITYNUM_NONE;
+	}
+	// c.modelFeature is a collision model polygon, not a BSP surface
+	trace->surfaceNum = 0;
+	trace->lateralFraction = 0.0f;
+}
 
 typedef struct cmimport_s cmimport_t;
 

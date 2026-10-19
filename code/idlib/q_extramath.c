@@ -329,7 +329,7 @@ void BoundsFromBoundsRotation( vec3_t self[2], const vec3_t bounds[2], const vec
         MatrixRotateVector( bounds[0], axis, tmp );
         VectorAdd( tmp, origin, point );
 
-        BoundsForPointRotation( self, point, rotation );
+        BoundsForPointRotation( point, rotation, self );
 		for ( i = 1; i < 8; i++ ) {
 			point[0] = bounds[(i^(i>>1))&1][0];
 			point[1] = bounds[(i>>1)&1][1];
@@ -1589,7 +1589,6 @@ TraceModelRotate
 */
 void TraceModelRotate( traceModel_t *mod, const vec3_t rotation[3] ) {
 	int i, j, edgeNum;
-    vec3_t tmp;
 
 	for ( i = 0; i < mod->numVerts; i++ ) {
         VectorRotateSelf( mod->verts[i], rotation );
@@ -1597,8 +1596,8 @@ void TraceModelRotate( traceModel_t *mod, const vec3_t rotation[3] ) {
 
 	ClearBounds( mod->bounds[0], mod->bounds[1] );
 	for ( i = 0; i < mod->numPolys; i++ ) {
-        VectorCopy( mod->polys[i].normal, tmp );
-        VectorRotate( tmp, rotation, mod->polys[i].normal );
+        // same transform as the vertices: normal *= rotation
+        VectorRotateSelf( mod->polys[i].normal, rotation );
 
 		ClearBounds( mod->polys[i].bounds[0], mod->polys[i].bounds[1] );
 		edgeNum = 0;

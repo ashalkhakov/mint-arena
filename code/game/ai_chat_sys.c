@@ -42,6 +42,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../botlib/be_aas.h"
 #include "../idlib/l_script.h"
 #include "../idlib/l_precomp.h"
+#include "ai_parse.h"
 //
 #include "ai_char.h"
 #include "ai_chat_sys.h"
@@ -718,7 +719,7 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 		synlist = NULL; //list synonyms
 		lastsyn = NULL; //last synonym in the list
 		//
-		while(PC_ReadToken(source, &token))
+		while(BotPC_ReadToken(source, &token))
 		{
 			if (token.type == TT_NUMBER)
 			{
@@ -770,7 +771,7 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 					{
 						size_t len;
 						if (!PC_ExpectTokenString(source, "(") ||
-							!PC_ExpectTokenType(source, TT_STRING, 0, &token))
+							!BotPC_ExpectTokenType(source, TT_STRING, 0, &token))
 						{
 							PC_FreeSource(source);
 							return NULL;
@@ -798,7 +799,7 @@ bot_synonymlist_t *BotLoadSynonyms(char *filename)
 						} //end if
 						numsynonyms++;
 						if (!PC_ExpectTokenString(source, ",") ||
-							!PC_ExpectTokenType(source, TT_NUMBER, 0, &token) ||
+							!BotPC_ExpectTokenType(source, TT_NUMBER, 0, &token) ||
 							!PC_ExpectTokenString(source, ")"))
 						{
 							PC_FreeSource(source);
@@ -963,7 +964,7 @@ int BotLoadChatMessage(source_t *source, char *chatmessagestring)
 	//
 	while(1)
 	{
-		if (!PC_ExpectAnyToken(source, &token)) return qfalse;
+		if (!BotPC_ExpectAnyToken(source, &token)) return qfalse;
 		//fixed string
 		if (token.type == TT_STRING)
 		{
@@ -1073,7 +1074,7 @@ bot_randomlist_t *BotLoadRandomStrings(char *filename)
 		randomlist = NULL; //list
 		lastrandom = NULL; //last
 		//
-		while(PC_ReadToken(source, &token))
+		while(BotPC_ReadToken(source, &token))
 		{
 			size_t len;
 			if (token.type != TT_NAME)
@@ -1252,7 +1253,7 @@ bot_matchpiece_t *BotLoadMatchPieces(source_t *source, char *endtoken)
 	//
 	lastwasvariable = qfalse;
 	//
-	while(PC_ReadToken(source, &token))
+	while(BotPC_ReadToken(source, &token))
 	{
 		if (token.type == TT_NUMBER && (token.subtype & TT_INTEGER))
 		{
@@ -1299,7 +1300,7 @@ bot_matchpiece_t *BotLoadMatchPieces(source_t *source, char *endtoken)
 			{
 				if (matchpiece->firststring)
 				{
-					if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
+					if (!BotPC_ExpectTokenType(source, TT_STRING, 0, &token))
 					{
 						PC_FreeSource(source);
 						BotFreeMatchPieces(firstpiece);
@@ -1378,7 +1379,7 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 	matches = NULL; //list with matches
 	lastmatch = NULL; //last match in the list
 
-	while(PC_ReadToken(source, &token))
+	while(BotPC_ReadToken(source, &token))
 	{
 		if (token.type != TT_NUMBER || !(token.subtype & TT_INTEGER))
 		{
@@ -1397,7 +1398,7 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 			return NULL;
 		} //end if
 		//
-		while(PC_ReadToken(source, &token))
+		while(BotPC_ReadToken(source, &token))
 		{
 			if (!strcmp(token.string, "}")) break;
 			//
@@ -1419,7 +1420,7 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 			} //end if
 			//read the match type
 			if (!PC_ExpectTokenString(source, "(") ||
-				!PC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
+				!BotPC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
 			{
 				BotFreeMatchTemplates(matches);
 				PC_FreeSource(source);
@@ -1428,7 +1429,7 @@ bot_matchtemplate_t *BotLoadMatchTemplates(char *matchfile)
 			matchtemplate->type = token.intvalue;
 			//read the match subtype
 			if (!PC_ExpectTokenString(source, ",") ||
-				!PC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
+				!BotPC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
 			{
 				BotFreeMatchTemplates(matches);
 				PC_FreeSource(source);
@@ -1993,7 +1994,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 	//
 	replychatlist = NULL;
 	//
-	while(PC_ReadToken(source, &token))
+	while(BotPC_ReadToken(source, &token))
 	{
 		if (strcmp(token.string, "["))
 		{
@@ -2041,7 +2042,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 				strcpy(namebuffer, "");
 				do
 				{
-					if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
+					if (!BotPC_ExpectTokenType(source, TT_STRING, 0, &token))
 					{
 						BotFreeReplyChat(replychatlist);
 						PC_FreeSource(source);
@@ -2062,7 +2063,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 			else //normal string key
 			{
 				key->flags |= RCKFL_STRING;
-				if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
+				if (!BotPC_ExpectTokenType(source, TT_STRING, 0, &token))
 				{
 					BotFreeReplyChat(replychatlist);
 					PC_FreeSource(source);
@@ -2078,7 +2079,7 @@ bot_replychat_t *BotLoadReplyChat(char *filename)
 		BotCheckValidReplyChatKeySet(source, replychat->keys);
 		//read the = sign and the priority
 		if (!PC_ExpectTokenString(source, "=") ||
-			!PC_ExpectTokenType(source, TT_NUMBER, 0, &token))
+			!BotPC_ExpectTokenType(source, TT_NUMBER, 0, &token))
 		{
 			BotFreeReplyChat(replychatlist);
 			PC_FreeSource(source);
@@ -2196,11 +2197,11 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 		} //end if
 		size = sizeof(bot_chat_t);
 		//
-		while(PC_ReadToken(source, &token))
+		while(BotPC_ReadToken(source, &token))
 		{
 			if (!strcmp(token.string, "chat"))
 			{
-				if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
+				if (!BotPC_ExpectTokenType(source, TT_STRING, 0, &token))
 				{
 					PC_FreeSource(source);
 					return NULL;
@@ -2218,7 +2219,7 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 					//read the chat types
 					while(1)
 					{
-						if (!PC_ExpectAnyToken(source, &token))
+						if (!BotPC_ExpectAnyToken(source, &token))
 						{
 							PC_FreeSource(source);
 							return NULL;
@@ -2231,7 +2232,7 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 							return NULL;
 						} //end if
 						//expect the chat type name
-						if (!PC_ExpectTokenType(source, TT_STRING, 0, &token) ||
+						if (!BotPC_ExpectTokenType(source, TT_STRING, 0, &token) ||
 							!PC_ExpectTokenString(source, "{"))
 						{
 							PC_FreeSource(source);
@@ -2284,7 +2285,7 @@ bot_chat_t *BotLoadInitialChat(char *chatfile, char *chatname)
 					indent = 1;
 					while(indent)
 					{
-						if (!PC_ExpectAnyToken(source, &token))
+						if (!BotPC_ExpectAnyToken(source, &token))
 						{
 							PC_FreeSource(source);
 							return NULL;

@@ -42,6 +42,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../botlib/be_aas.h"
 #include "../idlib/l_script.h"
 #include "../idlib/l_precomp.h"
+#include "ai_parse.h"
 #include "../idlib/l_struct.h"
 //
 #include "ai_char.h"
@@ -218,7 +219,7 @@ qboolean LoadWeaponConfig(char *filename)
 	wc->numweapons = MAX_WEAPONS;
 	wc->numprojectiles = 0;
 	//parse the source file
-	while(PC_ReadToken(source, &token))
+	while(BotPC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "weaponinfo"))
 		{

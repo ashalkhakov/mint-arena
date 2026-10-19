@@ -42,6 +42,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../botlib/be_aas.h"
 #include "../idlib/l_script.h"
 #include "../idlib/l_precomp.h"
+#include "ai_parse.h"
 #include "../idlib/l_struct.h"
 //
 #include "ai_char.h"
@@ -83,12 +84,12 @@ int ReadValue(source_t *source, float *value)
 {
 	token_t token;
 
-	if (!PC_ExpectAnyToken(source, &token)) return qfalse;
+	if (!BotPC_ExpectAnyToken(source, &token)) return qfalse;
 	if (!strcmp(token.string, "-"))
 	{
 		SourceWarning(source, "negative value set to zero");
 
-		if(!PC_ExpectAnyToken(source, &token))
+		if(!BotPC_ExpectAnyToken(source, &token))
 		{
 			SourceError(source, "Missing return value");
 			return qfalse;
@@ -190,11 +191,11 @@ fuzzyseperator_t *ReadFuzzySeperators_r(source_t *source)
 	firstfs = NULL;
 	lastfs = NULL;
 	if (!PC_ExpectTokenString(source, "(")) return NULL;
-	if (!PC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token)) return NULL;
+	if (!BotPC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token)) return NULL;
 	index = token.intvalue;
 	if (!PC_ExpectTokenString(source, ")")) return NULL;
 	if (!PC_ExpectTokenString(source, "{")) return NULL;
-	if (!PC_ExpectAnyToken(source, &token)) return NULL;
+	if (!BotPC_ExpectAnyToken(source, &token)) return NULL;
 	do
 	{
 		def = !strcmp(token.string, "default");
@@ -218,14 +219,14 @@ fuzzyseperator_t *ReadFuzzySeperators_r(source_t *source)
 			} //end if
 			else
 			{
-				if (!PC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
+				if (!BotPC_ExpectTokenType(source, TT_NUMBER, TT_INTEGER, &token))
 				{
 					FreeFuzzySeperators_r(firstfs);
 					return NULL;
 				} //end if
 				fs->value = token.intvalue;
 			} //end else
-			if (!PC_ExpectTokenString(source, ":") || !PC_ExpectAnyToken(source, &token))
+			if (!PC_ExpectTokenString(source, ":") || !BotPC_ExpectAnyToken(source, &token))
 			{
 				FreeFuzzySeperators_r(firstfs);
 				return NULL;
@@ -234,7 +235,7 @@ fuzzyseperator_t *ReadFuzzySeperators_r(source_t *source)
 			if (!strcmp(token.string, "{"))
 			{
 				newindent = qtrue;
-				if (!PC_ExpectAnyToken(source, &token))
+				if (!BotPC_ExpectAnyToken(source, &token))
 				{
 					FreeFuzzySeperators_r(firstfs);
 					return NULL;
@@ -277,7 +278,7 @@ fuzzyseperator_t *ReadFuzzySeperators_r(source_t *source)
 			SourceError(source, "invalid name %s", token.string);
 			return NULL;
 		} //end else
-		if (!PC_ExpectAnyToken(source, &token))
+		if (!BotPC_ExpectAnyToken(source, &token))
 		{
 			FreeFuzzySeperators_r(firstfs);
 			return NULL;
@@ -355,7 +356,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 	config->numweights = 0;
 	Q_strncpyz( config->filename, filename, sizeof(config->filename) );
 	//parse the item config file
-	while(PC_ReadToken(source, &token))
+	while(BotPC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "weight"))
 		{
@@ -364,7 +365,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 				SourceWarning(source, "too many fuzzy weights");
 				break;
 			} //end if
-			if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
+			if (!BotPC_ExpectTokenType(source, TT_STRING, 0, &token))
 			{
 				FreeWeightConfig(config);
 				PC_FreeSource(source);
@@ -372,7 +373,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 			} //end if
 			config->weights[config->numweights].name = (char *) trap_HeapMalloc(strlen(token.string) + 1);
 			strcpy(config->weights[config->numweights].name, token.string);
-			if (!PC_ExpectAnyToken(source, &token))
+			if (!BotPC_ExpectAnyToken(source, &token))
 			{
 				FreeWeightConfig(config);
 				PC_FreeSource(source);
@@ -382,7 +383,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 			if (!strcmp(token.string, "{"))
 			{
 				newindent = qtrue;
-				if (!PC_ExpectAnyToken(source, &token))
+				if (!BotPC_ExpectAnyToken(source, &token))
 				{
 					FreeWeightConfig(config);
 					PC_FreeSource(source);

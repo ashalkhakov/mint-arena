@@ -49,8 +49,9 @@ typedef struct rotation_s rotation_t;
 #endif
 #define	Q_INFINITY		1e30f
 
-#define FLOATSIGNBITSET(f)		(((*(const unsigned long *)&(f)) >> 31) & 1)
-#define FLOATSIGNBITNOTSET(f)	(((~(*(const unsigned long *)&(f))) >> 31) & 1)
+// unsigned int, unsigned long is 64 bits on LP64 and would read past the float
+#define FLOATSIGNBITSET(f)		(((*(const unsigned int *)&(f)) >> 31) & 1)
+#define FLOATSIGNBITNOTSET(f)	(((~(*(const unsigned int *)&(f))) >> 31) & 1)
 #define INTSIGNBITSET(i)		((((const unsigned long)(i)) >> 31) & 1)
 #define INTSIGNBITNOTSET(i)		(((~((const unsigned long)(i))) >> 31) & 1)
 
@@ -386,7 +387,9 @@ static ID_INLINE void PlaneFitThroughPoint( plane_t self, const vec3_t p ) {
 }
 
 static ID_INLINE void PlaneTranslate( const plane_t self, const vec3_t translation, plane_t out ) {
-    PlaneFromNormalAndDist( out, self, self[3] - DotProduct( translation, self ) );
+    // d' = d - translation * normal, like idPlane::Translate
+    VectorCopy( self, out );
+    out[3] = self[3] - DotProduct( translation, self );
 }
 
 static ID_INLINE void PlaneTranslateSelf( plane_t self, const vec3_t translation ) {
@@ -498,6 +501,7 @@ static ID_INLINE void RotationReCalculateMatrix( rotation_t *r ) {
 	RotationToMat3( r );
 }
 
+// point = ( point - origin ) * axis + origin, same as idRotation::RotatePoint
 static ID_INLINE void RotationRotatePoint( rotation_t *r, vec3_t point ) {
 	vec3_t		tmp;
 
@@ -506,11 +510,11 @@ static ID_INLINE void RotationRotatePoint( rotation_t *r, vec3_t point ) {
 	}
 
 	VectorSubtract( point, r->origin, tmp );
-	VectorRotate( tmp, r->axis, point );
+	MatrixRotateVector( tmp, ( const vec3_t * )r->axis, point );
 	VectorAdd( point, r->origin, point );
 }
 
-static ID_INLINE void RotationRotatePoint2( rotation_t *r, vec3_t point, vec3_t dest ) {
+static ID_INLINE void RotationRotatePoint2( rotation_t *r, const vec3_t point, vec3_t dest ) {
 	vec3_t		tmp;
 
 	if ( !r->axisValid ) {
@@ -518,8 +522,8 @@ static ID_INLINE void RotationRotatePoint2( rotation_t *r, vec3_t point, vec3_t 
 	}
 
 	VectorSubtract( point, r->origin, tmp );
-	VectorRotate( tmp, r->axis, point );
-	VectorAdd( point, r->origin, point );
+	MatrixRotateVector( tmp, ( const vec3_t * )r->axis, dest );
+	VectorAdd( dest, r->origin, dest );
 }
 
 static ID_INLINE void RotationToAngularVelocity( rotation_t *r, vec3_t angularVelocity ) {

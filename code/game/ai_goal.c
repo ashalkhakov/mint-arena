@@ -42,6 +42,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../botlib/be_aas.h"
 #include "../idlib/l_script.h"
 #include "../idlib/l_precomp.h"
+#include "ai_parse.h"
 #include "../idlib/l_struct.h"
 //
 #include "ai_char.h"
@@ -260,7 +261,7 @@ itemconfig_t *LoadItemConfig(char *filename)
 	Com_Memset( ic, 0, sizeof (itemconfig_t) );
 	ic->numiteminfo = 0;
 	//parse the item config file
-	while(PC_ReadToken(source, &token))
+	while(BotPC_ReadToken(source, &token))
 	{
 		if (!strcmp(token.string, "iteminfo"))
 		{
@@ -272,7 +273,7 @@ itemconfig_t *LoadItemConfig(char *filename)
 			} //end if
 			ii = &ic->iteminfo[ic->numiteminfo];
 			Com_Memset(ii, 0, sizeof(iteminfo_t));
-			if (!PC_ExpectTokenType(source, TT_STRING, 0, &token))
+			if (!BotPC_ExpectTokenType(source, TT_STRING, 0, &token))
 			{
 				PC_FreeSource(source);
 				return NULL;

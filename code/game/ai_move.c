@@ -1332,11 +1332,14 @@ int BotWalkInDirection(bot_movestate_t *ms, vec3_t dir, float speed, int type)
 // Returns:				-
 // Changes Globals:		-
 //===========================================================================
-void BotCheckBlocked(bot_movestate_t *ms, vec3_t dir, int checkbottom, bot_moveresult_t *result)
+void BotCheckBlocked(bot_movestate_t *ms, vec3_t movedir, int checkbottom, bot_moveresult_t *result)
 {
-	vec3_t mins, maxs, end, up = {0, 0, 1};
+	vec3_t mins, maxs, end, dir, up = {0, 0, 1};
 	trace_t trace;
 	float currentspeed;
+
+	// some callers pass the vector to the goal, the traces below expect a direction
+	VectorNormalize2(movedir, dir);
 
 	//test for entities obstructing the bot's path
 	trap_AAS_PresenceTypeBoundingBox(ms->presencetype, mins, maxs);

@@ -590,6 +590,9 @@ void ClipInit( clip_t *self ) {
     TraceModelSetupBox2( &trm, 8 );
 	ClipModelInitFromTraceModel( &self->defaultClipModel, &trm );
 
+	// the temporary clip model gets a new trace model for every bounds trace
+	ClipModelInit( &self->temporaryClipModel );
+
 	// set counters to zero
 	self->numRotations = self->numTranslations = self->numMotions = self->numRenderModelTraces = self->numContents = self->numContacts = 0;
 }
@@ -687,6 +690,17 @@ typedef struct listParms_s {
 	int				maxCount;
 } listParms_t;
 
+/*
+====================
+ClipModelLiveContents
+
+Quake 3 changes entity contents without relinking, so read them from the entity.
+====================
+*/
+static ID_INLINE int ClipModelLiveContents( const clipModel_t *cm ) {
+	return cm->entity ? cm->entity->s.contents : cm->contents;
+}
+
 void ClipModelsTouchingBounds_r( const clip_t *self, const struct clipSector_s *node, listParms_t *parms ) {
 
 	while( node->axis != -1 ) {
@@ -714,7 +728,7 @@ void ClipModelsTouchingBounds_r( const clip_t *self, const struct clipSector_s *
 		}
 
 		// if the clip model does not have any contents we are looking for
-		if ( !( check->contents & parms->contentMask ) ) {
+		if ( parms->contentMask != CLIP_ANY_CONTENTS && !( ClipModelLiveContents( check ) & parms->contentMask ) ) {
 			continue;
 		}
 
@@ -808,13 +822,15 @@ ClipGetTraceClipModels
   cm->entity == passOwner ( missiles don't clip with owner )
   cm->owner == passEntity ( don't interact with your own missiles )
   cm->owner == passOwner ( don't interact with other missiles from same owner )
+
+  Owners are read from r.ownerNum at trace time like Quake 3 does, the game
+  changes ownerNum without relinking.
 ====================
 */
 int ClipGetTraceClipModels( clip_t *self, const vec3_t bounds[2], int contentMask, const sharedEntity_t *passEntity, clipModel_t **clipModelList ) {
 	int i, num;
+	int passEntityNum, passOwnerNum, ownerNum;
 	clipModel_t	*cm;
-	gentity_t *passOwner;
-    const gentity_t *passGEntity;
 
 	num = ClipModelsTouchingBounds( self, bounds, contentMask, clipModelList, MAX_GENTITIES );
 
@@ -822,35 +838,47 @@ int ClipGetTraceClipModels( clip_t *self, const vec3_t bounds[2], int contentMas
 		return num;
 	}
 
-    // TODO: make this work for clipModels > 1?
-    passGEntity = ( gentity_t * )( passEntity );
-    //->GetPhysics()->GetNumClipModels() > 0
-	if ( ClipModelIsEnabled( &passGEntity->clipModel ) ) {
-		//passOwner = passEntity->GetPhysics()->GetClipModel()->GetOwner();
-        passOwner = ( gentity_t * )ClipModelGetOwner( &passGEntity->clipModel );
-	} else {
-		passOwner = NULL;
+	passEntityNum = passEntity->s.number;
+	passOwnerNum = passEntity->r.ownerNum;
+	if ( passOwnerNum < 0 || passOwnerNum >= ENTITYNUM_NONE ) {
+		passOwnerNum = -1;
 	}
 
 	for ( i = 0; i < num; i++ ) {
 
 		cm = clipModelList[i];
+		ownerNum = cm->entity->r.ownerNum;
 
 		// check if we should ignore this entity
 		if ( cm->entity == passEntity ) {
 			clipModelList[i] = NULL;			// don't clip against the pass entity
-		} else if ( cm->entity == ( sharedEntity_t * ) passOwner ) {
+		} else if ( cm->entity->s.number == passOwnerNum ) {
 			clipModelList[i] = NULL;			// missiles don't clip with their owner
-		} else if ( cm->owner ) {
-			if ( cm->owner == passEntity ) {
-				clipModelList[i] = NULL;		// don't clip against own missiles
-			} else if ( cm->owner == ( sharedEntity_t * ) passOwner ) {
-				clipModelList[i] = NULL;		// don't clip against other missiles from same owner
-			}
+		} else if ( ownerNum == passEntityNum ) {
+			clipModelList[i] = NULL;			// don't clip against own missiles
+		} else if ( passOwnerNum != -1 && ownerNum == passOwnerNum ) {
+			clipModelList[i] = NULL;			// don't clip against other missiles from same owner
 		}
 	}
 
 	return num;
+}
+
+/*
+============
+ClipStoreTouch
+
+Stores a hit on a clip model. Trace model polygons have all contents set, so
+report the clip model's contents like a Quake 3 temporary box model would.
+============
+*/
+static void ClipStoreTouch( cm_trace_t *results, const cm_trace_t *trace, const clipModel_t *touch ) {
+	*results = *trace;
+	results->c.entityNum = touch->entity->s.number;
+	results->c.id = touch->id;
+	if ( ClipModelIsTraceModel( touch ) ) {
+		results->c.contents = ClipModelLiveContents( touch );
+	}
 }
 
 /*
@@ -925,9 +953,9 @@ static ID_INLINE qboolean ClipTestHugeTranslation( cm_trace_t *results, const cl
 		results->c.entityNum = ENTITYNUM_WORLD;
 
 		if ( ClipModelGetEntity( mdl ) ) {
-			ii.Com_Printf( "huge translation for clip model %d on entity %d\n", ClipModelGetId( mdl ), ClipModelGetEntity( mdl )->s.number );
+			ii.Com_Printf( "huge translation for clip model %d on entity %d from %s to %s\n", ClipModelGetId( mdl ), ClipModelGetEntity( mdl )->s.number, vtos( start ), vtos( end ) );
 		} else {
-			ii.Com_Printf( "huge translation for clip model %d\n", ClipModelGetId( mdl ) );
+			ii.Com_Printf( "huge translation for clip model %d from %s to %s\n", ClipModelGetId( mdl ), vtos( start ), vtos( end ) );
 		}
 		return qtrue;
 	}
@@ -957,7 +985,7 @@ void ClipTranslationEntities( clip_t *self, cm_trace_t *results, const vec3_t st
 
 	results->fraction = 1.0f;
 	VectorCopy( end, results->endpos );
-	AxisCopy( results->endAxis, trmAxis );
+	AxisCopy( trmAxis, results->endAxis );
 
     VectorSubtract( end, start, dir );
 	if ( !trm ) {
@@ -987,9 +1015,7 @@ void ClipTranslationEntities( clip_t *self, cm_trace_t *results, const vec3_t st
 		}
 
 		if ( trace.fraction < results->fraction ) {
-			*results = trace;
-			results->c.entityNum = touch->entity->s.number;
-			results->c.id = touch->id;
+			ClipStoreTouch( results, &trace, touch );
 			if ( results->fraction == 0.0f ) {
 				break;
 			}
@@ -1062,9 +1088,7 @@ qboolean ClipTranslation( clip_t *self, cm_trace_t *results, const vec3_t start,
 		}
 
 		if ( trace.fraction < results->fraction ) {
-			*results = trace;
-			results->c.entityNum = touch->entity->s.number;
-			results->c.id = touch->id;
+			ClipStoreTouch( results, &trace, touch );
 			if ( results->fraction == 0.0f ) {
 				break;
 			}
@@ -1130,9 +1154,7 @@ qboolean ClipRotation( clip_t *self, cm_trace_t *results, const vec3_t start, co
 							ClipModelHandle( touch ), touch->origin, touch->axis );
 
 		if ( trace.fraction < results->fraction ) {
-			*results = trace;
-			results->c.entityNum = touch->entity->s.number;
-			results->c.id = touch->id;
+			ClipStoreTouch( results, &trace, touch );
 			if ( results->fraction == 0.0f ) {
 				break;
 			}
@@ -1229,9 +1251,7 @@ qboolean ClipMotion( clip_t *self, cm_trace_t *results, const vec3_t start, cons
 			}
 
 			if ( trace.fraction < translationalTrace.fraction ) {
-				translationalTrace = trace;
-				translationalTrace.c.entityNum = touch->entity->s.number;
-				translationalTrace.c.id = touch->id;
+				ClipStoreTouch( &translationalTrace, &trace, touch );
 				if ( translationalTrace.fraction == 0.0f ) {
 					break;
 				}
@@ -1282,9 +1302,7 @@ qboolean ClipMotion( clip_t *self, cm_trace_t *results, const vec3_t start, cons
 								ClipModelHandle( touch ), touch->origin, touch->axis );
 
 			if ( trace.fraction < rotationalTrace.fraction ) {
-				rotationalTrace = trace;
-				rotationalTrace.c.entityNum = touch->entity->s.number;
-				rotationalTrace.c.id = touch->id;
+				ClipStoreTouch( &rotationalTrace, &trace, touch );
 				if ( rotationalTrace.fraction == 0.0f ) {
 					break;
 				}
@@ -1387,7 +1405,7 @@ ClipContents
 ============
 */
 int ClipContents( clip_t *self, const vec3_t start, const clipModel_t *mdl, const vec3_t trmAxis[3], int contentMask, const sharedEntity_t *passEntity ) {
-	int i, num, contents;
+	int i, num, contents, touchContents;
 	clipModel_t *touch, *clipModelList[MAX_GENTITIES];
 	vec3_t traceBounds[2];
 	const traceModel_t *trm;
@@ -1427,18 +1445,19 @@ int ClipContents( clip_t *self, const vec3_t start, const clipModel_t *mdl, cons
 		}
 
 		// if the entity does not have any contents we are looking for
-		if ( ( touch->contents & contentMask ) == 0 ) {
+		touchContents = ClipModelLiveContents( touch );
+		if ( ( touchContents & contentMask ) == 0 ) {
 			continue;
 		}
 
 		// if the entity has no new contents flags
-		if ( ( touch->contents & contents ) == touch->contents ) {
+		if ( ( touchContents & contents ) == touchContents ) {
 			continue;
 		}
 
 		self->numContents++;
 		if ( trap_CM_Contents( start, trm, trmAxis, contentMask, ClipModelHandle( touch ), touch->origin, touch->axis ) ) {
-			contents |= ( touch->contents & contentMask );
+			contents |= ( touchContents & contentMask );
 		}
 	}
 

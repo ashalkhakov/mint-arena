@@ -153,9 +153,9 @@ void RemoveLinearColumnsRows( surfacePatch_t *self ) {
 		maxLength = 0;
 		for ( i = 0; i < self->width; i++ ) {
 			ProjectPointOntoVector(
-				&self->surf.verts[j * self->maxWidth + i].xyz,
-				&self->surf.verts[(j - 1) * self->maxWidth + i].xyz,
-				&self->surf.verts[(j + 1) * self->maxWidth + i].xyz,
+				self->surf.verts[j * self->maxWidth + i].xyz,
+				self->surf.verts[(j - 1) * self->maxWidth + i].xyz,
+				self->surf.verts[(j + 1) * self->maxWidth + i].xyz,
 				proj
 			);
 			VectorSubtract( self->surf.verts[j * self->maxWidth + i].xyz, proj, dir );
@@ -517,7 +517,7 @@ void SampleSinglePatchPoint( const surfVert_t ctrl[3][3], float u, float v, surf
 SampleSinglePatch
 ===================
 */
-void SampleSinglePatch( const surfVert_t *ctrl[3][3], int baseCol, int baseRow, int width, int horzSub, int vertSub, surfVert_t *outVerts ) {
+void SampleSinglePatch( const surfVert_t ctrl[3][3], int baseCol, int baseRow, int width, int horzSub, int vertSub, surfVert_t *outVerts ) {
 	int		i, j;
 	float	u, v;
 

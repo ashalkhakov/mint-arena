@@ -3205,9 +3205,7 @@ void PC_CheckOpenSourceHandles(void)
 	{
 		if (sourceFiles[i])
 		{
-#ifdef BOTLIB
 			ii.Com_Printf(S_COLOR_RED "Error: file %s still open in precompiler\n", sourceFiles[i]->scriptstack->filename);
-#endif	//BOTLIB
 		} //end if
 	} //end for
 } //end of the function PC_CheckOpenSourceHandles

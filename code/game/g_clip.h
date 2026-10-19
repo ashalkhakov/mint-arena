@@ -288,6 +288,10 @@ void ClipTranslationEntities( clip_t *self, cm_trace_t *results, const vec3_t st
 qboolean ClipGetModelContactFeature( const clip_t *self, const contactInfo_t *contact, const clipModel_t *clipModel, fixedWinding_t *winding );
 
 // get entities/clip models within or touching the given bounds
+// content mask for ClipModelsTouchingBounds / ClipEntitiesTouchingBounds that also
+// returns clip models without any contents, like Quake 3's area queries
+#define CLIP_ANY_CONTENTS	0
+
 int ClipEntitiesTouchingBounds( clip_t *self, const vec3_t bounds[2], int contentMask, sharedEntity_t **entityList, int maxCount );
 int	ClipModelsTouchingBounds( clip_t *self, const vec3_t bounds[2], int contentMask, clipModel_t **clipModelList, int maxCount );
 
@@ -313,7 +317,7 @@ static ID_INLINE qboolean ClipTraceBounds( clip_t *clip, cm_trace_t *results, co
     trm.type = TRM_INVALID;
     TraceModelSetupBox( &trm, bounds );
 
-	ClipModelInitFromTraceModel( &clip->temporaryClipModel, &trm );
+	ClipModelLoadTraceModel( &clip->temporaryClipModel, &trm );
 	ClipTranslation( clip, results, start, end, &clip->temporaryClipModel, axisDefault, contentMask, passEntity );
 	if ( results->fraction < 1.0f ) {
         return qtrue;

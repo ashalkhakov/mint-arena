@@ -739,6 +739,7 @@ void G_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec
 void G_TraceBox( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
 void G_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
 void G_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask, traceType_t type );
+void G_ClipToEntity( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int entityNum, int contentmask, traceType_t type );
 int G_PointContents( const vec3_t p, int passEntityNum );
 
 //

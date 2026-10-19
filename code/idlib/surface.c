@@ -978,8 +978,10 @@ SurfaceLineIntersection
 */
 qboolean SurfaceLineIntersection( const surface_t *self, const vec3_t start, const vec3_t end, qboolean backFaceCull ) {
 	float scale;
+	vec3_t dir;
 
-	SurfaceRayIntersection( self, start, end - start, &scale, qfalse );
+	VectorSubtract( end, start, dir );
+	SurfaceRayIntersection( self, start, dir, &scale, qfalse );
 	return ( scale >= 0.0f && scale <= 1.0f );
 }
 

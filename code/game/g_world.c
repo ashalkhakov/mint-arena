@@ -164,10 +164,9 @@ void G_LinkEntity( gentity_t *ent ) {
 		VectorAdd (origin, ent->s.maxs, ent->r.absmax);
 	}
 
-    // TODO: what should the lifetime of models be?
-    ClipModelInit( &ent->clipModel );
+	// drop the links at the old position, ClipModelInit forgets them without unlinking
+	ClipModelUnlink( &ent->clipModel );
 
-    // TODO: what should be put here?
     int newId = ent->s.number;
 	if ( ent->s.collisionType == CT_SUBMODEL ) {
         char name[MAX_QPATH];
@@ -188,8 +187,10 @@ void G_LinkEntity( gentity_t *ent ) {
         TraceModelSetupBox( &trm, bounds );
         ClipModelInitFromTraceModel( &ent->clipModel, &trm );
     }
+	// entities are filtered by s.contents like Quake 3, not by the model's contents
+	ent->clipModel.contents = ent->s.contents;
     ClipModelLink2( &ent->clipModel, &g_clip, ( sharedEntity_t * )ent, newId, origin, axis, -1 );
-    if ( ent->r.ownerNum != -1 ) {
+    if ( ent->r.ownerNum >= 0 && ent->r.ownerNum < ENTITYNUM_NONE ) {
         sharedEntity_t *owner = ( sharedEntity_t * )&g_entities[ ent->r.ownerNum ];
         ClipModelSetOwner( &ent->clipModel, owner );
     } else {
@@ -224,62 +225,85 @@ G_EntitiesInBox
 ================
 */
 int G_EntitiesInBox( const vec3_t mins, const vec3_t maxs, int *entityList, int maxcount ) {
+	static sharedEntity_t *list[MAX_GENTITIES];
 	vec3_t bounds[2];
-    sharedEntity_t **list;
-    int i, num;
+	int i, num;
 
-    VectorCopy( mins, bounds[0] );
-    VectorCopy( maxs, bounds[1] );
+	VectorCopy( mins, bounds[0] );
+	VectorCopy( maxs, bounds[1] );
 
-    // TODO: get rid of memory allocation
-    list = ii.GetMemory( maxcount * sizeof( *list ) );
+	if ( maxcount > MAX_GENTITIES ) {
+		maxcount = MAX_GENTITIES;
+	}
 
-    num = ClipEntitiesTouchingBounds( &g_clip, bounds, -1, list, maxcount );
-    for ( i = 0; i < num; i++ ) {
-        entityList[i] = list[i]->s.number;
-    }
-
-    ii.FreeMemory( list );
+	// Quake 3 returns every linked entity, even ones without contents
+	num = ClipEntitiesTouchingBounds( &g_clip, bounds, CLIP_ANY_CONTENTS, list, maxcount );
+	for ( i = 0; i < num; i++ ) {
+		entityList[i] = list[i]->s.number;
+	}
 
 	return num;
 }
 
 //===========================================================================
 
-static void CmTraceToTrace( cm_trace_t *t, const vec3_t start, const vec3_t end, const vec3_t mins, const vec3_t maxs, trace_t *trace, traceModel_t *trm, cmHandle_t model, vec3_t origin, vec3_t axis[3], int brushmask ) {
-    vec3_t dir;
-
-    memset( trace, 0, sizeof( *trace ) );
-
-	trace->fraction = t->fraction;
-    VectorSubtract( end, start, dir );
-    VectorMA( start, trace->fraction, dir, trace->endpos );
-	//VectorCopy( t->endpos, trace->endpos ); // TODO: worldspace or not?
-
-    if ( t->c.type != CONTACT_NONE ) {
-        VectorCopy( t->c.point, trace->endpos );
-        VectorCopy( t->c.normal, trace->plane.normal );
-        trace->plane.dist = -t->c.dist;
-		trace->plane.type = PlaneTypeForNormal( trace->plane.normal );
-		SetPlaneSignbits( &trace->plane );
-        trace->surfaceNum = t->c.modelFeature + 1;
-        trace->surfaceFlags = trap_CM_GetMaterialSurfaceFlags( t->c.material );
-        trace->contents = t->c.contents;
-        trace->entityNum = t->c.entityNum;
-    }
-	trace->lateralFraction = 0.0f;
 /*
-    if ( cme.Contents( start, trm, axisDefault, -1, model, origin, axis ) & brushmask ) {
-        trace->startsolid = qtrue;
-    }
-    if ( trace->startsolid ) {
-        int c = cme.Contents( trace->endpos, trm, axisDefault, -1, model, origin, axis ) & brushmask;
-        if ( c ) {
-            trace->allsolid = qtrue;
-            //trace->fraction = 0;
-            //trace->contents = c;
-        }
-    }*/
+================
+G_PassEntity
+
+Quake 3 uses ENTITYNUM_NONE to pass nothing. The world isn't in the clip
+world, so passing it doesn't skip world collision like it does in Doom 3.
+================
+*/
+static const sharedEntity_t *G_PassEntity( int passEntityNum ) {
+	if ( passEntityNum < 0 || passEntityNum >= ENTITYNUM_MAX_NORMAL ) {
+		return NULL;
+	}
+	return ( const sharedEntity_t * )&g_entities[ passEntityNum ];
+}
+
+/*
+================
+G_TraceClipModel
+
+Returns a clip model for tracing the given bounds, NULL for a point.
+================
+*/
+static const clipModel_t *G_TraceClipModel( const vec3_t mins, const vec3_t maxs ) {
+	traceModel_t trm;
+	vec3_t bounds[2];
+
+	if ( VectorCompare( mins, vec3_origin ) && VectorCompare( maxs, vec3_origin ) ) {
+		return NULL;
+	}
+
+	VectorCopy( mins, bounds[0] );
+	VectorCopy( maxs, bounds[1] );
+	trm.type = TRM_INVALID;
+	TraceModelSetupBox( &trm, bounds );
+	ClipModelLoadTraceModel( &g_clip.temporaryClipModel, &trm );
+
+	return &g_clip.temporaryClipModel;
+}
+
+/*
+================
+G_FinishTrace
+
+The collision model doesn't detect starting in solid. A zero length trace is
+a position test though, it returns fraction 0 when stuck.
+================
+*/
+static void G_FinishTrace( trace_t *results, const cm_trace_t *trace, const vec3_t start, const vec3_t end,
+							qboolean startSolid, qboolean allSolid ) {
+	if ( VectorCompare( start, end ) ) {
+		startSolid = allSolid = ( trace->fraction == 0.0f );
+	}
+
+	CM_TraceToQuakeTrace( results, trace, start, trap_CM_GetMaterialSurfaceFlags( trace->c.material ), startSolid, allSolid );
+	if ( results->fraction < 1.0f && trace->c.entityNum != ENTITYNUM_NONE ) {
+		results->entityNum = trace->c.entityNum;
+	}
 }
 
 /*
@@ -291,11 +315,10 @@ passEntityNum and entities owned by passEntityNum are explicitly not checked.
 ==================
 */
 void G_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask, traceType_t type ) {
-    cm_trace_t      trace;
-    sharedEntity_t  *passEntity;
-    vec3_t          bounds[2];
-
-    passEntity = ( sharedEntity_t * )&g_entities[ passEntityNum ];
+	cm_trace_t				trace;
+	const sharedEntity_t	*passEntity;
+	const clipModel_t		*mdl;
+	qboolean				startSolid, allSolid;
 
 	if ( !mins ) {
 		mins = vec3_origin;
@@ -304,11 +327,20 @@ void G_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec
 		maxs = vec3_origin;
 	}
 
-    VectorCopy( mins, bounds[0] );
-    VectorCopy( maxs, bounds[1] );
+	passEntity = G_PassEntity( passEntityNum );
+	mdl = G_TraceClipModel( mins, maxs );
 
-    ClipTraceBounds( &g_clip, &trace, start, end, bounds, contentmask, passEntity );
-    CmTraceToTrace( &trace, start, end, mins, maxs, results, NULL, 0, vec3_origin, axisDefault, contentmask );
+	ClipTranslation( &g_clip, &trace, start, end, mdl, axisDefault, contentmask, passEntity );
+
+	startSolid = allSolid = qfalse;
+	if ( !VectorCompare( start, end ) ) {
+		startSolid = ( ClipContents( &g_clip, start, mdl, axisDefault, contentmask, passEntity ) != 0 );
+		if ( startSolid ) {
+			allSolid = ( ClipContents( &g_clip, trace.endpos, mdl, axisDefault, contentmask, passEntity ) != 0 );
+		}
+	}
+
+	G_FinishTrace( results, &trace, start, end, startSolid, allSolid );
 }
 
 /*
@@ -333,17 +365,13 @@ void G_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, co
 =============
 G_ClipToEntities
 
-G_Trace that doesn't clip to world
+G_Trace that doesn't clip to world. Starting in solid is only reported for
+zero length traces.
 =============
 */
 void G_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask, traceType_t type ) {
-    cm_trace_t      trace;
-    clipModel_t     *model;
-    sharedEntity_t  *passEntity;
-    vec3_t          bounds[2];
-    traceModel_t    trm;
-
-    passEntity = ( sharedEntity_t * )&g_entities[ passEntityNum ];
+	cm_trace_t		trace;
+	const clipModel_t *mdl;
 
 	if ( !mins ) {
 		mins = vec3_origin;
@@ -352,15 +380,62 @@ void G_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, 
 		maxs = vec3_origin;
 	}
 
-    VectorCopy( mins, bounds[0] );
-    VectorCopy( maxs, bounds[1] );
-    trm.type = TRM_INVALID;
-    TraceModelSetupBox( &trm, bounds );
-    model = ClipDefaultClipModel( &g_clip );
-    ClipModelLoadTraceModel( model, &trm );
+	mdl = G_TraceClipModel( mins, maxs );
 
-    ClipTranslationEntities( &g_clip, &trace, start, end, model, axisDefault, contentmask, passEntity );
-    CmTraceToTrace( &trace, start, end, mins, maxs, results, NULL, 0, vec3_origin, axisDefault, contentmask );
+	ClipTranslationEntities( &g_clip, &trace, start, end, mdl, axisDefault, contentmask, G_PassEntity( passEntityNum ) );
+	if ( trace.fraction == 1.0f ) {
+		trace.c.entityNum = ENTITYNUM_NONE;
+	}
+
+	G_FinishTrace( results, &trace, start, end, qfalse, qfalse );
+}
+
+/*
+=============
+G_ClipToEntity
+
+Trace against a single entity. Starting in solid is only reported for zero
+length traces.
+=============
+*/
+void G_ClipToEntity( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int entityNum, int contentmask, traceType_t type ) {
+	cm_trace_t		trace;
+	const clipModel_t *mdl;
+	gentity_t		*touch;
+
+	if ( !mins ) {
+		mins = vec3_origin;
+	}
+	if ( !maxs ) {
+		maxs = vec3_origin;
+	}
+
+	memset( &trace, 0, sizeof( trace ) );
+	trace.fraction = 1.0f;
+	VectorCopy( end, trace.endpos );
+	trace.c.entityNum = ENTITYNUM_NONE;
+
+	touch = &g_entities[ entityNum ];
+	if ( entityNum < 0 || entityNum >= ENTITYNUM_MAX_NORMAL || !touch->r.linked || !( contentmask & touch->s.contents )
+			|| !ClipModelIsLinked( &touch->clipModel ) ) {
+		G_FinishTrace( results, &trace, start, end, qfalse, qfalse );
+		return;
+	}
+
+	mdl = G_TraceClipModel( mins, maxs );
+
+	ClipTranslationModel( &g_clip, &trace, start, end, mdl, axisDefault, contentmask,
+							ClipModelHandle( &touch->clipModel ), touch->clipModel.origin, ( const vec3_t * )touch->clipModel.axis );
+	if ( trace.fraction < 1.0f ) {
+		trace.c.entityNum = touch->s.number;
+		if ( ClipModelIsTraceModel( &touch->clipModel ) ) {
+			trace.c.contents = touch->s.contents;
+		}
+	} else {
+		trace.c.entityNum = ENTITYNUM_NONE;
+	}
+
+	G_FinishTrace( results, &trace, start, end, qfalse, qfalse );
 }
 
 /*
@@ -369,81 +444,35 @@ G_PointContents
 =============
 */
 int G_PointContents( const vec3_t p, int passEntityNum ) {
-    clipModel_t *model;
-    sharedEntity_t *passEntity;
-    traceModel_t trm;
-
-    passEntity = ( sharedEntity_t * )&g_entities[ passEntityNum ];
-
-    model = ClipDefaultClipModel( &g_clip );
-
-    trm.type = TRM_INVALID;
-    TraceModelSetupBox2( &trm, 0 );
-    ClipModelLoadTraceModel( model, &trm );
-
-    return ClipContents( &g_clip, p, model, axisDefault, -1, passEntity );
-}
-
-void		CM_TransformedBoxTrace( trace_t *results, const vec3_t start, const vec3_t end,
-						  const vec3_t mins, const vec3_t maxs,
-						  clipHandle_t model, int brushmask,
-						  const vec3_t origin, const vec3_t angles, traceType_t type ) {
-	cm_trace_t tr;
-	traceModel_t trm;
-	vec3_t		trmBounds[2];
-	vec3_t		axis[3];
-
-    trm.type = TRM_INVALID;
-
-    if ( VectorCompare( angles, vec3_origin ) ) {
-        AxisCopy( axisDefault, axis );
-    } else {
-	    AnglesToAxis( angles, axis );
-    }
-
-	// allow NULL to be passed in for 0,0,0
-	if ( !mins ) {
-		mins = vec3_origin;
-	}
-	if ( !maxs ) {
-		maxs = vec3_origin;
-	}
-
-	VectorCopy( mins, trmBounds[0] );
-	VectorCopy( maxs, trmBounds[1] );
-
-	switch ( type ) {
-		case TT_AABB:
-			TraceModelSetupBox( &trm, trmBounds );
-			break;
-		case TT_CAPSULE:
-		case TT_BISPHERE:
-			TraceModelSetupDodecahedron( &trm, trmBounds );
-			break;
-	}
-
-	trap_CM_Translation( &tr, start, end, &trm, axisDefault, brushmask, model, origin, axis );
-
-	CmTraceToTrace( &tr, start, end, mins, maxs, results, &trm, model, origin, axis, brushmask );
+	return ClipContents( &g_clip, p, NULL, axisDefault, -1, G_PassEntity( passEntityNum ) );
 }
 
 /*
 ==================
 G_EntityContact
+
+Tests if the absolute box mins/maxs touches the entity.
 ==================
 */
 qboolean	G_EntityContact( const vec3_t mins, const vec3_t maxs, const sharedEntity_t *gEnt, traceType_t type ) {
-	const float	*origin, *angles;
+	traceModel_t	trm;
+	vec3_t			bounds[2], axis[3];
 	clipHandle_t	ch;
-	trace_t			trace;
+	const float		*angles;
 
-	// check for exact collision
-	origin = gEnt->r.currentOrigin;
+	VectorCopy( mins, bounds[0] );
+	VectorCopy( maxs, bounds[1] );
+	trm.type = TRM_INVALID;
+	TraceModelSetupBox( &trm, bounds );
+
 	angles = gEnt->r.currentAngles;
+	if ( VectorCompare( angles, vec3_origin ) ) {
+		AxisCopy( axisDefault, axis );
+	} else {
+		AnglesToAxis( angles, axis );
+	}
 
+	// a zero length trace would be a position test too, but Contents says so directly
 	ch = G_ClipHandleForEntity( gEnt );
-	CM_TransformedBoxTrace ( &trace, vec3_origin, vec3_origin, mins, maxs,
-		ch, -1, origin, angles, type );
-
-	return trace.startsolid;
+	return ( trap_CM_Contents( vec3_origin, &trm, axisDefault, -1, ch, gEnt->r.currentOrigin, ( const vec3_t * )axis ) != 0 );
 }
