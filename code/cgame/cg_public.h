@@ -38,7 +38,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // ZTM: FIXME: There is no way for the VM to know what the engine support API is
 //             so there is no way to add more system calls.
 #define CG_API_MAJOR_VERSION	1
-#define CG_API_MINOR_VERSION	0
+#define CG_API_MINOR_VERSION	1
 
 
 #define	CMD_BACKUP			64	
@@ -405,6 +405,10 @@ typedef enum {
 	CG_LAN_COMPARESERVERS,
 
 	CG_LAN_SERVERISINFAVORITELIST,
+
+	// 1.1
+	CG_CM_TEMPTRACEMODEL,	// ( const traceModel_t *trm, int contents );
+	// like CG_CM_TEMPBOXMODEL for any trace model, e.g. physics props
 
 
 	CG_CIN_PLAYCINEMATIC = 700,

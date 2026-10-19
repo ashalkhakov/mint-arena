@@ -210,6 +210,10 @@ clipHandle_t trap_CM_TempCapsuleModel( const vec3_t mins, const vec3_t maxs, int
 	return syscall( CG_CM_TEMPCAPSULEMODEL, mins, maxs, contents );
 }
 
+clipHandle_t trap_CM_TempTraceModel( const traceModel_t *trm, int contents ) {
+	return syscall( CG_CM_TEMPTRACEMODEL, trm, contents );
+}
+
 int		trap_CM_PointContents( const vec3_t p, clipHandle_t model ) {
 	return syscall( CG_CM_POINTCONTENTS, p, model );
 }

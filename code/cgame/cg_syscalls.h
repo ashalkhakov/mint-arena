@@ -110,6 +110,8 @@ int			trap_CM_NumInlineModels( void );
 clipHandle_t trap_CM_InlineModel( int index );		// 0 = world, 1+ = bmodels
 clipHandle_t trap_CM_TempBoxModel( const vec3_t mins, const vec3_t maxs, int contents );
 clipHandle_t trap_CM_TempCapsuleModel( const vec3_t mins, const vec3_t maxs, int contents );
+// any trace model, the physics props use it
+clipHandle_t trap_CM_TempTraceModel( const traceModel_t *trm, int contents );
 int			trap_CM_PointContents( const vec3_t p, clipHandle_t model );
 int			trap_CM_TransformedPointContents( const vec3_t p, clipHandle_t model, const vec3_t origin, const vec3_t angles );
 void		trap_CM_BoxTrace( trace_t *results, const vec3_t start, const vec3_t end,

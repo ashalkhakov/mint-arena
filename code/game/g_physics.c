@@ -47,6 +47,15 @@ static vmCvar_t		g_propKnockback;
 static vmCvar_t		g_debugPhysics;
 static vmCvar_t		g_debugCollision;
 
+// impact sounds
+#define IMPACT_SOUND_SPEED			60.0f		// slower impacts are silent
+#define IMPACT_SOUND_HEAVY_SPEED	250.0f
+#define IMPACT_SOUND_MSEC			120			// at most one sound per prop this often
+#define NUM_LIGHT_IMPACT_SOUNDS		4
+
+static int			lightImpactSounds[NUM_LIGHT_IMPACT_SOUNDS];
+static int			heavyImpactSound;
+
 static vec3_t		gravityVector;
 static const vec3_t	gravityNormal = { 0.0f, 0.0f, -1.0f };
 
@@ -672,6 +681,16 @@ static qboolean RB_Evaluate( rigidBody_t *body, int timeStepMSec ) {
 	if ( collided ) {
 		// apply collision impulse
 		RB_CollisionImpulse( body, &collision, impulse );
+
+		// clank or thud, depending on how hard it hit
+		if ( body->lastImpactSpeed > IMPACT_SOUND_SPEED && level.time - body->lastSoundTime >= IMPACT_SOUND_MSEC ) {
+			if ( body->lastImpactSpeed > IMPACT_SOUND_HEAVY_SPEED ) {
+				G_AddEvent( body->self, EV_GENERAL_SOUND, heavyImpactSound );
+			} else {
+				G_AddEvent( body->self, EV_GENERAL_SOUND, lightImpactSounds[rand() % NUM_LIGHT_IMPACT_SOUNDS] );
+			}
+			body->lastSoundTime = level.time;
+		}
 	}
 
 	// update the position of the clip model
@@ -795,7 +814,14 @@ G_InitPhysics
 ================
 */
 void G_InitPhysics( void ) {
+	int i;
+
 	memset( g_bodies, 0, sizeof( g_bodies ) );
+
+	for ( i = 0; i < NUM_LIGHT_IMPACT_SOUNDS; i++ ) {
+		lightImpactSounds[i] = G_SoundIndex( va( "sound/player/footsteps/clank%d.wav", i + 1 ) );
+	}
+	heavyImpactSound = G_SoundIndex( "sound/player/land1.wav" );
 
 	trap_Cvar_Register( &g_physicsStep, "g_physicsStep", "16", 0 );
 	trap_Cvar_Register( &g_propDensity, "g_propDensity", "0.005", 0 );
@@ -882,7 +908,15 @@ static void G_PhysicsUpdateEntityState( gentity_t *ent ) {
 
 	trType = RB_IsAtRest( body ) ? TR_STATIONARY : TR_INTERPOLATE;
 
-	ent->s.pos.trType = trType;
+	// the position is extrapolated so client prediction collides where the
+	// prop is now instead of a snapshot behind, like movers
+	if ( RB_IsAtRest( body ) ) {
+		ent->s.pos.trType = TR_STATIONARY;
+	} else if ( body->numContacts ) {
+		ent->s.pos.trType = TR_LINEAR;
+	} else {
+		ent->s.pos.trType = TR_GRAVITY;
+	}
 	ent->s.pos.trTime = level.time;
 	VectorCopy( ent->r.currentOrigin, ent->s.pos.trBase );
 	RB_LinearVelocity( body, ent->s.pos.trDelta );

@@ -84,6 +84,7 @@ typedef struct rigidBody_s {
 	vec3_t			lastImpactNormal;
 	float			lastImpactSpeed;
 	int				lastImpactTime;
+	int				lastSoundTime;
 	qboolean		startedInSolid;
 } rigidBody_t;
 

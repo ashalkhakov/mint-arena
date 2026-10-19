@@ -72,9 +72,18 @@ listen server. Many lines need `r_maxpolys 20000` and `r_maxpolyverts 80000`.
 | 2 | Every clip model around the player |
 | 4 | Player and prop bounding boxes |
 
-## Not done
+## Interactions
 
-- Props only collide with players as boxes in cgame prediction, other shapes
-  can mispredict a little when pushing them.
-- Movers carry props but a blocked push isn't rolled back for the props.
-- No impact sounds.
+- Players push props by walking into them, using the velocity their movement
+  keys ask for, so leaning on a crate keeps pushing it.
+- Weapons push props with the knockback a player would get.
+- Props hitting players hard (over 150 ups) knock them back.
+- Movers carry props standing on them and push props in their way. A blocked
+  push is undone for props like for everything else. Doors stop and reverse on
+  props like on players, crushers pop them.
+- Impacts clank, hard impacts thud.
+
+The game sends props' positions as trajectories (linear while sliding, gravity
+while airborne) and the cgame predicts against the exact rotated trace model
+through `trap_CM_TempTraceModel` (cgame API 1.1), so pushing props mispredicts
+very little.

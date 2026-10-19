@@ -137,14 +137,17 @@ static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins,
 			cmodel = trap_CM_TempCapsuleModel( ent->mins, ent->maxs, ent->contents );
 			VectorCopy( vec3_origin, angles );
 			VectorCopy( cent->lerpOrigin, origin );
+		} else if ( ent->eType == ET_PHYSICS_PROP ) {
+			// the same rotated trace model the game collides with
+			traceModel_t trm;
+
+			BG_PropTraceModel( (propShape_t)ent->modelindex, ent->mins, ent->maxs, &trm );
+			cmodel = trap_CM_TempTraceModel( &trm, ent->contents );
+			VectorCopy( cent->lerpAngles, angles );
+			BG_EvaluateTrajectory( &cent->currentState.pos, cg.physicsTime, origin );
 		} else /* if ( ent->collisionType == CT_AABB ) */ {
 			cmodel = trap_CM_TempBoxModel( ent->mins, ent->maxs, ent->contents );
-			// physics props are rotated boxes, the collision model can trace against those
-			if ( ent->eType == ET_PHYSICS_PROP ) {
-				VectorCopy( cent->lerpAngles, angles );
-			} else {
-				VectorCopy( vec3_origin, angles );
-			}
+			VectorCopy( vec3_origin, angles );
 			VectorCopy( cent->lerpOrigin, origin );
 		}
 

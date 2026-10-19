@@ -46,6 +46,7 @@ typedef struct {
 	vec3_t	origin;
 	vec3_t	angles;
 	float	deltayaw;
+	rigidBodyPState_t	bodyState;	// physics props go back to this when the push is blocked
 } pushed_t;
 pushed_t	pushed[MAX_GENTITIES], *pushed_p;
 
@@ -155,6 +156,9 @@ qboolean	G_TryPushingEntity( gentity_t *check, gentity_t *pusher, vec3_t move, v
 	if ( check->player ) {
 		pushed_p->deltayaw = check->player->ps.delta_angles[YAW];
 		VectorCopy (check->player->ps.origin, pushed_p->origin);
+	}
+	if ( check->body ) {
+		pushed_p->bodyState = check->body->current;
 	}
 	pushed_p++;
 
@@ -438,6 +442,9 @@ qboolean G_MoverPush( gentity_t *pusher, vec3_t move, vec3_t amove, gentity_t **
 			if ( p->ent->player ) {
 				p->ent->player->ps.delta_angles[YAW] = p->deltayaw;
 				VectorCopy (p->origin, p->ent->player->ps.origin);
+			}
+			if ( p->ent->body ) {
+				p->ent->body->current = p->bodyState;
 			}
 			G_LinkEntity (p->ent);
 		}
@@ -934,8 +941,12 @@ Blocked_Door
 ================
 */
 void Blocked_Door( gentity_t *ent, gentity_t *other ) {
-	// remove anything other than a player
-	if ( !other->player ) {
+	// physics props stop doors like players do, but crushers never reverse,
+	// they would be stuck on the prop forever
+	qboolean holdsDoor = other->player || ( other->body && !( ent->spawnflags & 4 ) );
+
+	// remove anything else
+	if ( !holdsDoor ) {
 		// except CTF flags!!!!
 		if( other->s.eType == ET_ITEM && other->item->giType == IT_TEAM ) {
 			Team_DroppedFlagThink( other );
