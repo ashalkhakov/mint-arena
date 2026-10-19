@@ -1946,7 +1946,17 @@ void ClientCommand( int connectionNum ) {
 		return;
 	}
 
-	if (Q_stricmp (cmd, "give") == 0)
+	if (Q_stricmp (cmd, "prop") == 0)
+		Cmd_Prop_f (ent);
+	else if (Q_stricmp (cmd, "propthrow") == 0)
+		Cmd_PropThrow_f (ent);
+	else if (Q_stricmp (cmd, "propstack") == 0)
+		Cmd_PropStack_f (ent);
+	else if (Q_stricmp (cmd, "proppyramid") == 0)
+		Cmd_PropPyramid_f (ent);
+	else if (Q_stricmp (cmd, "propclear") == 0)
+		Cmd_PropClear_f (ent);
+	else if (Q_stricmp (cmd, "give") == 0)
 		Cmd_Give_f (ent);
 	else if (Q_stricmp (cmd, "god") == 0)
 		Cmd_God_f (ent);

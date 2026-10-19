@@ -1391,6 +1391,7 @@ set(Q3GOBJ
 
   game/g_clip.c
   game/g_world.c
+  game/g_physics.c
   
   botlib/be_aas_bspq3.c
   botlib/be_aas_cluster.c

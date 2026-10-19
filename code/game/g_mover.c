@@ -171,6 +171,10 @@ qboolean	G_TryPushingEntity( gentity_t *check, gentity_t *pusher, vec3_t move, v
 	VectorCopy( org, org2 );
 	G_RotatePoint( org2, matrix );
 	VectorSubtract (org2, org, move2);
+	// physics props move their rigid body instead
+	if ( check->body ) {
+		return G_PhysicsPushedByMover( check, move, move2, (const vec3_t *)matrix );
+	}
 	// add movement
 	VectorAdd (check->s.pos.trBase, move, check->s.pos.trBase);
 	VectorAdd (check->s.pos.trBase, move2, check->s.pos.trBase);
@@ -386,7 +390,7 @@ qboolean G_MoverPush( gentity_t *pusher, vec3_t move, vec3_t amove, gentity_t **
 		}
 #endif
 		// only push items and players
-		if ( check->s.eType != ET_ITEM && check->s.eType != ET_PLAYER && !check->physicsObject ) {
+		if ( check->s.eType != ET_ITEM && check->s.eType != ET_PLAYER && !check->physicsObject && !check->body ) {
 			continue;
 		}
 

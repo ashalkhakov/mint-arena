@@ -224,5 +224,15 @@ void		trap_CM_GetMaterialName( qhandle_t hShader, char *buffer, int bufferSize )
 int			trap_CM_GetMaterialContentFlags( qhandle_t material );
 int         trap_CM_GetMaterialSurfaceFlags( qhandle_t material );
 
+// renderer debug drawing, only visible on a listen server
+void		trap_Debug_ClearLines( int time );
+void		trap_Debug_Line( const vec4_t color, const vec3_t start, const vec3_t end, int lifetime, qboolean depthTest );
+void		trap_Debug_Arrow( const vec4_t color, const vec3_t start, const vec3_t end, int size, int lifetime );
+void		trap_Debug_Winding( const vec4_t color, const fixedWinding_t *w, const vec3_t origin, const vec3_t axis[3], int lifetime, qboolean depthTest );
+void		trap_Debug_Circle( const vec4_t color, const vec3_t origin, const vec3_t dir, float radius, int numSteps, int lifetime, qboolean depthTest );
+void		trap_Debug_Bounds( const vec4_t color, const vec3_t bounds[2], const vec3_t org, int lifetime );
+void		trap_Debug_ClearPolygons( int time );
+void		trap_Debug_Polygon( const vec4_t color, const fixedWinding_t *winding, int lifetime, qboolean depthTest );
+
 #endif
 

@@ -1427,6 +1427,17 @@ Game VM combines all arguments but completion works on separate words.
 This is kind of an ugly hack to avoid having to quote item names containing spaces.
 =================
 */
+/*
+==================
+CG_PropShapeComplete
+==================
+*/
+static void CG_PropShapeComplete( int localPlayerNum, char *args, int argNum ) {
+	if ( argNum == 2 ) {
+		trap_Field_CompleteList( "box\0cylinder\0cone\0octahedron\0dodecahedron\0" );
+	}
+}
+
 static void CG_GiveComplete( int localPlayerNum, char *args, int argNum ) {
 	char builtinNames[] = "all\0ammo\0armor\0assist\0defend\0excellent\0gauntletaward\0health\0impressive\0weapons\0";
 	char list[2048], *name, *typedName;
@@ -1760,7 +1771,13 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "callteamvote", CG_ForwardToServer_f, CMD_INGAME, CG_CallTeamVoteComplete },
 	{ "teamvote", CG_ForwardToServer_f, CMD_INGAME, CG_VoteComplete },
 	{ "setviewpos", CG_ForwardToServer_f, CMD_INGAME },
-	{ "stats", CG_ForwardToServer_f, CMD_INGAME }
+	{ "stats", CG_ForwardToServer_f, CMD_INGAME },
+	// physics props, see g_physics.c
+	{ "prop", CG_ForwardToServer_f, CMD_INGAME, CG_PropShapeComplete },
+	{ "propthrow", CG_ForwardToServer_f, CMD_INGAME, CG_PropShapeComplete },
+	{ "propstack", CG_ForwardToServer_f, CMD_INGAME },
+	{ "proppyramid", CG_ForwardToServer_f, CMD_INGAME },
+	{ "propclear", CG_ForwardToServer_f, CMD_INGAME }
 };
 
 static int numPlayerCommands = ARRAY_LEN( playerCommands );

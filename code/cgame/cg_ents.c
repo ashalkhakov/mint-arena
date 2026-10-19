@@ -299,6 +299,111 @@ static void CG_EntityEffects( centity_t *cent ) {
 
 /*
 ==================
+CG_PhysicsProp
+
+Draws the polygons of the prop's trace model, the same shape the game
+collides with.
+==================
+*/
+static void CG_PhysicsProp( centity_t *cent ) {
+	entityState_t	*s1 = &cent->currentState;
+	traceModel_t	trm;
+	vec3_t			axis[3], verts[MAX_TRACEMODEL_VERTS], normal, center;
+	vec3_t			ambient, directed, lightDir, u, v, e1, e2, cross;
+	polyVert_t		poly[MAX_TRACEMODEL_POLYEDGES];
+	float			umin, umax, vmin, vmax, light, du, dv;
+	qhandle_t		shader;
+	int				i, j, edgeNum, numVerts, order[MAX_TRACEMODEL_POLYEDGES];
+	qboolean		fitTexture;
+
+	BG_PropTraceModel( (propShape_t)s1->modelindex, s1->mins, s1->maxs, &trm );
+	if ( trm.type == TRM_INVALID || !trm.numPolys ) {
+		return;
+	}
+
+	AnglesToAxis( cent->lerpAngles, axis );
+	for ( i = 0; i < trm.numVerts; i++ ) {
+		MatrixRotateVector( trm.verts[i], (const vec3_t *)axis, verts[i] );
+		VectorAdd( verts[i], cent->lerpOrigin, verts[i] );
+	}
+
+	// light it like a model
+	VectorAdd( s1->mins, s1->maxs, center );
+	VectorScale( center, 0.5f, center );
+	VectorAdd( center, cent->lerpOrigin, center );
+	if ( !trap_R_LightForPoint( center, ambient, directed, lightDir ) ) {
+		VectorSet( ambient, 96, 96, 96 );
+		VectorSet( directed, 160, 160, 160 );
+		VectorSet( lightDir, 0.3f, 0.5f, 0.8f );
+		VectorNormalize( lightDir );
+	}
+
+	// crates get one crate texture per face, other shapes a tiled metal
+	fitTexture = ( s1->modelindex == PROP_BOX );
+	shader = fitTexture ? cgs.media.propCrateShader : cgs.media.propMetalShader;
+
+	for ( i = 0; i < trm.numPolys; i++ ) {
+		const traceModelPoly_t *p = &trm.polys[i];
+
+		numVerts = p->numEdges;
+		if ( numVerts < 3 || numVerts > MAX_TRACEMODEL_POLYEDGES ) {
+			continue;
+		}
+		for ( j = 0; j < numVerts; j++ ) {
+			edgeNum = p->edges[j];
+			order[j] = trm.edges[abs( edgeNum )].v[INTSIGNBITSET( edgeNum )];
+		}
+
+		MatrixRotateVector( p->normal, (const vec3_t *)axis, normal );
+
+		// face axes for the texture coordinates
+		VectorSubtract( verts[order[1]], verts[order[0]], u );
+		VectorNormalize( u );
+		CrossProduct( normal, u, v );
+
+		umin = vmin = 999999.0f;
+		umax = vmax = -999999.0f;
+		for ( j = 0; j < numVerts; j++ ) {
+			float a = DotProduct( verts[order[j]], u );
+			float b = DotProduct( verts[order[j]], v );
+			umin = MIN( umin, a );
+			umax = MAX( umax, a );
+			vmin = MIN( vmin, b );
+			vmax = MAX( vmax, b );
+		}
+		du = fitTexture ? MAX( umax - umin, 1.0f ) : 64.0f;
+		dv = fitTexture ? MAX( vmax - vmin, 1.0f ) : 64.0f;
+
+		light = DotProduct( normal, lightDir );
+		if ( light < 0.0f ) {
+			light = 0.0f;
+		}
+
+		// the renderer wants the vertices clockwise seen from the front
+		VectorSubtract( verts[order[1]], verts[order[0]], e1 );
+		VectorSubtract( verts[order[2]], verts[order[0]], e2 );
+		CrossProduct( e1, e2, cross );
+		for ( j = 0; j < numVerts; j++ ) {
+			int k = ( DotProduct( cross, normal ) > 0.0f ) ? numVerts - 1 - j : j;
+			const float *xyz = verts[order[k]];
+			int c;
+
+			VectorCopy( xyz, poly[j].xyz );
+			poly[j].st[0] = ( DotProduct( xyz, u ) - umin ) / du;
+			poly[j].st[1] = ( DotProduct( xyz, v ) - vmin ) / dv;
+			for ( c = 0; c < 3; c++ ) {
+				// polygons don't get the overbright scaling models get, and dark maps need a floor
+				poly[j].modulate[c] = Com_Clamp( 0, 255, 48.0f + ( ambient[c] + directed[c] * light ) * 2.0f );
+			}
+			poly[j].modulate[3] = 255;
+		}
+
+		trap_R_AddPolyToScene( shader, numVerts, poly, 0, 0 );
+	}
+}
+
+/*
+==================
 CG_General
 ==================
 */
@@ -1234,6 +1339,9 @@ static void CG_AddCEntity( centity_t *cent ) {
 		break;
 	case ET_GENERAL:
 		CG_General( cent );
+		break;
+	case ET_PHYSICS_PROP:
+		CG_PhysicsProp( cent );
 		break;
 	case ET_PLAYER:
 		CG_Player( cent );

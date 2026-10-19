@@ -1693,6 +1693,10 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.holeMarkShader = trap_R_RegisterShader( "gfx/damage/hole_lg_mrk" );
 	cgs.media.energyMarkShader = trap_R_RegisterShader( "gfx/damage/plasma_mrk" );
 	cgs.media.shadowMarkShader = trap_R_RegisterShader( "markShadow" );
+
+	// plain images without shader scripts so the vertex colors light them
+	cgs.media.propCrateShader = trap_R_RegisterShader( "textures/base_object/boxQ3_3b" );
+	cgs.media.propMetalShader = trap_R_RegisterShader( "textures/base_support/metal1_1" );
 	cgs.media.wakeMarkShader = trap_R_RegisterShader( "wake" );
 	cgs.media.bloodMarkShader = trap_R_RegisterShader( "bloodMark" );
 

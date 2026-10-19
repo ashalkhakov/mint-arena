@@ -439,6 +439,153 @@ void RotationToMat3( rotation_t *r ) {
 }
 
 /*
+================
+Mat3Inverse
+
+idMat3::Inverse, returns qfalse for a singular matrix
+================
+*/
+qboolean Mat3Inverse( const vec3_t mat[3], vec3_t out[3] ) {
+	vec3_t inverse[3];
+	double det, invDet;
+	int i, j;
+
+	inverse[0][0] = mat[1][1] * mat[2][2] - mat[1][2] * mat[2][1];
+	inverse[1][0] = mat[1][2] * mat[2][0] - mat[1][0] * mat[2][2];
+	inverse[2][0] = mat[1][0] * mat[2][1] - mat[1][1] * mat[2][0];
+
+	det = mat[0][0] * inverse[0][0] + mat[0][1] * inverse[1][0] + mat[0][2] * inverse[2][0];
+
+	if ( fabs( det ) < 1e-14 ) {
+		return qfalse;
+	}
+
+	invDet = 1.0f / det;
+
+	inverse[0][1] = mat[0][2] * mat[2][1] - mat[0][1] * mat[2][2];
+	inverse[0][2] = mat[0][1] * mat[1][2] - mat[0][2] * mat[1][1];
+	inverse[1][1] = mat[0][0] * mat[2][2] - mat[0][2] * mat[2][0];
+	inverse[1][2] = mat[0][2] * mat[1][0] - mat[0][0] * mat[1][2];
+	inverse[2][1] = mat[0][1] * mat[2][0] - mat[0][0] * mat[2][1];
+	inverse[2][2] = mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
+
+	for ( i = 0; i < 3; i++ ) {
+		for ( j = 0; j < 3; j++ ) {
+			out[i][j] = inverse[i][j] * invDet;
+		}
+	}
+	return qtrue;
+}
+
+/*
+================
+Mat3OrthoNormalizeSelf
+================
+*/
+void Mat3OrthoNormalizeSelf( vec3_t mat[3] ) {
+	VectorNormalize( mat[0] );
+	CrossProduct( mat[0], mat[1], mat[2] );
+	VectorNormalize( mat[2] );
+	CrossProduct( mat[2], mat[0], mat[1] );
+	VectorNormalize( mat[1] );
+}
+
+/*
+================
+Mat3ToRotation
+
+idMat3::ToRotation, rotation around the origin
+================
+*/
+void Mat3ToRotation( const vec3_t mat[3], rotation_t *r ) {
+	double trace, s, t, q[4], len;
+	int i, j, k;
+	static const int next[3] = { 1, 2, 0 };
+
+	// quaternion with the vector part in q[0..2] and the scalar in q[3]
+	trace = mat[0][0] + mat[1][1] + mat[2][2];
+	if ( trace > 0.0 ) {
+		t = trace + 1.0;
+		s = 0.5 / sqrt( t );
+
+		q[3] = s * t;
+		q[0] = ( mat[2][1] - mat[1][2] ) * s;
+		q[1] = ( mat[0][2] - mat[2][0] ) * s;
+		q[2] = ( mat[1][0] - mat[0][1] ) * s;
+	} else {
+		i = 0;
+		if ( mat[1][1] > mat[0][0] ) {
+			i = 1;
+		}
+		if ( mat[2][2] > mat[i][i] ) {
+			i = 2;
+		}
+		j = next[i];
+		k = next[j];
+
+		t = ( mat[i][i] - ( mat[j][j] + mat[k][k] ) ) + 1.0;
+		s = 0.5 / sqrt( t );
+
+		q[i] = s * t;
+		q[3] = ( mat[k][j] - mat[j][k] ) * s;
+		q[j] = ( mat[j][i] + mat[i][j] ) * s;
+		q[k] = ( mat[k][i] + mat[i][k] ) * s;
+	}
+
+	// Doom 3 takes acos( q[3] ), which rounds the small per frame rotations of
+	// a physics step to zero. atan2 keeps them, so they still get collision checks.
+	len = sqrt( q[0] * q[0] + q[1] * q[1] + q[2] * q[2] );
+	r->angle = 2.0 * atan2( len, q[3] ) * ( 180.0 / M_PI );
+	if ( len < 1e-12 || fabs( r->angle ) < 1e-10f ) {
+		VectorSet( r->vec, 0.0f, 0.0f, 1.0f );
+		r->angle = 0.0f;
+	} else {
+		r->vec[0] = q[0] / len;
+		r->vec[1] = q[1] / len;
+		r->vec[2] = q[2] / len;
+		FixDegenerateVectorNormal( r->vec );
+	}
+
+	VectorClear( r->origin );
+	AxisCopy( mat, r->axis );
+	r->axisValid = qtrue;
+}
+
+/*
+================
+Mat3ToAngles
+
+idMat3::ToAngles, gives Quake 3 pitch yaw roll
+================
+*/
+void Mat3ToAngles( const vec3_t mat[3], vec3_t angles ) {
+	double theta, cp;
+	float sp;
+
+	sp = mat[0][2];
+
+	// cap off our sin value so that we don't get any NANs
+	if ( sp > 1.0f ) {
+		sp = 1.0f;
+	} else if ( sp < -1.0f ) {
+		sp = -1.0f;
+	}
+
+	theta = -asin( sp );
+	cp = cos( theta );
+
+	if ( cp > 8192.0f * 1.192092896e-07f ) {
+		angles[PITCH] = RAD2DEG( theta );
+		angles[YAW] = RAD2DEG( atan2( mat[0][1], mat[0][0] ) );
+		angles[ROLL] = RAD2DEG( atan2( mat[1][2], mat[2][2] ) );
+	} else {
+		angles[PITCH] = RAD2DEG( theta );
+		angles[YAW] = RAD2DEG( -atan2( mat[1][0], mat[1][1] ) );
+		angles[ROLL] = 0;
+	}
+}
+
+/*
 ============
 RotationNormalize180
 ============

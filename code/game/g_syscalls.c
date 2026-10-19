@@ -445,3 +445,35 @@ int			trap_CM_GetMaterialContentFlags( qhandle_t material ) {
 int         trap_CM_GetMaterialSurfaceFlags( qhandle_t material ) {
     return syscall( G_CM_GETMATERIALSURFACEFLAGS, material );
 }
+
+void trap_Debug_ClearLines( int time ) {
+	syscall( G_DEBUG_CLEARLINES, time );
+}
+
+void trap_Debug_Line( const vec4_t color, const vec3_t start, const vec3_t end, int lifetime, qboolean depthTest ) {
+	syscall( G_DEBUG_LINE, color, start, end, lifetime, depthTest );
+}
+
+void trap_Debug_Arrow( const vec4_t color, const vec3_t start, const vec3_t end, int size, int lifetime ) {
+	syscall( G_DEBUG_ARROW, color, start, end, size, lifetime );
+}
+
+void trap_Debug_Winding( const vec4_t color, const fixedWinding_t *w, const vec3_t origin, const vec3_t axis[3], int lifetime, qboolean depthTest ) {
+	syscall( G_DEBUG_WINDING, color, w, origin, axis, lifetime, depthTest );
+}
+
+void trap_Debug_Circle( const vec4_t color, const vec3_t origin, const vec3_t dir, float radius, int numSteps, int lifetime, qboolean depthTest ) {
+	syscall( G_DEBUG_CIRCLE, color, origin, dir, PASSFLOAT( radius ), numSteps, lifetime, depthTest );
+}
+
+void trap_Debug_Bounds( const vec4_t color, const vec3_t bounds[2], const vec3_t org, int lifetime ) {
+	syscall( G_DEBUG_BOUNDS, color, bounds, org, lifetime );
+}
+
+void trap_Debug_ClearPolygons( int time ) {
+	syscall( G_DEBUG_CLEARPOLYGONS, time );
+}
+
+void trap_Debug_Polygon( const vec4_t color, const fixedWinding_t *winding, int lifetime, qboolean depthTest ) {
+	syscall( G_DEBUG_POLYGON, color, winding, lifetime, depthTest );
+}

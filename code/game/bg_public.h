@@ -1124,6 +1124,7 @@ typedef enum {
 	ET_INVISIBLE,
 	ET_GRAPPLE,				// grapple hooked on wall
 	ET_TEAM,
+	ET_PHYSICS_PROP,		// rigid body, modelindex is the propShape_t, mins/maxs the local bounds
 	ET_CORONA,
 
 	ET_EVENTS				// any of the EV_* events can be added freestanding
@@ -1337,3 +1338,23 @@ void	trap_HeapFree( void *data );
 void	trap_Field_CompleteFilename( const char *dir, const char *ext, qboolean stripExt, qboolean allowNonPureFilesOnDisk );
 void	trap_Field_CompleteCommand( const char *cmd, qboolean doCommands, qboolean doCvars );
 void	trap_Field_CompleteList( const char *list );
+
+//---------------------------------------------------------
+
+// physics props, simulated by the game and drawn from the same trace model by the cgame
+typedef enum {
+	PROP_BOX,
+	PROP_CYLINDER,
+	PROP_CONE,
+	PROP_OCTAHEDRON,
+	PROP_DODECAHEDRON,
+
+	PROP_NUM_SHAPES
+} propShape_t;
+
+#define PROP_CYLINDER_SIDES		8		// keeps cylinders inside MAX_TRACEMODEL_EDGES
+
+extern const char *bg_propShapeNames[PROP_NUM_SHAPES];
+
+propShape_t	BG_PropShapeForName( const char *name );
+void		BG_PropTraceModel( propShape_t shape, const vec3_t mins, const vec3_t maxs, traceModel_t *trm );

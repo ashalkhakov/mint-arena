@@ -144,6 +144,12 @@ void G_LinkEntity( gentity_t *ent ) {
 	float		*origin, *angles;
     vec3_t      axis[3];
 
+	// physics props link their rotated trace model at the simulated position
+	if ( ent->body ) {
+		G_PhysicsLinkProp( ent );
+		return;
+	}
+
 	// get the position
 	origin = ent->r.currentOrigin;
 	angles = ent->r.currentAngles;

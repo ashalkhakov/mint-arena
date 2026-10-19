@@ -997,6 +997,10 @@ typedef struct {
 
 	qhandle_t	shadowMarkShader;
 
+	// physics props
+	qhandle_t	propCrateShader;
+	qhandle_t	propMetalShader;
+
 	qhandle_t	botSkillShaders[5];
 
 	// wall mark shaders

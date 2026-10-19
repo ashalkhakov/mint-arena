@@ -661,11 +661,16 @@ struct svcmd
   { "entityList", qfalse, Svcmd_EntityList_f },
   { "forceTeam", qfalse, Svcmd_ForceTeam_f, Svcmd_ForceTeamComplete },
   { "listip", qfalse, Svcmd_ListIPs_f },
+  { "propblast", qfalse, Svcmd_PropBlast_f },
+  { "propclear", qfalse, Svcmd_PropClear_f },
+  { "proplist", qfalse, Svcmd_PropList_f },
+  { "propspawn", qfalse, Svcmd_PropSpawn_f },
   { "removeip", qfalse, Svcmd_RemoveIP_f },
   { "say", qtrue, Svcmd_Say_f },
+  // sorted, G_ConsoleCommand uses bsearch
+  { "sectorlist", qfalse, Svcmd_SectorList_f, Svcmd_SectorListComplete },
   { "teleport", qfalse, Svcmd_Teleport_f, Svcmd_TeleportComplete },
-  { "tell", qtrue, Svcmd_Tell_f, Svcmd_TellComplete },
-  { "sectorlist", qfalse, Svcmd_SectorList_f, Svcmd_SectorListComplete }
+  { "tell", qtrue, Svcmd_Tell_f, Svcmd_TellComplete }
 };
 
 const size_t numSvCmds = ARRAY_LEN(svcmds);

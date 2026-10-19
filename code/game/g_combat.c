@@ -977,6 +977,12 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		knockback = 0;
 	}
 
+	// physics props only take the push
+	if ( targ->body ) {
+		G_PhysicsDamage( targ, inflictor, dir, point, knockback, dflags );
+		return;
+	}
+
 	// figure momentum add, even if the damage won't be taken
 	if ( knockback && targ->player ) {
 		vec3_t	kvel;

@@ -2068,3 +2068,71 @@ void BG_InitIdLib( void ) {
 
     ie = *GetIdLibAPI( IDLIB_API_VERSION, &import );
 }
+
+
+/*
+===============================================================================
+
+PHYSICS PROPS
+
+===============================================================================
+*/
+
+const char *bg_propShapeNames[PROP_NUM_SHAPES] = {
+	"box",
+	"cylinder",
+	"cone",
+	"octahedron",
+	"dodecahedron"
+};
+
+/*
+================
+BG_PropShapeForName
+
+Unknown names give a box
+================
+*/
+propShape_t BG_PropShapeForName( const char *name ) {
+	int i;
+
+	for ( i = 0; i < PROP_NUM_SHAPES; i++ ) {
+		if ( !Q_stricmp( name, bg_propShapeNames[i] ) ) {
+			return (propShape_t)i;
+		}
+	}
+	return PROP_BOX;
+}
+
+/*
+================
+BG_PropTraceModel
+
+The game collides with this trace model and the cgame draws its polygons.
+================
+*/
+void BG_PropTraceModel( propShape_t shape, const vec3_t mins, const vec3_t maxs, traceModel_t *trm ) {
+	vec3_t bounds[2];
+
+	VectorCopy( mins, bounds[0] );
+	VectorCopy( maxs, bounds[1] );
+
+	trm->type = TRM_INVALID;
+	switch ( shape ) {
+		case PROP_CYLINDER:
+			TraceModelSetupCylinder( trm, bounds, PROP_CYLINDER_SIDES );
+			break;
+		case PROP_CONE:
+			TraceModelSetupCone( trm, bounds, PROP_CYLINDER_SIDES );
+			break;
+		case PROP_OCTAHEDRON:
+			TraceModelSetupOctahedron( trm, bounds );
+			break;
+		case PROP_DODECAHEDRON:
+			TraceModelSetupDodecahedron( trm, bounds );
+			break;
+		default:
+			TraceModelSetupBox( trm, bounds );
+			break;
+	}
+}

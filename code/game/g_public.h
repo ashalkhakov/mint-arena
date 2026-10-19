@@ -38,7 +38,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // ZTM: FIXME: There is no way for the VM to know what the engine support API is
 //             so there is no way to add more system calls.
 #define	GAME_API_MAJOR_VERSION	2
-#define	GAME_API_MINOR_VERSION	0
+#define	GAME_API_MINOR_VERSION	1
 
 
 // entity->svFlags
@@ -317,6 +317,17 @@ typedef enum {
 	G_CM_GETMATERIALNAME, // ( qhandle_t hShader, char *buffer, int bufferSize );
 	G_CM_GETMATERIALCONTENTFLAGS, // ( qhandle_t material );
     G_CM_GETMATERIALSURFACEFLAGS, // ( qhandle_t material );
+
+	// 2.1: renderer debug drawing, only visible on a listen server
+	G_DEBUG_CLEARLINES,		// ( int time );
+	// lines with lifetime 0 last until the next clear
+	G_DEBUG_LINE,			// ( const vec4_t color, const vec3_t start, const vec3_t end, int lifetime, qboolean depthTest );
+	G_DEBUG_ARROW,			// ( const vec4_t color, const vec3_t start, const vec3_t end, int size, int lifetime );
+	G_DEBUG_WINDING,		// ( const vec4_t color, const fixedWinding_t *w, const vec3_t origin, const vec3_t axis[3], int lifetime, qboolean depthTest );
+	G_DEBUG_CIRCLE,			// ( const vec4_t color, const vec3_t origin, const vec3_t dir, float radius, int numSteps, int lifetime, qboolean depthTest );
+	G_DEBUG_BOUNDS,			// ( const vec4_t color, const vec3_t bounds[2], const vec3_t org, int lifetime );
+	G_DEBUG_CLEARPOLYGONS,	// ( int time );
+	G_DEBUG_POLYGON,		// ( const vec4_t color, const fixedWinding_t *winding, int lifetime, qboolean depthTest );
 
 } gameImport_t;
 

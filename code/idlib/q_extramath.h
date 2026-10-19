@@ -470,6 +470,12 @@ void RotationToMat3( rotation_t *r );
 void RotationNormalize180( rotation_t *r );
 void RotationNormalize360( rotation_t *r );
 
+// Doom 3 idMat3 operations, matrices are laid out like Quake 3 axis arrays
+qboolean Mat3Inverse( const vec3_t in[3], vec3_t out[3] );
+void Mat3OrthoNormalizeSelf( vec3_t mat[3] );
+void Mat3ToRotation( const vec3_t mat[3], rotation_t *r );
+void Mat3ToAngles( const vec3_t mat[3], vec3_t angles );
+
 static ID_INLINE void RotationFromOriginAndVector( rotation_t *r, const vec3_t rotationOrigin, const vec3_t rotationVec, const float rotationAngle ) {
 	VectorCopy( rotationOrigin, r->origin );
 	VectorCopy( rotationVec, r->vec );

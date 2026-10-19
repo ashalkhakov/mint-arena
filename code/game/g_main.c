@@ -492,6 +492,7 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
     ie.Init();
 
     ClipInit( &g_clip );
+	G_InitPhysics();
 
 	Swap_Init();
 
@@ -2023,6 +2024,11 @@ void G_RunFrame( int levelTime ) {
 			continue;
 		}
 
+		if ( ent->body ) {
+			G_RunPhysicsProp( ent );
+			continue;
+		}
+
 		if ( ent->s.eType == ET_MISSILE ) {
 			G_RunMissile( ent );
 			continue;
@@ -2053,6 +2059,8 @@ void G_RunFrame( int levelTime ) {
 			PlayerEndFrame( ent );
 		}
 	}
+
+	G_PhysicsDebugDraw();
 
 	// see if it is time to do a tournement restart
 	CheckTournament();

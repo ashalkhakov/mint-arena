@@ -922,6 +922,9 @@ void PlayerThink_real( gentity_t *ent ) {
 	}
 #endif
 
+	// props are pushed with the velocity the player had before running into them
+	VectorCopy( ent->player->ps.velocity, ent->pmoveStartVelocity );
+
 	Pmove (&pm);
 
 	// save results of pmove

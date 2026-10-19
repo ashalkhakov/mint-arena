@@ -139,7 +139,12 @@ static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins,
 			VectorCopy( cent->lerpOrigin, origin );
 		} else /* if ( ent->collisionType == CT_AABB ) */ {
 			cmodel = trap_CM_TempBoxModel( ent->mins, ent->maxs, ent->contents );
-			VectorCopy( vec3_origin, angles );
+			// physics props are rotated boxes, the collision model can trace against those
+			if ( ent->eType == ET_PHYSICS_PROP ) {
+				VectorCopy( cent->lerpAngles, angles );
+			} else {
+				VectorCopy( vec3_origin, angles );
+			}
 			VectorCopy( cent->lerpOrigin, origin );
 		}
 

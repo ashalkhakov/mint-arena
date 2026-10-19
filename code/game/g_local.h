@@ -206,6 +206,8 @@ struct gentity_s {
 
     // physics
     clipModel_t     clipModel;
+	struct rigidBody_s	*body;			// physics props, see g_physics.c
+	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
 };
 
 
@@ -841,3 +843,5 @@ extern	vmCvar_t	g_proxMineTimeout;
 extern	vmCvar_t	g_playerCapsule;
 extern	vmCvar_t	g_instagib;
 
+
+#include "g_physics.h"
