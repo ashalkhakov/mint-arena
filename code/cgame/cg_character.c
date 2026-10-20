@@ -101,23 +101,19 @@ static void CG_DrawHitbox( const bgHitboxPose_t *pose, const vec4_t color ) {
 ================
 CG_DrawSkeleton
 
-The model's joints on the frame: a line from each to its parent, and its
-axes (x red, y green, z blue).
+A pose's joints: a line from each to its parent, and its axes (x red,
+y green, z blue).
 ================
 */
-static void CG_DrawSkeleton( const bgModel_t *model, const refEntity_t *ent ) {
+static void CG_DrawSkeleton( const bgModel_t *model, const float *joints, int numJoints, const refEntity_t *ent ) {
 	static const vec4_t boneColor = { 1.0f, 1.0f, 0.3f, 1.0f };
 	static const vec4_t axisColor[3] = { { 1, 0.2f, 0.2f, 1 }, { 0.2f, 1, 0.2f, 1 }, { 0.3f, 0.5f, 1, 1 } };
 	vec3_t origins[MAX_MODEL_JOINTS], axes[MAX_MODEL_JOINTS][3], end;
-	qboolean posed[MAX_MODEL_JOINTS];
 	orientation_t tag;
 	int i, j, k;
 
-	for ( i = 0; i < model->numJoints; i++ ) {
-		posed[i] = trap_R_LerpTag( &tag, ent->hModel, ent->oldframe, ent->frame, 1.0f - ent->backlerp, model->joints[i].name );
-		if ( !posed[i] ) {
-			continue;
-		}
+	for ( i = 0; i < numJoints; i++ ) {
+		BG_JointOrientation( joints, i, &tag );
 		VectorCopy( ent->origin, origins[i] );
 		for ( j = 0; j < 3; j++ ) {
 			VectorMA( origins[i], tag.origin[j], ent->axis[j], origins[i] );
@@ -129,12 +125,9 @@ static void CG_DrawSkeleton( const bgModel_t *model, const refEntity_t *ent ) {
 			}
 		}
 	}
-	for ( i = 0; i < model->numJoints; i++ ) {
-		if ( !posed[i] ) {
-			continue;
-		}
+	for ( i = 0; i < numJoints && i < model->numJoints; i++ ) {
 		j = model->joints[i].parent;
-		if ( j >= 0 && j < model->numJoints && posed[j] ) {
+		if ( j >= 0 && j < numJoints ) {
 			CG_DebugLine( origins[j], origins[i], boneColor );
 		}
 		for ( k = 0; k < 3; k++ ) {
@@ -148,42 +141,46 @@ static void CG_DrawSkeleton( const bgModel_t *model, const refEntity_t *ent ) {
 ================
 CG_CharacterFrameCommands
 
-The model's frame commands of the frames the animation went through since
-the last: "sound <file>", "fx <effect>". ("event"s are the game's.)
+The model's frame commands of the frames a channel's animation went through
+since the last: "sound <file>", "fx <effect>". ("event"s are the game's.)
 ================
 */
-static void CG_CharacterFrameCommands( centity_t *cent, const bgModel_t *model, int anim, int animFrame ) {
+static void CG_CharacterFrameCommands( centity_t *cent, const bgModel_t *model, int channel ) {
+	const bgAnimChannel_t *ch = &cent->characterChannels[channel];
 	const bgAnim_t *a;
-	int i, from, to, f;
+	int i, from, to, f, frame, oldFrame, animFrame;
+	float backlerp;
 
-	if ( anim < 0 || anim >= model->numAnims ) {
+	if ( ch->anim < 0 || ch->anim >= model->numAnims ) {
+		cent->characterAnim[channel] = -1;
 		return;
 	}
-	a = &model->anims[anim];
+	a = &model->anims[ch->anim];
+	BG_ModelFrame( model, ch->anim, ch->time, cg.time, &frame, &oldFrame, &backlerp, &animFrame );
 
 	// a new animation starts from its first frame
-	if ( cent->characterAnim != anim || cent->characterAnimTime != cent->currentState.time ) {
-		cent->characterAnim = anim;
-		cent->characterAnimTime = cent->currentState.time;
-		cent->characterFrame = -1;
+	if ( cent->characterAnim[channel] != ch->anim || cent->characterAnimTime[channel] != ch->time ) {
+		cent->characterAnim[channel] = ch->anim;
+		cent->characterAnimTime[channel] = ch->time;
+		cent->characterFrame[channel] = -1;
 	}
-	from = cent->characterFrame;
+	from = cent->characterFrame[channel];
 	to = animFrame;
 	if ( to == from ) {
 		return;
 	}
-	cent->characterFrame = to;
+	cent->characterFrame[channel] = to;
 	if ( to < from ) {
 		to += a->numFrames;		// looped around
 	}
 
 	for ( f = from + 1; f <= to; f++ ) {
-		int frame = f % a->numFrames;
+		int fr = f % a->numFrames;
 
 		for ( i = 0; i < model->numFrameCommands; i++ ) {
 			const bgFrameCommand_t *fc = &model->frameCommands[i];
 
-			if ( fc->frame != frame || Q_stricmp( fc->anim, a->name ) ) {
+			if ( fc->frame != fr || Q_stricmp( fc->anim, a->name ) ) {
 				continue;
 			}
 			if ( !Q_stricmp( fc->command, "sound" ) ) {
@@ -201,8 +198,9 @@ static void CG_CharacterFrameCommands( centity_t *cent, const bgModel_t *model, 
 ================
 CG_Character
 
-An ET_CHARACTER: its mesh on the frame of its animation, its frame
-commands, and with cg_drawHitboxes its hitboxes, cg_drawSkeleton its joints.
+An ET_CHARACTER: its mesh on its channels' animations blended (Doom 3's
+way: legs, torso over its joints, cross-fades), their frame commands, and
+with cg_drawHitboxes its hitboxes, cg_drawSkeleton its joints.
 ================
 */
 void CG_Character( centity_t *cent ) {
@@ -210,8 +208,9 @@ void CG_Character( centity_t *cent ) {
 	entityState_t *s1 = &cent->currentState;
 	const bgModel_t *model;
 	bgHitboxPose_t poses[MAX_MODEL_HITBOXES];
+	float joints[MAX_MODEL_JOINTS * 12];
 	refEntity_t ent;
-	int i, num, animFrame;
+	int i, num, numJoints, c;
 
 	if ( !BG_ValidModel( s1->modelindex2 ) ) {
 		return;
@@ -227,21 +226,29 @@ void CG_Character( centity_t *cent ) {
 	VectorCopy( cent->lerpOrigin, ent.oldorigin );
 	VectorCopy( cent->lerpOrigin, ent.lightingOrigin );
 	AnglesToAxis( cent->lerpAngles, ent.axis );
-	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, &animFrame );
+
+	BG_AnimChannelsFromState( cent->characterChannels, s1->legsAnim, s1->time, s1->torsoAnim, s1->time2 );
+	// the legs' frames for the bounds, the blended skeleton to draw
+	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, NULL );
+	numJoints = BG_ModelPose( model, ent.hModel, cent->characterChannels, cg.time, joints );
+	if ( numJoints > 0 ) {
+		ent.skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
+	}
 	if ( cg_drawSkeleton.integer < 2 ) {
 		// (2: the skeleton alone)
 		trap_R_AddRefEntityToScene( &ent );
 	}
 
-	CG_CharacterFrameCommands( cent, model, s1->legsAnim, animFrame );
-
-	if ( cg_drawSkeleton.integer ) {
-		CG_DrawSkeleton( model, &ent );
+	for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
+		CG_CharacterFrameCommands( cent, model, c );
 	}
 
-	if ( cg_drawHitboxes.integer ) {
-		num = BG_ModelHitboxes( model, ent.hModel, ent.frame, ent.oldframe, ent.backlerp,
-								ent.origin, (const vec3_t *)ent.axis, poses );
+	if ( cg_drawSkeleton.integer && numJoints > 0 ) {
+		CG_DrawSkeleton( model, joints, numJoints, &ent );
+	}
+
+	if ( cg_drawHitboxes.integer && numJoints > 0 ) {
+		num = BG_ModelHitboxes( model, joints, numJoints, ent.origin, (const vec3_t *)ent.axis, poses );
 		for ( i = 0; i < num; i++ ) {
 			CG_DrawHitbox( &poses[i], hitboxColor );
 		}

@@ -1220,9 +1220,28 @@ typedef struct {
 
 typedef struct {
 	char		joint[MAX_QPATH];
+	int			jointIndex;			// in the IQM, -1 for none
 	vec3_t		mins, maxs;			// in the joint's space
 	int			zone;
 } bgHitbox_t;
+
+// animation channels, Doom 3's: the legs are the base, every joint; the
+// torso and the head take over their own joints when they play something
+typedef enum {
+	ANIMCHANNEL_LEGS,
+	ANIMCHANNEL_TORSO,
+	ANIMCHANNEL_HEAD,
+
+	MAX_ANIM_CHANNELS
+} animChannel_t;
+
+// what a channel plays, and what it played before (to cross-fade from)
+typedef struct {
+	int			anim;				// -1 none
+	int			time;				// when it started
+	int			prevAnim;
+	int			prevTime;
+} bgAnimChannel_t;
 
 typedef struct {
 	char		name[MAX_QPATH];
@@ -1250,6 +1269,8 @@ typedef struct {
 	bgFrameCommand_t	frameCommands[MAX_MODEL_FRAMECOMMANDS];
 	int					numJoints;			// the IQM's skeleton
 	bgJoint_t			joints[MAX_MODEL_JOINTS];
+	unsigned int		channelMask[MAX_ANIM_CHANNELS][4];	// SKELETON_MASK_WORDS
+	int					blendTime;			// "blend_time" seconds of a cross-fade, in msec
 } bgModel_t;
 
 typedef struct {
@@ -1269,8 +1290,15 @@ int			BG_ModelForName( const char *name );
 int			BG_ModelAnimForName( const bgModel_t *model, const char *name );
 void		BG_ModelFrame( const bgModel_t *model, int animNum, int animTime, int time,
 						   int *frame, int *oldFrame, float *backlerp, int *animFrame );
-int			BG_ModelHitboxes( const bgModel_t *model, qhandle_t hModel, int frame, int oldFrame, float backlerp,
+int			BG_ModelJointIndex( const bgModel_t *model, const char *name );
+void		BG_AnimChannelPlay( bgAnimChannel_t *channel, int anim, int time );
+void		BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int legsTime, int torsoAnim, int torsoTime );
+struct skeletonBlend_s;
+int			BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *channels, int time, void *blends, int maxBlends );
+int			BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChannel_t *channels, int time, float *jointMats );
+int			BG_ModelHitboxes( const bgModel_t *model, const float *jointMats, int numJoints,
 							  const vec3_t origin, const vec3_t axis[3], bgHitboxPose_t *poses );
+void		BG_JointOrientation( const float *jointMats, int joint, orientation_t *tag );
 const struct dict_s		*BG_ItemDef( const gitem_t *item );
 float					BG_ItemModelScale( const gitem_t *item, qboolean customModel );
 

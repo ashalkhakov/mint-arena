@@ -410,6 +410,9 @@ typedef enum {
 	CG_CM_TEMPTRACEMODEL,	// ( const traceModel_t *trm, int contents );
 	// like CG_CM_TEMPBOXMODEL for any trace model, e.g. physics props
 
+	CG_R_BLENDSKELETON,		// ( qhandle_t model, const skeletonBlend_t *blends, int numBlends, float *jointMats, int maxJoints );
+	CG_R_ADDSKELETONTOSCENE,	// ( const float *jointMats, int numJoints ); returns the refEntity_t skeleton
+
 
 	CG_CIN_PLAYCINEMATIC = 700,
 	CG_CIN_STOPCINEMATIC,

@@ -658,6 +658,7 @@ struct svcmd
   { "addip", qfalse, Svcmd_AddIP_f },
   { "botlist", qfalse, Svcmd_BotList_f },
   { "botreport", qfalse, Svcmd_BotTeamplayReport_f },
+  { "characteranim", qfalse, Svcmd_CharacterAnim_f },
   { "entityList", qfalse, Svcmd_EntityList_f },
   { "forceTeam", qfalse, Svcmd_ForceTeam_f, Svcmd_ForceTeamComplete },
   { "listip", qfalse, Svcmd_ListIPs_f },
@@ -667,9 +668,8 @@ struct svcmd
   { "propspawn", qfalse, Svcmd_PropSpawn_f },
   { "removeip", qfalse, Svcmd_RemoveIP_f },
   { "say", qtrue, Svcmd_Say_f },
-  { "spawncharacter", qfalse, Svcmd_SpawnCharacter_f },
-  // sorted, G_ConsoleCommand uses bsearch
   { "sectorlist", qfalse, Svcmd_SectorList_f, Svcmd_SectorListComplete },
+  { "spawncharacter", qfalse, Svcmd_SpawnCharacter_f },
   { "teleport", qfalse, Svcmd_Teleport_f, Svcmd_TeleportComplete },
   { "tell", qtrue, Svcmd_Tell_f, Svcmd_TellComplete }
 };

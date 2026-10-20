@@ -138,8 +138,22 @@ entityDef model_testchar {
 	"hitbox Head"		"-4.5 -4 0 4.5 4 10 head"	// a box on a joint: mins, maxs in its space, zone
 	"damage_scale head"	"2"						// Doom 3's
 	"frame walk 0"		"sound sounds/global/p_stp1.wav"
+	"channel torso"		"*Waist"				// the joints the torso channel plays on (the default)
+	"channel head"		"*Head"					// and the head's (the default)
+	"blend_time"		"0.2"					// seconds an animation fades in over (the default)
 }
 ```
+
+- **Channels** are Doom 3's: animations play at once on the legs (every
+  joint), the torso and the head, each over the ones before it, as
+  `idAnimator` does. A channel's joints are a list: `*Waist` is the joint and
+  everything under it, `Waist` the joint alone, `-Joint` and `-*Joint` take
+  them out (`"*Waist -*Head"`). A channel with nothing playing shows what's
+  under it. A new animation cross-fades from the last over `blend_time`;
+  one stopped on the torso or head fades out the same way. The game and the
+  cgame blend the same way from the same numbers, so the hitboxes follow the
+  pose drawn, and the renderer skins the mesh from the joints the cgame gives
+  it.
 
 - **Hitboxes** ride their joints. Shots (hitscan and projectiles) that reach
   a character's bounding box are tested again against its boxes, exactly,
@@ -153,11 +167,14 @@ entityDef model_testchar {
   move system, to come).
 - Numbers: models are numbered by name in the game and the cgame alike; an
   `ET_CHARACTER` entity carries its model in `modelindex2`, the animation
-  in `legsAnim` and its start in `time`.
+  in `legsAnim` and its start in `time`, the torso's in `torsoAnim` (+1, 0
+  for none) and `time2`; the head's is to come.
 
-`misc_character` (map entity): `model`, `anim`, `anim_cycle` (seconds to the
-next animation, 0 never), `health`, `angle`. `spawncharacter <model> [anim]
-[height]` puts one in front of you (cheat). `cg_drawHitboxes 1` draws the
+`misc_character` (map entity): `model`, `anim`, `torso_anim`, `anim_cycle`
+(seconds to the next animation, 0 never), `health`, `angle`.
+`spawncharacter <model> [anim] [height] [side]` puts one in front of you, and
+`characteranim <entity | all> <legs | torso> <anim | none>` plays an
+animation on one (cheats). `cg_drawHitboxes 1` draws the
 boxes, `cg_drawSkeleton 1` the joints (a line to each parent, and the axes:
 x red, y green, z blue; 2 without the mesh), `g_debugHitboxes 1` says what
 shots hit.

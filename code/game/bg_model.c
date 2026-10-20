@@ -43,6 +43,8 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 #include "g_local.h"
 #endif
 
+#define MASK_WORDS		SKELETON_MASK_WORDS
+
 // the parts of an IQM (renderercommon/iqm.h in the engine) read here
 #define IQM_MAGIC		"INTERQUAKEMODEL"
 #define IQM_VERSION		2
@@ -164,6 +166,86 @@ static int BG_ZoneNum( bgModel_t *model, const char *name ) {
 
 /*
 ================
+BG_ModelJointIndex
+
+The joint of the name, -1 for none.
+================
+*/
+int BG_ModelJointIndex( const bgModel_t *model, const char *name ) {
+	int i;
+
+	for ( i = 0; i < model->numJoints; i++ ) {
+		if ( !Q_stricmp( model->joints[i].name, name ) ) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static void BG_MaskJoint( unsigned int *mask, int joint, qboolean set ) {
+	if ( joint < 0 || joint >= MASK_WORDS * 32 ) {
+		return;
+	}
+	if ( set ) {
+		mask[joint >> 5] |= 1u << ( joint & 31 );
+	} else {
+		mask[joint >> 5] &= ~( 1u << ( joint & 31 ) );
+	}
+}
+
+static qboolean BG_JointUnder( const bgModel_t *model, int joint, int root ) {
+	while ( joint >= 0 ) {
+		if ( joint == root ) {
+			return qtrue;
+		}
+		joint = model->joints[joint].parent;
+	}
+	return qfalse;
+}
+
+/*
+================
+BG_ModelChannel
+
+A channel's joints, Doom 3's way: "*Waist" is the joint and all under it,
+"Waist" the joint alone, "-" before either takes them out.
+================
+*/
+static void BG_ModelChannel( bgModel_t *model, int channel, const char *joints ) {
+	char buf[MAX_STRING_CHARS], *p, *token;
+	unsigned int *mask = model->channelMask[channel];
+	qboolean remove, all;
+	int i, joint;
+
+	memset( mask, 0, sizeof( model->channelMask[0] ) );
+	Q_strncpyz( buf, joints, sizeof( buf ) );
+	for ( p = buf; ; ) {
+		token = COM_ParseExt( &p, qfalse );
+		if ( !token[0] ) {
+			break;
+		}
+		remove = ( *token == '-' );
+		if ( remove ) {
+			token++;
+		}
+		all = ( *token == '*' );
+		if ( all ) {
+			token++;
+		}
+		joint = BG_ModelJointIndex( model, token );
+		if ( joint < 0 ) {
+			continue;	// a rig without it: no such channel
+		}
+		for ( i = 0; i < model->numJoints; i++ ) {
+			if ( i == joint || ( all && BG_JointUnder( model, i, joint ) ) ) {
+				BG_MaskJoint( mask, i, !remove );
+			}
+		}
+	}
+}
+
+/*
+================
 BG_LoadModel
 ================
 */
@@ -240,6 +322,8 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 			}
 			box->zone = zone[0] ? BG_ZoneNum( model, zone ) : 0;
 			model->numHitboxes++;
+		} else if ( !Q_stricmpn( buf, "channel ", 8 ) ) {
+			// parsed below, once the joints are known
 		} else if ( !Q_stricmpn( buf, "frame ", 6 ) ) {
 			bgFrameCommand_t *fc;
 
@@ -256,6 +340,19 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 			model->numFrameCommands++;
 		}
 	}
+
+	// the joints of the hitboxes
+	for ( i = 0; i < model->numHitboxes; i++ ) {
+		model->hitboxes[i].jointIndex = BG_ModelJointIndex( model, model->hitboxes[i].joint );
+		if ( model->hitboxes[i].jointIndex < 0 && model->numJoints ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: model %s: no joint %s for a hitbox\n", name, model->hitboxes[i].joint );
+		}
+	}
+
+	// channels: "channel torso" "*Waist" (Doom 3's defaults for its rigs)
+	BG_ModelChannel( model, ANIMCHANNEL_TORSO, DictGetStringReference( def, "channel torso", "*Waist" ) );
+	BG_ModelChannel( model, ANIMCHANNEL_HEAD, DictGetStringReference( def, "channel head", "*Head" ) );
+	model->blendTime = DictGetFloat( def, "blend_time", "0.2" ) * 1000;
 
 	// damage scales of the zones the hitboxes name
 	for ( i = 0; i < model->numZones; i++ ) {
@@ -371,15 +468,149 @@ void BG_ModelFrame( const bgModel_t *model, int animNum, int animTime, int time,
 
 /*
 ================
-BG_ModelHitboxes
+BG_AnimChannelPlay
 
-The model's hitboxes posed: hModel is the mesh registered with this module's
-renderer (the server's has one too), the frames from BG_ModelFrame, origin
-and axis the entity's. Each box comes out as its joint's origin and axis and
-its mins and maxs in that space. Returns how many.
+A channel plays the animation from time on; what it played before is kept
+to cross-fade from.
 ================
 */
-int BG_ModelHitboxes( const bgModel_t *model, qhandle_t hModel, int frame, int oldFrame, float backlerp,
+void BG_AnimChannelPlay( bgAnimChannel_t *channel, int anim, int time ) {
+	if ( anim == channel->anim && time == channel->time ) {
+		return;
+	}
+	channel->prevAnim = channel->anim;
+	channel->prevTime = channel->time;
+	channel->anim = anim;
+	channel->time = time;
+}
+
+/*
+================
+BG_AnimChannelsFromState
+
+The channels of an entity's legsAnim/time (the legs) and torsoAnim/time2
+(the torso, 0 for none, else the animation plus one).
+================
+*/
+void BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int legsTime, int torsoAnim, int torsoTime ) {
+	BG_AnimChannelPlay( &channels[ANIMCHANNEL_LEGS], legsAnim, legsTime );
+	BG_AnimChannelPlay( &channels[ANIMCHANNEL_TORSO], torsoAnim > 0 ? torsoAnim - 1 : -1, torsoAnim > 0 ? torsoTime : 0 );
+}
+
+static void BG_AddLayer( const bgModel_t *model, skeletonBlend_t *blend, int anim, int animTime, int time,
+						 float weight, const unsigned int *mask ) {
+	memset( blend, 0, sizeof( *blend ) );
+	BG_ModelFrame( model, anim, animTime, time, &blend->frame, &blend->oldframe, &blend->backlerp, NULL );
+	blend->weight = weight;
+	if ( mask ) {
+		memcpy( blend->jointMask, mask, sizeof( blend->jointMask ) );
+	}
+}
+
+/*
+================
+BG_ModelSkeletonBlends
+
+The layers to blend the skeleton from at time (Doom 3's idAnimator): the
+legs over every joint, cross-fading from their last animation; then the
+torso and the head over their joints, fading in, cross-fading, or fading
+out to what's under them. The fades start when the new animation does, so
+the game and the cgame weigh them alike. Returns how many layers.
+================
+*/
+int BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *channels, int time, void *out, int maxBlends ) {
+	skeletonBlend_t *blends = out;
+	int c, n = 0;
+	float fade;
+
+	for ( c = 0; c < MAX_ANIM_CHANNELS && n + 2 <= maxBlends; c++ ) {
+		const bgAnimChannel_t *ch = &channels[c];
+		const unsigned int *mask = c == ANIMCHANNEL_LEGS ? NULL : model->channelMask[c];
+		int m;
+
+		if ( mask ) {
+			for ( m = 0; m < MASK_WORDS && !mask[m]; m++ ) {
+			}
+			if ( m == MASK_WORDS ) {
+				continue;	// the rig has no such channel
+			}
+		}
+		fade = model->blendTime > 0 ? (float)( time - ch->time ) / model->blendTime : 1.0f;
+		if ( fade > 1.0f ) {
+			fade = 1.0f;
+		} else if ( fade < 0.0f ) {
+			fade = 0.0f;
+		}
+
+		if ( c == ANIMCHANNEL_LEGS ) {
+			// the base: the old animation under the new one fading in
+			if ( ch->prevAnim >= 0 && fade < 1.0f ) {
+				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevTime, time, 1.0f, NULL );
+				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->time, time, fade, NULL );
+			} else {
+				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->time, time, 1.0f, NULL );
+			}
+			continue;
+		}
+		if ( ch->anim >= 0 ) {
+			if ( ch->prevAnim >= 0 && fade < 1.0f ) {
+				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevTime, time, 1.0f, mask );
+			}
+			BG_AddLayer( model, &blends[n++], ch->anim, ch->time, time, fade, mask );
+		} else if ( ch->prevAnim >= 0 && fade < 1.0f ) {
+			// stopped: fades out to the legs'
+			BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevTime, time, 1.0f - fade, mask );
+		}
+	}
+	return n;
+}
+
+/*
+================
+BG_ModelPose
+
+The joints (3x4 matrices in the model's space) of the channels' animations
+blended at time: hModel is the mesh registered with this module's renderer
+(the server's has one too). Returns how many.
+================
+*/
+int BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChannel_t *channels, int time, float *jointMats ) {
+	skeletonBlend_t blends[MAX_ANIM_CHANNELS * 2];
+	int n;
+
+	n = BG_ModelSkeletonBlends( model, channels, time, blends, ARRAY_LEN( blends ) );
+	return trap_R_BlendSkeleton( hModel, blends, n, jointMats, MAX_MODEL_JOINTS );
+}
+
+/*
+================
+BG_JointOrientation
+
+A joint of a pose as a tag (LerpTag's).
+================
+*/
+void BG_JointOrientation( const float *jointMats, int joint, orientation_t *tag ) {
+	const float *m = &jointMats[12 * joint];
+	int r, c;
+
+	for ( r = 0; r < 3; r++ ) {
+		for ( c = 0; c < 3; c++ ) {
+			tag->axis[c][r] = m[r * 4 + c];
+		}
+		tag->origin[r] = m[r * 4 + 3];
+	}
+}
+
+/*
+================
+BG_ModelHitboxes
+
+The model's hitboxes on a pose (BG_ModelPose), at the entity's origin and
+axis. Each box comes out as its joint's origin and axis and its mins and
+maxs in that space. Returns how many.
+================
+*/
+int BG_ModelHitboxes( const bgModel_t *model, const float *jointMats, int numJoints,
 					  const vec3_t origin, const vec3_t axis[3], bgHitboxPose_t *poses ) {
 	orientation_t tag;
 	int i, j, num = 0;
@@ -388,10 +619,10 @@ int BG_ModelHitboxes( const bgModel_t *model, qhandle_t hModel, int frame, int o
 		const bgHitbox_t *box = &model->hitboxes[i];
 		bgHitboxPose_t *pose = &poses[num];
 
-		if ( !trap_R_LerpTag( &tag, hModel, oldFrame, frame, 1.0f - backlerp, box->joint ) ) {
+		if ( box->jointIndex < 0 || box->jointIndex >= numJoints ) {
 			continue;
 		}
-		// the joint's place in the world
+		BG_JointOrientation( jointMats, box->jointIndex, &tag );
 		VectorCopy( origin, pose->origin );
 		for ( j = 0; j < 3; j++ ) {
 			VectorMA( pose->origin, tag.origin[j], axis[j], pose->origin );

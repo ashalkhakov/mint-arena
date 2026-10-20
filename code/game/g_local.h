@@ -31,6 +31,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // g_local.h -- local definitions for game module
 
 #include "../idlib/q_shared.h"
+#include "../renderercommon/tr_types.h"
 #include "bg_public.h"
 #include "g_public.h"
 #include "ai_ea.h"
@@ -677,7 +678,8 @@ int		G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses 
 void	G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
 					 int passEntityNum, int contentmask, int *zone );
 float	G_HitboxDamageScale( const gentity_t *ent, int zone );
-void	G_CharacterSetAnim( gentity_t *ent, int anim );
+void	G_CharacterSetAnim( gentity_t *ent, int channel, int anim );
+void	Svcmd_CharacterAnim_f( void );
 void	SP_misc_character( gentity_t *ent );
 void	Svcmd_SpawnCharacter_f( void );
 void AltFireWeapon( gentity_t *ent );

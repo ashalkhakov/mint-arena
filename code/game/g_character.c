@@ -36,12 +36,13 @@ char *G_AddSpawnVarToken( const char *string );
 #define CHARACTER_HISTORY	32		// frames, a bit over a second and a half
 
 typedef struct {
-	int			time;
-	int			anim, animTime;
-	vec3_t		origin, angles;
+	int				time;
+	bgAnimChannel_t	channels[MAX_ANIM_CHANNELS];
+	vec3_t			origin, angles;
 } characterState_t;
 
 struct characterHistory_s {
+	bgAnimChannel_t		channels[MAX_ANIM_CHANNELS];	// now, with what they cross-fade from
 	characterState_t	states[CHARACTER_HISTORY];
 	int					head;		// the latest
 	int					num;
@@ -71,8 +72,8 @@ static void G_CharacterRecord( gentity_t *ent ) {
 		st = &h->states[h->head];
 	}
 	st->time = level.time;
-	st->anim = ent->s.legsAnim;
-	st->animTime = ent->s.time;
+	BG_AnimChannelsFromState( h->channels, ent->s.legsAnim, ent->s.time, ent->s.torsoAnim, ent->s.time2 );
+	memcpy( st->channels, h->channels, sizeof( st->channels ) );
 	VectorCopy( ent->r.currentOrigin, st->origin );
 	VectorCopy( ent->r.currentAngles, st->angles );
 }
@@ -99,8 +100,9 @@ static void G_CharacterStateAt( const gentity_t *ent, int time, characterState_t
 		}
 	}
 	out->time = time;
-	out->anim = ent->s.legsAnim;
-	out->animTime = ent->s.time;
+	if ( h ) {
+		memcpy( out->channels, h->channels, sizeof( out->channels ) );
+	}
 	VectorCopy( ent->r.currentOrigin, out->origin );
 	VectorCopy( ent->r.currentAngles, out->angles );
 }
@@ -116,17 +118,18 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 	const bgModel_t *model;
 	characterState_t st;
 	vec3_t axis[3];
-	int frame, oldFrame;
-	float backlerp;
+	float joints[MAX_MODEL_JOINTS * 12];
+	int numJoints;
 
 	if ( ent->s.eType != ET_CHARACTER || !BG_ValidModel( ent->s.modelindex2 ) || !ent->characterModel ) {
 		return 0;
 	}
 	model = &bg_models[ent->s.modelindex2];
 	G_CharacterStateAt( ent, time, &st );
-	BG_ModelFrame( model, st.anim, st.animTime, time, &frame, &oldFrame, &backlerp, NULL );
+	// the skeleton of its channels' animations blended, as the cgame draws it
+	numJoints = BG_ModelPose( model, ent->characterModel, st.channels, time, joints );
 	AnglesToAxis( st.angles, axis );
-	return BG_ModelHitboxes( model, ent->characterModel, frame, oldFrame, backlerp, st.origin, (const vec3_t *)axis, poses );
+	return BG_ModelHitboxes( model, joints, numJoints, st.origin, (const vec3_t *)axis, poses );
 }
 
 /*
@@ -272,11 +275,19 @@ float G_HitboxDamageScale( const gentity_t *ent, int zone ) {
 /*
 ================
 G_CharacterSetAnim
+
+What a channel plays from now on (-1: the torso stops, its joints go back to
+the legs'); a change cross-fades over the model's "blend_time".
 ================
 */
-void G_CharacterSetAnim( gentity_t *ent, int anim ) {
-	ent->s.legsAnim = anim;
-	ent->s.time = level.time;
+void G_CharacterSetAnim( gentity_t *ent, int channel, int anim ) {
+	if ( channel == ANIMCHANNEL_TORSO ) {
+		ent->s.torsoAnim = anim >= 0 ? anim + 1 : 0;
+		ent->s.time2 = level.time;
+	} else {
+		ent->s.legsAnim = anim < 0 ? 0 : anim;
+		ent->s.time = level.time;
+	}
 	G_CharacterRecord( ent );
 }
 
@@ -285,7 +296,7 @@ static void G_CharacterThink( gentity_t *ent ) {
 
 	// "anim_cycle": goes through the animations, a few seconds each
 	if ( ent->wait > 0 && level.time - ent->s.time >= ent->wait * 1000 && model->numAnims > 1 ) {
-		G_CharacterSetAnim( ent, ( ent->s.legsAnim + 1 ) % model->numAnims );
+		G_CharacterSetAnim( ent, ANIMCHANNEL_LEGS, ( ent->s.legsAnim + 1 ) % model->numAnims );
 	}
 	G_CharacterRecord( ent );
 	ent->nextthink = level.time + 1;
@@ -306,7 +317,8 @@ static void G_CharacterDie( gentity_t *self, gentity_t *inflictor, gentity_t *at
 /*QUAKED misc_character (1 0 0) (-16 -16 -24) (16 16 32)
 A skeletal character (bg_model.c), for now a target to shoot.
 "model"			the model def
-"anim"			the animation it plays (the first by default)
+"anim"			the animation it plays (the first by default), on the legs channel
+"torso_anim"	an animation for the torso channel (its joints) over that
 "anim_cycle"	seconds before it goes on to the next animation, 0 never
 "health"		how much it takes (1000; it gets up again)
 "angle"			facing
@@ -333,6 +345,14 @@ void SP_misc_character( gentity_t *ent ) {
 	}
 	ent->characterHistory = trap_HeapMalloc( sizeof( *ent->characterHistory ) );
 	memset( ent->characterHistory, 0, sizeof( *ent->characterHistory ) );
+	{
+		int c;
+
+		// nothing to cross-fade from
+		for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
+			ent->characterHistory->channels[c].anim = ent->characterHistory->channels[c].prevAnim = -1;
+		}
+	}
 
 	DictGetVector( model->def, "mins", "-16 -16 -24", ent->s.mins );
 	DictGetVector( model->def, "maxs", "16 16 48", ent->s.maxs );
@@ -351,7 +371,15 @@ void SP_misc_character( gentity_t *ent ) {
 	G_SetOrigin( ent, ent->s.origin );
 	VectorCopy( ent->s.angles, ent->s.apos.trBase );
 	VectorCopy( ent->s.angles, ent->r.currentAngles );
-	G_CharacterSetAnim( ent, anim < 0 ? 0 : anim );
+	ent->s.legsAnim = anim < 0 ? 0 : anim;
+	ent->s.time = level.time;
+	ent->s.torsoAnim = 0;
+	G_SpawnString( "torso_anim", "", &name );
+	if ( name[0] && BG_ModelAnimForName( model, name ) >= 0 ) {
+		ent->s.torsoAnim = BG_ModelAnimForName( model, name ) + 1;
+		ent->s.time2 = level.time;
+	}
+	G_CharacterRecord( ent );
 	ent->think = G_CharacterThink;
 	ent->nextthink = level.time + 1;
 	G_LinkEntity( ent );
@@ -405,4 +433,39 @@ void Svcmd_SpawnCharacter_f( void ) {
 	}
 	SP_misc_character( ent );
 	level.numSpawnVars = 0;
+}
+
+/*
+================
+Svcmd_CharacterAnim_f
+
+characteranim <entity number | all> <legs | torso> <anim | none>: what a
+character's channel plays, cross-fading (cheat, for testing).
+================
+*/
+void Svcmd_CharacterAnim_f( void ) {
+	char who[16], channelName[16], anim[MAX_QPATH];
+	gentity_t *ent;
+	int i, channel, animNum;
+
+	if ( !g_cheats.integer ) {
+		G_Printf( "Cheats are not enabled on this server.\n" );
+		return;
+	}
+	trap_Argv( 1, who, sizeof( who ) );
+	trap_Argv( 2, channelName, sizeof( channelName ) );
+	trap_Argv( 3, anim, sizeof( anim ) );
+	channel = !Q_stricmp( channelName, "torso" ) ? ANIMCHANNEL_TORSO : ANIMCHANNEL_LEGS;
+
+	for ( i = 0, ent = g_entities; i < level.num_entities; i++, ent++ ) {
+		if ( !ent->inuse || ent->s.eType != ET_CHARACTER || ( Q_stricmp( who, "all" ) && atoi( who ) != i ) ) {
+			continue;
+		}
+		animNum = !Q_stricmp( anim, "none" ) ? -1 : BG_ModelAnimForName( &bg_models[ent->s.modelindex2], anim );
+		if ( animNum < 0 && Q_stricmp( anim, "none" ) ) {
+			G_Printf( "%d: no animation %s\n", i, anim );
+			continue;
+		}
+		G_CharacterSetAnim( ent, channel, animNum );
+	}
 }

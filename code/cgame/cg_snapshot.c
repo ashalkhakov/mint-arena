@@ -40,6 +40,15 @@ CG_ResetEntity
 ==================
 */
 static void CG_ResetEntity( centity_t *cent ) {
+	int c;
+
+	// characters: nothing to cross-fade from
+	for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
+		cent->characterChannels[c].anim = cent->characterChannels[c].prevAnim = -1;
+		cent->characterChannels[c].time = cent->characterChannels[c].prevTime = 0;
+		cent->characterAnim[c] = -1;
+	}
+
 	// if the previous snapshot this entity was updated in is at least
 	// an event window back in time then we can reset the previous event
 	if ( cent->snapShotTime < cg.time - EVENT_VALID_MSEC ) {

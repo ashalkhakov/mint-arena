@@ -218,9 +218,10 @@ typedef struct {
 // centity_t have a direct corespondence with gentity_t in the game, but
 // only the entityState_t is directly communicated to the cgame
 typedef struct centity_s {
-	int				characterAnim;		// ET_CHARACTER: the animation and frame its frame commands ran to
-	int				characterAnimTime;
-	int				characterFrame;
+	int				characterAnim[MAX_ANIM_CHANNELS];	// ET_CHARACTER: a channel's animation and frame its frame commands ran to
+	int				characterAnimTime[MAX_ANIM_CHANNELS];
+	int				characterFrame[MAX_ANIM_CHANNELS];
+	bgAnimChannel_t	characterChannels[MAX_ANIM_CHANNELS];	// what they play, and cross-fade from
 
 	entityState_t	currentState;	// from cg.frame
 	entityState_t	nextState;		// from cg.nextFrame, if available

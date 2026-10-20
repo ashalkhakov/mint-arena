@@ -180,7 +180,24 @@ typedef struct {
 	qhandle_t	oldTorsoFrameModel;
 	float		torsoBacklerp;
 
+	// skeletal models (IQM): a blended skeleton from AddSkeletonToScene
+	// this frame, 0 for frame / oldframe
+	int			skeleton;
+
 } refEntity_t;
+
+// a layer of a blended skeleton (BlendSkeleton): the frames of an animation,
+// and how much of it the joints in the mask take from it; the first layer is
+// the base. An empty mask is every joint.
+#define SKELETON_MASK_WORDS		4		// 128 joints
+
+typedef struct {
+	qhandle_t		frameModel;			// the model the frames are from, 0 the model's own
+	int				frame, oldframe;
+	float			backlerp;			// how much of oldframe
+	float			weight;				// 0 to 1
+	unsigned int	jointMask[SKELETON_MASK_WORDS];
+} skeletonBlend_t;
 
 
 #define	MAX_RENDER_STRINGS			8
