@@ -1650,7 +1650,11 @@ long BG_FS_ReadFile( const char *qpath, void **buffer ) {
         *buffer = NULL;
     }
 
-    if ( !trap_FS_FOpenFile( qpath, &f, FS_READ ) ) {
+    f = 0;
+    if ( trap_FS_FOpenFile( qpath, &f, FS_READ ) <= 0 ) {
+        if ( f ) {
+            trap_FS_FCloseFile( f );
+        }
         return 0;
     }
     trap_FS_Seek( f, 0, FS_SEEK_END );
@@ -1661,6 +1665,8 @@ long BG_FS_ReadFile( const char *qpath, void **buffer ) {
         *buffer = trap_HeapMalloc( length + 1 );
         trap_FS_Read( *buffer, length, f );
     }
+    // the handle back: they're few, and every def file is read this way
+    trap_FS_FCloseFile( f );
 
     return length;
 }
