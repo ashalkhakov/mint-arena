@@ -297,7 +297,8 @@ becomes its mesh on its legsAnim and torsoAnim through the def's
 "player_anim"s, blended as the game blends them for its hitboxes, the torso
 and head turned to aim by torsoAxis (relative to the legs) and headAxis (to
 the torso), as Quake 3 turns its models. torso, weapon and flag come back
-at their joints, for what's drawn there.
+at their joints, for what's drawn there; the weapon facing as the torso
+aims.
 ================
 */
 void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *legs, const vec3_t torsoAxis[3],
@@ -347,7 +348,10 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 	}
 
 	CG_JointEntity( legs, joints, numJoints, model->torsoJoint, torso );
+	// Daikatana's hardpoints are points: the weapon goes where the hand is,
+	// turned as the torso aims rather than as the hand is
 	CG_JointEntity( legs, joints, numJoints, model->weaponJoint, weapon );
+	MatrixMultiply( (vec3_t *)torsoAxis, legs->axis, weapon->axis );
 	CG_JointEntity( legs, joints, numJoints, model->flagJoint >= 0 ? model->flagJoint : model->torsoJoint, flag );
 
 	if ( cg_drawSkeleton.integer && numJoints > 0 ) {
