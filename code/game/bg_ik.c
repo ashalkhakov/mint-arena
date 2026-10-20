@@ -182,8 +182,9 @@ BG_ModelWalkIK
 
 Plants a pose's feet (jointMats, model space) on the floor under them: the
 model at origin with axis, standing at floorHeight (world z; where the
-entity's box rests). state keeps the smoothing from frame to frame. Nothing
-when the model has no IK, or isn't on the ground.
+entity's box rests). state keeps the smoothing from frame to frame; with no
+state, unsmoothed: the pose this moment (the game's hitboxes, at any time).
+Nothing when the model has no IK, or isn't on the ground.
 ================
 */
 void BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
@@ -196,9 +197,15 @@ void BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, co
 	float ankleRot[MAX_IK_LEGS][3][3], rot[3][3], len0, len1;
 	trace_t tr;
 	int i, r, c, k, msec;
+	bgIKState_t once;
+	qboolean smooth = state != NULL;
 
 	if ( !ik->numLegs || numJoints <= ik->waist ) {
 		return;
+	}
+	if ( !smooth ) {
+		memset( &once, 0, sizeof( once ) );
+		state = &once;
 	}
 	if ( !onGround ) {
 		state->valid = qfalse;
@@ -273,7 +280,9 @@ void BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, co
 	state->waistHeight = origin[2] + DotProduct( joint, up ) + shift;
 	if ( !state->valid ) {
 		state->valid = qtrue;
-		return;
+		if ( smooth ) {
+			return;		// smoothed from the next frame
+		}
 	}
 	VectorScale( up, shift, waistOffset );
 

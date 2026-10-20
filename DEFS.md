@@ -215,8 +215,8 @@ bend; the ankles keep their orientation. The keys are Doom 3's: `ik_numLegs`,
 when missing), `ik_footSize`, `ik_smoothing`, `ik_waistSmoothing`,
 `ik_footShift`, `ik_waistShift`, `ik_minWaistAnkleDist`, `ik_footUpTrace`,
 `ik_footDownTrace`. Players' feet are planted when on the ground, characters'
-always; `cg_ik 0` turns it off. It's drawn only for now: hitboxes follow the
-animation without it.
+always; `cg_ik 0` turns the drawing's off. The game's hitboxes follow it too,
+unsmoothed (the pose at the moment shot, rewound for lag as the rest).
 
 `misc_character` (map entity): `model`, `anim`, `torso_anim`, `anim_cycle`
 (seconds to the next animation, 0 never), `health`, `angle`.

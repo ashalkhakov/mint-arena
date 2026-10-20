@@ -44,6 +44,7 @@ typedef struct {
 	bgAnimChannel_t	channels[MAX_ANIM_CHANNELS];
 	vec3_t			origin, angles;		// angles: a player's view
 	int				movementDir;		// a player's
+	qboolean		onGround;			// a player's, for its walk IK
 } characterState_t;
 
 struct characterHistory_s {
@@ -102,6 +103,7 @@ static void G_CharacterRecord( gentity_t *ent ) {
 							   ent->s.torsoAnim, ent->s.time2 );
 		VectorCopy( ent->player->ps.viewangles, st->angles );
 		st->movementDir = ( ent->s.eFlags & EF_DEAD ) ? 0 : ent->player->ps.movementDir;
+		st->onGround = ent->player->ps.groundEntityNum != ENTITYNUM_NONE && !( ent->s.eFlags & EF_DEAD );
 	} else {
 		BG_AnimChannelsFromState( h->channels, ent->s.legsAnim, ent->s.time, ent->s.torsoAnim, ent->s.time2 );
 		VectorCopy( ent->r.currentAngles, st->angles );
@@ -139,6 +141,7 @@ static void G_CharacterStateAt( const gentity_t *ent, int time, characterState_t
 	if ( ent->player ) {
 		VectorCopy( ent->player->ps.viewangles, out->angles );
 		out->movementDir = ent->player->ps.movementDir;
+		out->onGround = ent->player->ps.groundEntityNum != ENTITYNUM_NONE && !( ent->s.eFlags & EF_DEAD );
 	} else {
 		VectorCopy( ent->r.currentAngles, out->angles );
 	}
@@ -179,8 +182,13 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 		AnglesToAxis( legs, axis );
 		// where unlagged put it back then
 		VectorCopy( ent->r.currentOrigin, st.origin );
+		// the feet on the floor, as the cgame draws them (unsmoothed)
+		BG_ModelWalkIK( model, joints, numJoints, st.origin, (const vec3_t *)axis, st.origin[2] + MINS_Z,
+						st.onGround, ent->s.number, time, NULL );
 	} else {
 		AnglesToAxis( st.angles, axis );
+		BG_ModelWalkIK( model, joints, numJoints, st.origin, (const vec3_t *)axis, st.origin[2] + ent->s.mins[2],
+						qtrue, ent->s.number, time, NULL );
 	}
 	return BG_ModelHitboxes( model, joints, numJoints, st.origin, (const vec3_t *)axis, poses );
 }
