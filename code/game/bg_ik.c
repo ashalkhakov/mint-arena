@@ -341,3 +341,87 @@ void BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, co
 		BG_ModelRotateJoints( model, jointMats, numJoints, ik->ankle[i], rot );
 	}
 }
+
+/*
+================
+BG_PlayerClimbing
+
+Whether legsAnim is a ladder's.
+================
+*/
+qboolean BG_PlayerClimbing( int legsAnim ) {
+	legsAnim &= ~ANIM_TOGGLEBIT;
+	return legsAnim == LEGS_CLIMB || legsAnim == LEGS_CLIMBDOWN;
+}
+
+/*
+================
+BG_PlayerClimbPhase
+
+On a ladder the legs' frames go by height, not time: a cycle of the climbing
+animation for every "ladder_climb" units, so the hands and feet stay on the
+rungs however fast the player goes, and stop with it. Climbing down plays
+its own animation the same way the other way.
+================
+*/
+void BG_PlayerClimbPhase( const bgModel_t *model, bgAnimChannel_t *legs, int legsAnim, float height, int time ) {
+	const bgAnim_t *anim;
+	float cycle, phase;
+
+	if ( !BG_PlayerClimbing( legsAnim ) || model->ladderClimb <= 0 || legs->anim < 0 || legs->anim >= model->numAnims ) {
+		return;
+	}
+	anim = &model->anims[legs->anim];
+	if ( anim->fps <= 0 || anim->numFrames <= 1 ) {
+		return;
+	}
+	cycle = anim->numFrames / anim->fps * 1000.0f;		// msec
+	phase = height / model->ladderClimb;
+	if ( ( legsAnim & ~ANIM_TOGGLEBIT ) == LEGS_CLIMBDOWN ) {
+		phase = -phase;
+	}
+	phase -= floor( phase );
+	legs->frameTime = time - (int)( phase * cycle );
+}
+
+/*
+================
+BG_PlayerLadder
+
+The ladder a climbing player holds: traced as pmove finds it (the box a step
+along the view against a ladder surface), so the game and
+every client find the same one. yaw faces it; offset moves the model up to
+it, its hands ("ladder_reach" ahead of it) on the rungs. qfalse when not
+climbing, or no ladder's there.
+================
+*/
+qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, float viewYaw, int passEntityNum,
+						  float *yaw, vec3_t offset ) {
+	const bgModel_t *model;
+	vec3_t mins, maxs, forward, end;
+	trace_t tr;
+
+	if ( !BG_PlayerClimbing( legsAnim ) || !BG_ValidModel( playerModel ) ) {
+		return qfalse;
+	}
+	model = &bg_models[playerModel];
+	BG_PlayerBox( playerModel, qfalse, mins, maxs, NULL );
+	VectorSet( forward, cos( DEG2RAD( viewYaw ) ), sin( DEG2RAD( viewYaw ) ), 0 );
+	VectorMA( origin, 4, forward, end );		// ahead, as pmove looks
+	BG_IK_Trace( &tr, origin, mins, maxs, end, passEntityNum, MASK_PLAYERSOLID );
+	if ( tr.fraction == 1 || tr.startsolid || !( tr.surfaceFlags & SURF_LADDER ) ) {
+		return qfalse;
+	}
+	*yaw = RAD2DEG( atan2( -tr.plane.normal[1], -tr.plane.normal[0] ) );
+	// the box's face against the ladder (an axial box reaches out along the
+	// normal by its half widths so weighted): the hands reach from the origin
+	// to there, less their own reach
+	VectorClear( offset );
+	if ( model->ladderReach > 0 ) {
+		VectorScale( tr.plane.normal, -( tr.fraction * 4 * -DotProduct( forward, tr.plane.normal )
+										 + maxs[0] * fabs( tr.plane.normal[0] ) + maxs[1] * fabs( tr.plane.normal[1] )
+										 - model->ladderReach ), offset );
+		offset[2] = 0;
+	}
+	return qtrue;
+}

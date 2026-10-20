@@ -45,6 +45,7 @@ typedef struct {
 	vec3_t			origin, angles;		// angles: a player's view
 	int				movementDir;		// a player's
 	qboolean		onGround;			// a player's, for its walk IK
+	int				legsAnim;			// a player's, for a ladder
 } characterState_t;
 
 struct characterHistory_s {
@@ -101,6 +102,9 @@ static void G_CharacterRecord( gentity_t *ent ) {
 	if ( ent->player ) {
 		BG_PlayerAnimChannels( &bg_models[ent->characterDef], h->channels, ent->s.legsAnim, ent->s.time,
 							   ent->s.torsoAnim, ent->s.time2, ent->s.weapon );
+		BG_PlayerClimbPhase( &bg_models[ent->characterDef], &h->channels[ANIMCHANNEL_LEGS], ent->s.legsAnim,
+							 ent->r.currentOrigin[2], level.time );
+		st->legsAnim = ent->s.legsAnim;
 		VectorCopy( ent->player->ps.viewangles, st->angles );
 		st->movementDir = ( ent->s.eFlags & EF_DEAD ) ? 0 : ent->player->ps.movementDir;
 		st->onGround = ent->player->ps.groundEntityNum != ENTITYNUM_NONE && !( ent->s.eFlags & EF_DEAD );
@@ -142,6 +146,7 @@ static void G_CharacterStateAt( const gentity_t *ent, int time, characterState_t
 		VectorCopy( ent->player->ps.viewangles, out->angles );
 		out->movementDir = ent->player->ps.movementDir;
 		out->onGround = ent->player->ps.groundEntityNum != ENTITYNUM_NONE && !( ent->s.eFlags & EF_DEAD );
+		out->legsAnim = ent->s.legsAnim;
 	} else {
 		VectorCopy( ent->r.currentAngles, out->angles );
 	}
@@ -169,11 +174,18 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 	// the skeleton of its channels' animations blended, as the cgame draws it
 	numJoints = BG_ModelPose( model, ent->characterModel, st.channels, time, joints );
 	if ( ent->player ) {
-		vec3_t legs, torso, head, torsoAxis[3], headAxis[3];
+		vec3_t legs, torso, head, torsoAxis[3], headAxis[3], ladderOffset;
+		float ladderYaw;
+		qboolean onLadder;
 
 		// facing its legs, the torso and head turned to aim (as the cgame
-		// does, without its swinging)
+		// does, without its swinging); on a ladder facing it
 		BG_PlayerAimAngles( st.angles, st.movementDir, legs, torso, head );
+		onLadder = BG_PlayerLadder( ent->characterDef, st.legsAnim, ent->r.currentOrigin, st.angles[YAW], ent->s.number,
+									&ladderYaw, ladderOffset );
+		if ( onLadder ) {
+			legs[YAW] = torso[YAW] = ladderYaw;
+		}
 		AnglesSubtract( head, torso, head );
 		AnglesSubtract( torso, legs, torso );
 		AnglesToAxis( torso, torsoAxis );
@@ -182,6 +194,9 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 		AnglesToAxis( legs, axis );
 		// where unlagged put it back then
 		VectorCopy( ent->r.currentOrigin, st.origin );
+		if ( onLadder ) {
+			VectorAdd( st.origin, ladderOffset, st.origin );
+		}
 		// the feet on the floor, as the cgame draws them (unsmoothed)
 		BG_ModelWalkIK( model, joints, numJoints, st.origin, (const vec3_t *)axis, st.origin[2] + MINS_Z,
 						st.onGround, ent->s.number, time, NULL );

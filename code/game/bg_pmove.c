@@ -44,6 +44,10 @@ float	pm_duckScale = 0.25f;
 float	pm_swimScale = 0.50f;
 float	pm_ladderScale = 1.0f;
 
+#define LADDER_CLIMB_SPEED	200		// Daikatana's (pmove.cpp)
+#define LADDER_SIDE_SPEED	75
+#define LADDER_VIEW_YAW		70		// how far the view turns from a ladder
+
 float	pm_accelerate = 10.0f;
 float	pm_airaccelerate = 1.0f;
 float	pm_wateraccelerate = 4.0f;
@@ -593,30 +597,40 @@ static void PM_LadderMove( void ) {
 	float wishspeed;
 	vec3_t wishdir;
 	float scale;
-	float vel;
+	float vel, side;
 
 	PM_Friction ();
 
 	scale = PM_CmdScale( &pm->cmd );
 
-	// user intentions [what the user is attempting to do]
-	if ( !scale ) { 
-		wishvel[0] = 0;
-		wishvel[1] = 0;
-		wishvel[2] = 0;
+	// Daikatana's ladders (pmove.cpp, PM_AddCurrents): up or down at a fixed
+	// speed, by looking up or down while going forward, or with jump and
+	// crouch; across slowly
+	for ( i = 0; i < 2; i++ ) {
+		wishvel[i] = scale * ( pml.forward[i] * pm->cmd.forwardmove + pml.right[i] * pm->cmd.rightmove );
 	}
-	else {   // if they're trying to move... lets calculate it
-		for (i=0 ; i<3 ; i++)
-			wishvel[i] = scale * pml.forward[i]*pm->cmd.forwardmove +
-				     scale * pml.right[i]*pm->cmd.rightmove; 
-		wishvel[2] += scale * pm->cmd.upmove;
+	side = sqrt( wishvel[0] * wishvel[0] + wishvel[1] * wishvel[1] );
+	if ( side > LADDER_SIDE_SPEED ) {
+		wishvel[0] *= LADDER_SIDE_SPEED / side;
+		wishvel[1] *= LADDER_SIDE_SPEED / side;
+	}
+	if ( pm->ps->viewangles[PITCH] <= -15 && pm->cmd.forwardmove > 0 ) {
+		wishvel[2] = LADDER_CLIMB_SPEED;
+	} else if ( pm->ps->viewangles[PITCH] >= 15 && pm->cmd.forwardmove > 0 ) {
+		wishvel[2] = -LADDER_CLIMB_SPEED;
+	} else if ( pm->cmd.upmove > 0 ) {
+		wishvel[2] = LADDER_CLIMB_SPEED;
+	} else if ( pm->cmd.upmove < 0 ) {
+		wishvel[2] = -LADDER_CLIMB_SPEED;
+	} else {
+		wishvel[2] = 0;
 	}
 
 	VectorCopy (wishvel, wishdir);
 	wishspeed = VectorNormalize(wishdir);
 
-	if ( wishspeed > pm->ps->speed * pm_ladderScale ) {
-		wishspeed = pm->ps->speed * pm_ladderScale;
+	if ( wishspeed > LADDER_CLIMB_SPEED * pm_ladderScale ) {
+		wishspeed = LADDER_CLIMB_SPEED * pm_ladderScale;
 	}
 
 	PM_Accelerate (wishdir, wishspeed, pm_ladderAccelerate);
@@ -655,9 +669,41 @@ void CheckLadder( void ) {
 	pm->trace (&trace, pm->ps->origin, pm->ps->mins, pm->ps->maxs, spot,
 		pm->ps->playerNum, MASK_PLAYERSOLID);
 
-	if ((trace.fraction < 1) && (trace.surfaceFlags & SURF_LADDER))
+	if ((trace.fraction < 1) && (trace.surfaceFlags & SURF_LADDER)) {
 		pml.ladder = qtrue;
+		VectorCopy( trace.plane.normal, pml.ladderNormal );
+	}
 
+}
+
+/*
+=============
+PM_LadderView
+
+On a ladder the view turns only so far from it (as Resident Evil 2's remake
+and the newer Wolfensteins have it; Daikatana let you turn and shoot): the
+yaw is held within LADDER_VIEW_YAW of facing it, the way RTCW holds a
+mounted gun's, through delta_angles so the client predicts it too.
+=============
+*/
+static void PM_LadderView( void ) {
+	float ladderYaw, diff, held;
+
+	if ( !pml.ladder ) {
+		return;
+	}
+	ladderYaw = RAD2DEG( atan2( -pml.ladderNormal[1], -pml.ladderNormal[0] ) );
+	diff = AngleNormalize180( pm->ps->viewangles[YAW] - ladderYaw );
+	if ( diff > LADDER_VIEW_YAW ) {
+		held = LADDER_VIEW_YAW;
+	} else if ( diff < -LADDER_VIEW_YAW ) {
+		held = -LADDER_VIEW_YAW;
+	} else {
+		return;
+	}
+	pm->ps->delta_angles[YAW] += ANGLE2SHORT( held - diff );
+	pm->ps->viewangles[YAW] = AngleMod( ladderYaw + held );
+	AngleVectors( pm->ps->viewangles, pml.forward, pml.right, pml.up );
 }
 
 
@@ -1445,6 +1491,17 @@ static void PM_Footsteps( void ) {
 	pm->xyspeed = sqrt( pm->ps->velocity[0] * pm->ps->velocity[0]
 		+  pm->ps->velocity[1] * pm->ps->velocity[1] );
 
+	// on a ladder, unless standing at its foot: climbing (its frames go by
+	// height, bg_ik.c), up or down, holding on as it was
+	if ( pml.ladder && !( pml.walking && fabs( pm->ps->velocity[2] ) < 1 ) ) {
+		if ( pm->ps->velocity[2] < -1 ) {
+			PM_ContinueLegsAnim( LEGS_CLIMBDOWN );
+		} else if ( pm->ps->velocity[2] > 1 || ( pm->ps->legsAnim & ~ANIM_TOGGLEBIT ) != LEGS_CLIMBDOWN ) {
+			PM_ContinueLegsAnim( LEGS_CLIMB );
+		}
+		return;
+	}
+
 	if ( pm->ps->groundEntityNum == ENTITYNUM_NONE ) {
 
 		if ( pm->ps->powerups[PW_INVULNERABILITY] ) {
@@ -1726,6 +1783,13 @@ static void PM_Weapon( void ) {
 	// check for dead player
 	if ( pm->ps->stats[STAT_HEALTH] <= 0 ) {
 		pm->ps->weapon = WP_NONE;
+		pm->ps->weaponBurst = 0;
+		return;
+	}
+
+	// the hands are on the ladder: no shooting (the cgame puts the weapon
+	// away)
+	if ( pml.ladder ) {
 		pm->ps->weaponBurst = 0;
 		return;
 	}
@@ -2123,6 +2187,7 @@ void PmoveSingle (pmove_t *pmove) {
 
 	PM_DropTimers();
 	CheckLadder();
+	PM_LadderView();
 
 #ifdef MISSIONPACK
 	if ( pm->ps->powerups[PW_INVULNERABILITY] ) {
@@ -2138,12 +2203,12 @@ void PmoveSingle (pmove_t *pmove) {
 		PM_FlyMove();
 	} else if (pm->ps->pm_flags & PMF_TIME_WATERJUMP) {
 		PM_WaterJumpMove();
+	} else if ( pml.ladder ) {
+		// on a ladder, even one standing in water (Daikatana's are)
+		PM_LadderMove();
 	} else if ( pm->waterlevel > 1 ) {
 		// swimming
 		PM_WaterMove();
-	} else if ( pml.ladder ) {
-		// on a ladder
-		PM_LadderMove();
 	} else if ( pml.walking ) {
 		// walking on ground
 		PM_WalkMove();

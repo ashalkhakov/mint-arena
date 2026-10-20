@@ -222,6 +222,8 @@ typedef struct centity_s {
 	int				characterAnimTime[MAX_ANIM_CHANNELS];
 	int				characterFrame[MAX_ANIM_CHANNELS];
 	bgAnimChannel_t	characterChannels[MAX_ANIM_CHANNELS];	// what they play, and cross-fade from
+	qboolean		onLadder;			// climbing one found by a trace (BG_PlayerLadder)
+	vec3_t			ladderOffset;		// the model moved up to it
 	int				playerAnims[2], playerAnimTimes[2];	// a predicted skeletal player's legs and torso, when they started
 	bgIKState_t		ik;						// a skeletal character's walk IK, frame to frame
 

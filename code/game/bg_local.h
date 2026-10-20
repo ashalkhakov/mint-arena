@@ -52,6 +52,7 @@ typedef struct {
 	qboolean	groundPlane;
 	trace_t		groundTrace;
 	qboolean	ladder;
+	vec3_t		ladderNormal;		// the ladder's face, out from it
 
 	float		impactSpeed;
 

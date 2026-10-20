@@ -971,6 +971,11 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 		return;
 	}
 
+	// the hands are on a ladder
+	if ( BG_PlayerClimbing( ps->legsAnim ) ) {
+		return;
+	}
+
 
 	// allow the gun to be completely removed
 	if ( !cg_drawGun[cg.cur_localPlayerNum].integer ) {

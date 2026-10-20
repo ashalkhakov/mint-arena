@@ -334,6 +334,9 @@ static qboolean	CG_ParseAnimationFile( const char *filename, playerInfo_t *pi ) 
 	// walk backward animation
 	memcpy(&animations[LEGS_BACKWALK], &animations[LEGS_WALK], sizeof(animation_t));
 	animations[LEGS_BACKWALK].reversed = qtrue;
+	// a ladder: Quake 3's models have no climbing, they walk up it
+	memcpy(&animations[LEGS_CLIMB], &animations[LEGS_WALK], sizeof(animation_t));
+	memcpy(&animations[LEGS_CLIMBDOWN], &animations[LEGS_BACKWALK], sizeof(animation_t));
 	// flag moving fast
 	animations[FLAG_RUN].firstFrame = 0;
 	animations[FLAG_RUN].numFrames = 16;
@@ -1848,6 +1851,17 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 	torsoAngles[YAW] = cent->pe.torso.yawAngle;
 	legsAngles[YAW] = cent->pe.legs.yawAngle;
 
+	// climbing a ladder: facing it, the head free to look (the view is held
+	// within reach of it by pmove)
+	cent->onLadder = qfalse;
+	playerNum = cent->currentState.playerNum;
+	if ( playerNum >= 0 && playerNum < MAX_CLIENTS && cgs.playerinfo[playerNum].modelDef
+		 && BG_PlayerLadder( cgs.playerinfo[playerNum].modelDef, cent->currentState.legsAnim, cent->lerpOrigin,
+							 headAngles[YAW], cent->currentState.number, &dest, cent->ladderOffset ) ) {
+		cent->onLadder = qtrue;
+		legsAngles[YAW] = torsoAngles[YAW] = cent->pe.legs.yawAngle = cent->pe.torso.yawAngle = dest;
+	}
+
 
 	// --------- pitch -------------
 
@@ -1875,7 +1889,7 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 	// lean towards the direction of travel
 	VectorCopy( cent->currentState.pos.trDelta, velocity );
 	speed = VectorNormalize( velocity );
-	if ( speed ) {
+	if ( speed && !cent->onLadder ) {
 		vec3_t	axis[3];
 		float	side;
 
@@ -2907,7 +2921,9 @@ void CG_Player( centity_t *cent ) {
 		CG_PlayerCharacter( cent, pi, &legs, (const vec3_t *)torso.axis, (const vec3_t *)head.axis,
 							&torso, &weapon, &flag );
 		CG_PlayerSprites( cent, &torso );
-		CG_AddPlayerWeapon( &weapon, NULL, cent, pi->team );
+		if ( !BG_PlayerClimbing( cent->currentState.legsAnim ) ) {
+			CG_AddPlayerWeapon( &weapon, NULL, cent, pi->team );		// put away on a ladder
+		}
 		CG_PlayerPowerups( cent, &flag );
 		return;
 	}

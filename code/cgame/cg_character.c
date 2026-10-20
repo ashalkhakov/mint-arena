@@ -328,7 +328,7 @@ static void CG_CharacterFrameCommands( centity_t *cent, int modelNum, int channe
 		return;
 	}
 	a = &model->anims[ch->anim];
-	BG_ModelFrame( model, ch->anim, ch->time, cg.time, &frame, &oldFrame, &backlerp, &animFrame );
+	BG_ModelFrame( model, ch->anim, ch->frameTime, cg.time, &frame, &oldFrame, &backlerp, &animFrame );
 
 	// a new animation starts from its first frame
 	if ( cent->characterAnim[channel] != ch->anim || cent->characterAnimTime[channel] != ch->time ) {
@@ -506,11 +506,16 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 		torsoTime = s1->time2;
 	}
 	BG_PlayerAnimChannels( model, cent->characterChannels, s1->legsAnim, legsTime, s1->torsoAnim, torsoTime, s1->weapon );
+	// on a ladder, the climb's frames by height, the model up to the rungs
+	BG_PlayerClimbPhase( model, &cent->characterChannels[ANIMCHANNEL_LEGS], s1->legsAnim, legs->origin[2], cg.time );
+	if ( cent->onLadder ) {
+		VectorAdd( legs->origin, cent->ladderOffset, legs->origin );
+	}
 
 	legs->hModel = pi->skeletalModel;
 	legs->customSkin = 0;
 	// the legs' frames for the bounds, the blended skeleton to draw
-	BG_ModelFrame( model, cent->characterChannels[ANIMCHANNEL_LEGS].anim, cent->characterChannels[ANIMCHANNEL_LEGS].time,
+	BG_ModelFrame( model, cent->characterChannels[ANIMCHANNEL_LEGS].anim, cent->characterChannels[ANIMCHANNEL_LEGS].frameTime,
 				   cg.time, &legs->frame, &legs->oldframe, &legs->backlerp, NULL );
 	VectorCopy( legs->origin, legs->oldorigin );
 	numJoints = BG_ModelPose( model, legs->hModel, cent->characterChannels, cg.time, joints );

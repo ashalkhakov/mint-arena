@@ -910,6 +910,9 @@ typedef enum {
 	FLAG_STAND,
 	FLAG_STAND2RUN,
 
+	LEGS_CLIMB,				// on a ladder, going up (or holding on)
+	LEGS_CLIMBDOWN,
+
 	MAX_TOTALANIMATIONS
 } animNumber_t;
 
@@ -1242,6 +1245,8 @@ typedef struct {
 	int			time;				// when it started
 	int			prevAnim;
 	int			prevTime;
+	int			frameTime;			// its frames' time, the start's unless a climb sets them by height
+	int			prevFrameTime;
 } bgAnimChannel_t;
 
 typedef struct {
@@ -1303,6 +1308,10 @@ typedef struct {
 	// "crouch_height" the top crouched, "eye_height", "crouch_eye_height"
 	vec3_t				mins, maxs;
 	float				crouchHeight, eyeHeight, crouchEyeHeight;
+	// on a ladder: "ladder_climb" how far a cycle of the climbing animations
+	// climbs (their frames go by height, the hands and feet on the rungs),
+	// "ladder_reach" how far in front of it the hands hold the ladder
+	float				ladderClimb, ladderReach;
 } bgModel_t;
 
 typedef struct {
@@ -1359,6 +1368,10 @@ void		BG_ModelRotateJoints( const bgModel_t *model, float *jointMats, int numJoi
 void		BG_ModelTranslateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const vec3_t offset );
 void		BG_LoadModelIK( bgModel_t *model );
 void		BG_PlayerBox( int playerModel, qboolean crouched, vec3_t mins, vec3_t maxs, int *viewheight );
+qboolean	BG_PlayerClimbing( int legsAnim );
+void		BG_PlayerClimbPhase( const bgModel_t *model, bgAnimChannel_t *legs, int legsAnim, float height, int time );
+qboolean	BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, float viewYaw, int passEntityNum,
+						 float *yaw, vec3_t offset );
 void		BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
 							const vec3_t axis[3], float floorHeight, qboolean onGround, int passEntityNum, int time,
 							bgIKState_t *state );

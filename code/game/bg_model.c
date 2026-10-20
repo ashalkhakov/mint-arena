@@ -264,7 +264,8 @@ static const char *bg_playerAnimNames[MAX_TOTALANIMATIONS] = {
 	"LEGS_LANDB", "LEGS_IDLE", "LEGS_IDLECR", "LEGS_TURN",
 	"TORSO_GETFLAG", "TORSO_GUARDBASE", "TORSO_PATROL", "TORSO_FOLLOWME", "TORSO_AFFIRMATIVE", "TORSO_NEGATIVE",
 	NULL,	// MAX_ANIMATIONS
-	"LEGS_BACKCR", "LEGS_BACKWALK", "FLAG_RUN", "FLAG_STAND", "FLAG_STAND2RUN"
+	"LEGS_BACKCR", "LEGS_BACKWALK", "FLAG_RUN", "FLAG_STAND", "FLAG_STAND2RUN",
+	"LEGS_CLIMB", "LEGS_CLIMBDOWN"
 };
 
 static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name ) {
@@ -403,6 +404,8 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->crouchHeight = DictGetFloat( def, "crouch_height", "16" );
 	model->eyeHeight = DictGetFloat( def, "eye_height", va( "%d", DEFAULT_VIEWHEIGHT ) );
 	model->crouchEyeHeight = DictGetFloat( def, "crouch_eye_height", va( "%d", CROUCH_VIEWHEIGHT ) );
+	model->ladderClimb = DictGetFloat( def, "ladder_climb", "0" );
+	model->ladderReach = DictGetFloat( def, "ladder_reach", "0" );
 
 	// damage scales of the zones the hitboxes name
 	for ( i = 0; i < model->numZones; i++ ) {
@@ -530,8 +533,10 @@ void BG_AnimChannelPlay( bgAnimChannel_t *channel, int anim, int time ) {
 	}
 	channel->prevAnim = channel->anim;
 	channel->prevTime = channel->time;
+	channel->prevFrameTime = channel->frameTime;
 	channel->anim = anim;
 	channel->time = time;
+	channel->frameTime = time;
 }
 
 /*
@@ -595,21 +600,21 @@ int BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *chann
 		if ( c == ANIMCHANNEL_LEGS ) {
 			// the base: the old animation under the new one fading in
 			if ( ch->prevAnim >= 0 && fade < 1.0f ) {
-				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevTime, time, 1.0f, NULL );
-				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->time, time, fade, NULL );
+				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, time, 1.0f, NULL );
+				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->frameTime, time, fade, NULL );
 			} else {
-				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->time, time, 1.0f, NULL );
+				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->frameTime, time, 1.0f, NULL );
 			}
 			continue;
 		}
 		if ( ch->anim >= 0 ) {
 			if ( ch->prevAnim >= 0 && fade < 1.0f ) {
-				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevTime, time, 1.0f, mask );
+				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, time, 1.0f, mask );
 			}
-			BG_AddLayer( model, &blends[n++], ch->anim, ch->time, time, fade, mask );
+			BG_AddLayer( model, &blends[n++], ch->anim, ch->frameTime, time, fade, mask );
 		} else if ( ch->prevAnim >= 0 && fade < 1.0f ) {
 			// stopped: fades out to the legs'
-			BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevTime, time, 1.0f - fade, mask );
+			BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, time, 1.0f - fade, mask );
 		}
 	}
 	return n;

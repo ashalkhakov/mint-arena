@@ -196,6 +196,17 @@ a `misc_character`'s, rewound for lag the same. pmove's animations (Quake 3's
 	"crouch_eye_height"			"10"				// and crouched (12)
 ```
 
+**Ladders.** On a ladder pmove plays `LEGS_CLIMB` (or `LEGS_CLIMBDOWN` going
+down); a skeletal model maps them like the rest (Daikatana's `ladderup`,
+`ladderdn`). Their frames go by height, not time: a cycle for every
+`ladder_climb` units climbed, so the hands and feet keep to the rungs at any
+speed and stop with the player. The model faces the ladder and moves up to it
+so the hands, `ladder_reach` ahead of it, are on the rungs; the game and every
+client find the ladder by the same trace (`BG_PlayerLadder`), nothing more is
+sent. The weapon is put away and doesn't fire, and the view turns at most 70°
+from the ladder. Climbing is Daikatana's: 200 up or down (looking up or down
+while going forward, or jump and crouch), 75 across, even from water.
+
 The player's box is its model's (`BG_PlayerBox`): `mins`/`maxs` standing,
 `crouch_height` its top crouched, Quake 3's without a def. The game sizes it
 by the userinfo model, and the cgame predicts by the same (the configstring's
