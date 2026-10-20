@@ -774,6 +774,7 @@ void BG_InitItems( void ) {
 	BG_AddBuiltinItemDefs();
 	BG_LoadDefs();
 	BG_InitWeapons();
+	BG_InitModels();
 
 	// the built-in items keep their numbers
 	memset( bg_defItems, 0, sizeof( bg_defItems ) );

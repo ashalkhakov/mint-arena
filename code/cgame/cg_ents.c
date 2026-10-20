@@ -1395,6 +1395,9 @@ static void CG_AddCEntity( centity_t *cent ) {
 	case ET_PHYSICS_PROP:
 		CG_PhysicsProp( cent );
 		break;
+	case ET_CHARACTER:
+		CG_Character( cent );
+		break;
 	case ET_PLAYER:
 		CG_Player( cent );
 		break;

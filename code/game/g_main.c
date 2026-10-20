@@ -81,6 +81,7 @@ vmCvar_t	g_forcerespawn;
 vmCvar_t	g_inactivity;
 vmCvar_t	g_debugMove;
 vmCvar_t	g_debugDamage;
+vmCvar_t	g_debugHitboxes;
 vmCvar_t	g_weaponRespawn;
 vmCvar_t	g_weaponTeamRespawn;
 vmCvar_t	g_motd;
@@ -170,6 +171,7 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_inactivity, "g_inactivity", "0", 0, GCF_TRACK_CHANGE, RANGE_BOOL },
 	{ &g_debugMove, "g_debugMove", "0", 0, 0, RANGE_BOOL },
 	{ &g_debugDamage, "g_debugDamage", "0", 0, 0, RANGE_BOOL },
+	{ &g_debugHitboxes, "g_debugHitboxes", "0", 0, 0, RANGE_BOOL },
 	{ &g_motd, "g_motd", "", 0, 0, RANGE_ALL },
 
 	{ &g_podiumDist, "g_podiumDist", "80", 0, 0, RANGE_ALL },

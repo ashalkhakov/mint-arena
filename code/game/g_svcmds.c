@@ -667,6 +667,7 @@ struct svcmd
   { "propspawn", qfalse, Svcmd_PropSpawn_f },
   { "removeip", qfalse, Svcmd_RemoveIP_f },
   { "say", qtrue, Svcmd_Say_f },
+  { "spawncharacter", qfalse, Svcmd_SpawnCharacter_f },
   // sorted, G_ConsoleCommand uses bsearch
   { "sectorlist", qfalse, Svcmd_SectorList_f, Svcmd_SectorListComplete },
   { "teleport", qfalse, Svcmd_Teleport_f, Svcmd_TeleportComplete },

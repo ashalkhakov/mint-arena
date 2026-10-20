@@ -1128,6 +1128,7 @@ set(Q3CGOBJ
   game/bg_tracemap.c
   game/bg_prophull.c
   game/bg_defs.c
+  game/bg_model.c
   cgame/cg_atmospheric.c
   cgame/cg_console.c
   cgame/cg_consolecmds.c
@@ -1136,6 +1137,7 @@ set(Q3CGOBJ
   cgame/cg_drawtools.c
   cgame/cg_effects.c
   cgame/cg_fx.c
+  cgame/cg_character.c
   cgame/cg_ents.c
   cgame/cg_event.c
   cgame/cg_field.c
@@ -1384,6 +1386,7 @@ set(Q3GOBJ
   game/bg_tracemap.c
   game/bg_prophull.c
   game/bg_defs.c
+  game/bg_model.c
   game/g_active.c
   game/g_arenas.c
   game/g_bot.c
@@ -1409,6 +1412,7 @@ set(Q3GOBJ
   game/g_clip.c
   game/g_world.c
   game/g_physics.c
+  game/g_character.c
   
   botlib/be_aas_bspq3.c
   botlib/be_aas_cluster.c

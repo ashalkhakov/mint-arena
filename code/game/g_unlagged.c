@@ -306,6 +306,7 @@ void G_DoTimeShiftFor( gentity_t *ent ) {
 	}
 
 	G_TimeShiftAllClients( time, ent );
+	level.hitboxTime = time;
 }
 
 
@@ -367,6 +368,7 @@ void G_UndoTimeShiftFor( gentity_t *ent ) {
 	}
 
 	G_UnTimeShiftAllClients( ent );
+	level.hitboxTime = 0;
 }
 
 

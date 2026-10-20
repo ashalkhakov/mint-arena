@@ -218,6 +218,10 @@ typedef struct {
 // centity_t have a direct corespondence with gentity_t in the game, but
 // only the entityState_t is directly communicated to the cgame
 typedef struct centity_s {
+	int				characterAnim;		// ET_CHARACTER: the animation and frame its frame commands ran to
+	int				characterAnimTime;
+	int				characterFrame;
+
 	entityState_t	currentState;	// from cg.frame
 	entityState_t	nextState;		// from cg.nextFrame, if available
 	qboolean		interpolate;	// true if next is valid to interpolate to
@@ -1420,6 +1424,7 @@ extern	vmCvar_t		cg_shadows;
 extern	vmCvar_t		cg_gibs;
 extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
+extern	vmCvar_t		cg_drawHitboxes;
 extern	vmCvar_t		cg_drawSnapshot;
 extern	vmCvar_t		cg_draw3dIcons;
 extern	vmCvar_t		cg_drawIcons;
@@ -1848,6 +1853,12 @@ void CG_PainEvent( centity_t *cent, int health );
 //
 qboolean CG_PropTraceModel( const entityState_t *s1, traceModel_t *trm );
 int CG_PropTraceModels( const entityState_t *s1, traceModel_t *trms );
+
+//
+// cg_character.c
+//
+void CG_Character( centity_t *cent );
+void CG_DebugLine( const vec3_t start, const vec3_t end, const vec4_t color );
 void CG_AddRefEntityWithMinLight( const refEntity_t *entity );
 void CG_SetEntitySoundPosition( centity_t *cent );
 void CG_AddPacketEntities( void );

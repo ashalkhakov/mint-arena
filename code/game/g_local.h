@@ -209,6 +209,9 @@ struct gentity_s {
     clipModel_t     clipModel;
 	clipModel_t		*partClipModels;	// a compound prop's pieces, collided with instead of clipModel
 	int				numPartClipModels;
+
+	qhandle_t		characterModel;		// ET_CHARACTER: its mesh with the server's renderer, for the joints
+	struct characterHistory_s	*characterHistory;	// its animation and place the last frames
 	struct rigidBody_s	*body;			// physics props, see g_physics.c
 	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
 };
@@ -471,6 +474,8 @@ typedef struct {
 #ifdef MISSIONPACK
 	int			portalSequence;
 #endif
+
+	int			hitboxTime;				// the time shots hit hitboxes at, while rewound for lag; 0 now
 } level_locals_t;
 
 
@@ -664,6 +669,17 @@ qboolean G_FilterPacket (char *from);
 // g_weapon.c
 //
 void FireWeapon( gentity_t *ent );
+
+//
+// g_character.c
+//
+int		G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses );
+void	G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
+					 int passEntityNum, int contentmask, int *zone );
+float	G_HitboxDamageScale( const gentity_t *ent, int zone );
+void	G_CharacterSetAnim( gentity_t *ent, int anim );
+void	SP_misc_character( gentity_t *ent );
+void	Svcmd_SpawnCharacter_f( void );
 void AltFireWeapon( gentity_t *ent );
 #ifdef MISSIONPACK
 void G_StartKamikaze( gentity_t *ent );
@@ -820,6 +836,7 @@ extern	vmCvar_t	g_forcerespawn;
 extern	vmCvar_t	g_inactivity;
 extern	vmCvar_t	g_debugMove;
 extern	vmCvar_t	g_debugDamage;
+extern	vmCvar_t	g_debugHitboxes;
 extern	vmCvar_t	g_weaponRespawn;
 extern	vmCvar_t	g_weaponTeamRespawn;
 extern	vmCvar_t	g_synchronousClients;

@@ -129,7 +129,7 @@ G_MissileImpact
 */
 static int G_DefDamage( const dict_t *projectile, const char *key, int *radius );
 
-void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
+static void G_MissileImpact( gentity_t *ent, trace_t *trace, int zone ) {
 	gentity_t		*other;
 	qboolean		hitPlayer = qfalse;
 	const dict_t	*def;
@@ -183,8 +183,9 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 			if ( VectorLength( velocity ) == 0 ) {
 				velocity[2] = 1;	// stepped on a grenade
 			}
+			// a hitbox's zone scales the damage
 			G_Damage (other, ent, &g_entities[ent->r.ownerNum], velocity,
-				ent->s.origin, ent->damage, 
+				ent->s.origin, ent->damage * G_HitboxDamageScale( other, zone ) + 0.5f,
 				0, ent->methodOfDeath);
 		}
 	}
@@ -231,7 +232,7 @@ G_RunMissile
 void G_RunMissile( gentity_t *ent ) {
 	vec3_t		origin;
 	trace_t		tr;
-	int			passent;
+	int			passent, zone;
 
 	// stuck to something, it only waits
 	if ( ent->s.pos.trType == TR_STATIONARY && ( ent->missileFlags & MISSILE_STICK ) ) {
@@ -249,8 +250,8 @@ void G_RunMissile( gentity_t *ent ) {
 		// ignore interactions with the missile owner
 		passent = ent->r.ownerNum;
 	}
-	// trace a line from the previous position to the current position
-	G_Trace( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, origin, passent, ent->clipmask, TT_AABB );
+	// trace a line from the previous position to the current position, characters by their hitboxes
+	G_TraceShot( &tr, ent->r.currentOrigin, ent->s.mins, ent->s.maxs, origin, passent, ent->clipmask, &zone );
 
 	if ( tr.startsolid || tr.allsolid ) {
 		// make sure the tr.entityNum is set to the entity we're stuck in
@@ -269,7 +270,7 @@ void G_RunMissile( gentity_t *ent ) {
 			G_FreeEntity( ent );
 			return;
 		}
-		G_MissileImpact( ent, &tr );
+		G_MissileImpact( ent, &tr, zone );
 		if ( ent->s.eType != ET_MISSILE ) {
 			return;		// exploded
 		}

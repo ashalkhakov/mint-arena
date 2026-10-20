@@ -1153,6 +1153,8 @@ typedef enum {
 	ET_TEAM,
 	ET_PHYSICS_PROP,		// rigid body, modelindex is the propShape_t, mins/maxs the local bounds
 	ET_CORONA,
+	ET_CHARACTER,			// a skeletal model (bg_model.c): modelindex2 the model, legsAnim the
+							// animation and time its start
 
 	ET_EVENTS				// any of the EV_* events can be added freestanding
 							// by setting eType to ET_EVENTS + eventNum
@@ -1191,7 +1193,76 @@ int						BG_NumDefs( void );
 const char				*BG_DefName( int num );
 const struct dict_s		*BG_DefForNum( int num );
 void					BG_LoadDefs( void );
-void					BG_InitItems( void );		// and the weapons
+void					BG_InitItems( void );		// and the weapons and the models
+
+//
+// bg_model.c: skeletal models
+//
+#define MAX_MODEL_DEFS			64
+#define MAX_MODEL_ANIMS			64
+#define MAX_MODEL_HITBOXES		32
+#define MAX_MODEL_ZONES			16
+#define MAX_MODEL_FRAMECOMMANDS	64
+
+typedef struct {
+	char		name[MAX_QPATH];
+	int			firstFrame;			// of the model's frames
+	int			numFrames;
+	float		fps;
+	qboolean	loop;
+} bgAnim_t;
+
+typedef struct {
+	char		joint[MAX_QPATH];
+	vec3_t		mins, maxs;			// in the joint's space
+	int			zone;
+} bgHitbox_t;
+
+typedef struct {
+	char		name[MAX_QPATH];
+	float		damageScale;		// "damage_scale <zone>"
+} bgZone_t;
+
+typedef struct {
+	char		anim[MAX_QPATH];
+	int			frame;				// of the animation
+	char		command[16];		// sound, fx, event
+	char		arg[MAX_QPATH];
+} bgFrameCommand_t;
+
+typedef struct {
+	const struct dict_s	*def;
+	const char			*name;
+	char				mesh[MAX_QPATH];
+	int					numAnims;
+	bgAnim_t			anims[MAX_MODEL_ANIMS];
+	int					numHitboxes;
+	bgHitbox_t			hitboxes[MAX_MODEL_HITBOXES];
+	int					numZones;
+	bgZone_t			zones[MAX_MODEL_ZONES];
+	int					numFrameCommands;
+	bgFrameCommand_t	frameCommands[MAX_MODEL_FRAMECOMMANDS];
+} bgModel_t;
+
+typedef struct {
+	vec3_t		origin;				// the joint's
+	vec3_t		axis[3];
+	vec3_t		mins, maxs;			// the box in the joint's space
+	int			hitbox;
+	int			zone;
+} bgHitboxPose_t;
+
+extern bgModel_t	bg_models[MAX_MODEL_DEFS];
+extern int			bg_numModels;
+
+#define BG_ValidModel( m )		( (m) > 0 && (m) < bg_numModels )
+void		BG_InitModels( void );
+int			BG_ModelForName( const char *name );
+int			BG_ModelAnimForName( const bgModel_t *model, const char *name );
+void		BG_ModelFrame( const bgModel_t *model, int animNum, int animTime, int time,
+						   int *frame, int *oldFrame, float *backlerp, int *animFrame );
+int			BG_ModelHitboxes( const bgModel_t *model, qhandle_t hModel, int frame, int oldFrame, float backlerp,
+							  const vec3_t origin, const vec3_t axis[3], bgHitboxPose_t *poses );
 const struct dict_s		*BG_ItemDef( const gitem_t *item );
 float					BG_ItemModelScale( const gitem_t *item, qboolean customModel );
 

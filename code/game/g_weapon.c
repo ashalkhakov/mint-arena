@@ -129,15 +129,18 @@ static qboolean G_HitscanShot( gentity_t *ent, const bgWeapon_t *weapon, const v
 	vec3_t		end;
 	gentity_t	*traceEnt;
 	qboolean	hit = qfalse;
+	int			zone;
 
 	VectorMA( start, weapon->range, dir, end );
-	G_Trace( &tr, start, NULL, NULL, end, ent->s.number, MASK_SHOT, TT_AABB );
+	G_TraceShot( &tr, start, NULL, NULL, end, ent->s.number, MASK_SHOT, &zone );
 	if ( tr.surfaceFlags & SURF_NOIMPACT ) {
 		return qfalse;
 	}
 	traceEnt = &g_entities[ tr.entityNum ];
 	if ( traceEnt->takedamage ) {
 		hit = LogAccuracyHit( traceEnt, ent );
+		// a hitbox's zone scales the damage
+		damage = damage * G_HitboxDamageScale( traceEnt, zone ) + 0.5f;
 		G_Damage( traceEnt, ent, ent, (float *)dir, tr.endpos, damage, 0, MOD_FOR_WEAPON( ent->s.weapon, qfalse ) );
 	}
 	return hit;

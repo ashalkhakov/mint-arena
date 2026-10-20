@@ -227,6 +227,7 @@ spawn_t	spawns[] = {
 	{"func_door", SP_func_door},
 	{"func_water", SP_func_water},
 	{"func_physics", SP_func_physics},
+	{"misc_character", SP_misc_character},
 	{"func_door_rotating", SP_func_door_rotating},	// Rotating Doors
 	{"func_static", SP_func_static},
 	{"func_breakable", SP_func_breakable},

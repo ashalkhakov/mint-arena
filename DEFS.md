@@ -121,3 +121,41 @@ Effects are `effects/<name>.efx` files in the format of Jedi Academy's
 effects (cg_fx.c): particles, tails, lines, lights, sounds, decals,
 emitters, camera shakes, each with ranges and curves, so everything a weapon
 shows is data. A def names them without the extension (`"dk/ion_fly"`).
+
+## Models
+
+Skeletal characters are IQM models (Spearmint draws them, and the game asks
+it where their joints are on any frame). A model is a def with a `mesh`,
+Doom 3's `model` decl as entityDef keys (`bg_model.c`):
+
+```
+entityDef model_testchar {
+	"mesh"				"characters/test/testchar.iqm"
+	"mins"				"-16 -16 -24"			// its bounding box
+	"maxs"				"16 16 48"
+	"anim idle"			"idle"					// the IQM's animation of the name...
+	"anim wave"			"40 20 10 loop"			// ...or frames: first, count, fps, loop
+	"hitbox Head"		"-4.5 -4 0 4.5 4 10 head"	// a box on a joint: mins, maxs in its space, zone
+	"damage_scale head"	"2"						// Doom 3's
+	"frame walk 0"		"sound sounds/global/p_stp1.wav"
+}
+```
+
+- **Hitboxes** ride their joints. Shots (hitscan and projectiles) that reach
+  a character's bounding box are tested again against its boxes, exactly,
+  with the collision model; a shot that misses them all goes on through (between
+  the legs). The box's zone scales the damage (`damage_scale <zone>`, 1 by
+  default; zone `body` for a box without one). The game keeps the last 32
+  frames of a character's animation and place, so shots rewound for lag hit
+  the boxes where they were.
+- **Frame commands** run when the animation reaches the frame: `sound
+  <file>`, `fx <effect>` (the cgame's); `event <name>` is for the game (the
+  move system, to come).
+- Numbers: models are numbered by name in the game and the cgame alike; an
+  `ET_CHARACTER` entity carries its model in `modelindex2`, the animation
+  in `legsAnim` and its start in `time`.
+
+`misc_character` (map entity): `model`, `anim`, `anim_cycle` (seconds to the
+next animation, 0 never), `health`, `angle`. `spawncharacter <model> [anim]
+[height]` puts one in front of you (cheat). `cg_drawHitboxes 1` draws the
+boxes, `g_debugHitboxes 1` says what shots hit.
