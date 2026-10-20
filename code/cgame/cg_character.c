@@ -405,6 +405,11 @@ void CG_Character( centity_t *cent ) {
 	// the legs' frames for the bounds, the blended skeleton to draw
 	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, NULL );
 	numJoints = BG_ModelPose( model, ent.hModel, cent->characterChannels, cg.time, joints );
+	if ( numJoints > 0 && cg_ik.integer ) {
+		// feet on the floor under them, the box's bottom where it stands
+		BG_ModelWalkIK( model, joints, numJoints, ent.origin, (const vec3_t *)ent.axis, ent.origin[2] + s1->mins[2],
+						qtrue, s1->number, cg.time, &cent->ik );
+	}
 	if ( numJoints > 0 ) {
 		ent.skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
 	}
@@ -511,6 +516,11 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 	numJoints = BG_ModelPose( model, legs->hModel, cent->characterChannels, cg.time, joints );
 	if ( numJoints > 0 ) {
 		BG_ModelAim( model, joints, numJoints, torsoAxis, headAxis );
+		if ( cg_ik.integer ) {
+			// feet on the floor under them, where the player's box rests
+			BG_ModelWalkIK( model, joints, numJoints, legs->origin, (const vec3_t *)legs->axis, legs->origin[2] + MINS_Z,
+							s1->groundEntityNum != ENTITYNUM_NONE && !( s1->eFlags & EF_DEAD ), s1->number, cg.time, &cent->ik );
+		}
 		legs->skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
 	}
 	if ( cg_drawSkeleton.integer < 2 ) {

@@ -175,6 +175,7 @@ vmCvar_t	cg_drawFPS;
 vmCvar_t	cg_drawHitboxes;
 vmCvar_t	cg_drawSkeleton;
 vmCvar_t	cg_drawAAS;
+vmCvar_t	cg_ik;
 vmCvar_t	cg_drawAASRange;
 vmCvar_t	cg_drawAASShow;
 vmCvar_t	cg_drawSnapshot;
@@ -394,6 +395,7 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_drawHitboxes, "cg_drawHitboxes", "0", CVAR_CHEAT, RANGE_BOOL },
 	{ &cg_drawSkeleton, "cg_drawSkeleton", "0", CVAR_CHEAT, RANGE_INT( 0, 2 ) },
 	{ &cg_drawAAS, "cg_drawAAS", "0", CVAR_CHEAT, RANGE_INT( 0, 3 ) },
+	{ &cg_ik, "cg_ik", "1", CVAR_ARCHIVE, RANGE_BOOL },	// Doom 3's ik_enable: feet planted
 	{ &cg_drawAASRange, "cg_drawAASRange", "1024", 0, RANGE_ALL },
 	{ &cg_drawAASShow, "cg_drawAASShow", "31", 0, RANGE_INT( 0, 63 ) },
 	{ &cg_drawSnapshot, "cg_drawSnapshot", "0", CVAR_ARCHIVE, RANGE_BOOL },

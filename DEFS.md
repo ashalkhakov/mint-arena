@@ -207,6 +207,17 @@ liquid, glass, plastic, ricochet, then ice, snow and sand) picks
 `snd_footstep_<type>`, or `snd_footstep`. Players whose model has them don't
 make Quake 3's footstep events.
 
+**Walk IK, Doom 3's** (`idIK_Walk`, `bg_ik.c`). After the animations blend,
+each foot's floor is traced, the ankles move to it (smoothed), the waist drops
+(or rises) so the feet reach, and each leg is solved as two bones keeping its
+bend; the ankles keep their orientation. The keys are Doom 3's: `ik_numLegs`,
+`ik_waist`, `ik_hip<n>`, `ik_knee<n>`, `ik_ankle<n>`, `ik_foot<n>` (the ankle
+when missing), `ik_footSize`, `ik_smoothing`, `ik_waistSmoothing`,
+`ik_footShift`, `ik_waistShift`, `ik_minWaistAnkleDist`, `ik_footUpTrace`,
+`ik_footDownTrace`. Players' feet are planted when on the ground, characters'
+always; `cg_ik 0` turns it off. It's drawn only for now: hitboxes follow the
+animation without it.
+
 `misc_character` (map entity): `model`, `anim`, `torso_anim`, `anim_cycle`
 (seconds to the next animation, 0 never), `health`, `angle`.
 `spawncharacter <model> [anim] [height] [side]` puts one in front of you, and

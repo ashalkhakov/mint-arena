@@ -1255,6 +1255,27 @@ typedef struct {
 	char		arg[MAX_QPATH];
 } bgFrameCommand_t;
 
+// Doom 3's walk IK (bg_ik.c): a model's legs
+#define MAX_IK_LEGS		2
+
+typedef struct {
+	int			numLegs;
+	int			hip[MAX_IK_LEGS], knee[MAX_IK_LEGS], ankle[MAX_IK_LEGS], foot[MAX_IK_LEGS];
+	int			waist;
+	float		footSize;						// half the foot box's width
+	float		smoothing, waistSmoothing;
+	float		footShift, waistShift, minWaistAnkleDist;
+	float		footUpTrace, footDownTrace;
+} bgModelIK_t;
+
+// what the IK keeps of an entity from frame to frame
+typedef struct {
+	qboolean	valid;
+	int			time;
+	float		ankleHeights[MAX_IK_LEGS];
+	float		waistHeight;
+} bgIKState_t;
+
 typedef struct {
 	const struct dict_s	*def;
 	const char			*name;
@@ -1276,6 +1297,7 @@ typedef struct {
 	qboolean			playerAnimHold[MAX_TOTALANIMATIONS];	// stays on its last frame
 	int					torsoJoint, headJoint;	// "aim_torso", "aim_head": turned to aim, -1 none
 	int					weaponJoint, flagJoint;	// "joint_weapon", "joint_flag": what's carried goes there
+	bgModelIK_t			ik;					// "ik_*" keys
 } bgModel_t;
 
 typedef struct {
@@ -1328,6 +1350,12 @@ const char				*BG_SoundShaderFile( const bgSoundShader_t *shader );
 
 extern const char *bg_surfaceTypeNames[MAX_SURFACE_TYPES];	// Doom 3's surface types' names
 int			BG_PlayerModelForName( const char *modelName );
+void		BG_ModelRotateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const float rot[3][3] );
+void		BG_ModelTranslateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const vec3_t offset );
+void		BG_LoadModelIK( bgModel_t *model );
+void		BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
+							const vec3_t axis[3], float floorHeight, qboolean onGround, int passEntityNum, int time,
+							bgIKState_t *state );
 void		BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
 								   int torsoAnim, int torsoTime );
 void		BG_PlayerAimAngles( const vec3_t viewAngles, int movementDir, vec3_t legs, vec3_t torso, vec3_t head );

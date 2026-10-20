@@ -223,6 +223,7 @@ typedef struct centity_s {
 	int				characterFrame[MAX_ANIM_CHANNELS];
 	bgAnimChannel_t	characterChannels[MAX_ANIM_CHANNELS];	// what they play, and cross-fade from
 	int				playerAnims[2], playerAnimTimes[2];	// a predicted skeletal player's legs and torso, when they started
+	bgIKState_t		ik;						// a skeletal character's walk IK, frame to frame
 
 	entityState_t	currentState;	// from cg.frame
 	entityState_t	nextState;		// from cg.nextFrame, if available
@@ -1432,6 +1433,7 @@ extern	vmCvar_t		cg_drawFPS;
 extern	vmCvar_t		cg_drawHitboxes;
 extern	vmCvar_t		cg_drawSkeleton;
 extern	vmCvar_t		cg_drawAAS;
+extern	vmCvar_t		cg_ik;
 extern	vmCvar_t		cg_drawAASRange;
 extern	vmCvar_t		cg_drawAASShow;
 extern	vmCvar_t		cg_drawSnapshot;

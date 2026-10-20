@@ -395,6 +395,7 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->headJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "aim_head", "Head" ) );
 	model->weaponJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "joint_weapon", "WEAPON_ATTACHER" ) );
 	model->flagJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "joint_flag", "FLAG_ATTACHER" ) );
+	BG_LoadModelIK( model );
 
 	// damage scales of the zones the hitboxes name
 	for ( i = 0; i < model->numZones; i++ ) {
@@ -742,13 +743,13 @@ void BG_PlayerAimAngles( const vec3_t viewAngles, int movementDir, vec3_t legs, 
 
 /*
 ================
-BG_RotateJoints
+BG_ModelRotateJoints
 
 Turns a joint and every joint under it by rot (columns: the new axes, in
 the model's space) about the joint.
 ================
 */
-static void BG_RotateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const float rot[3][3] ) {
+void BG_ModelRotateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const float rot[3][3] ) {
 	qboolean under[MAX_MODEL_JOINTS];
 	float pivot[3], m[12], *j;
 	int i, r, c, k;
@@ -785,6 +786,31 @@ static void BG_RotateJoints( const bgModel_t *model, float *jointMats, int numJo
 
 /*
 ================
+BG_ModelTranslateJoints
+
+Moves a joint and every joint under it.
+================
+*/
+void BG_ModelTranslateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const vec3_t offset ) {
+	qboolean under[MAX_MODEL_JOINTS];
+	int i;
+
+	if ( joint < 0 || joint >= numJoints || joint >= model->numJoints ) {
+		return;
+	}
+	for ( i = 0; i < numJoints && i < model->numJoints; i++ ) {
+		under[i] = i == joint || ( model->joints[i].parent >= 0 && model->joints[i].parent < i
+								   && under[model->joints[i].parent] );
+		if ( under[i] ) {
+			jointMats[12 * i + 3] += offset[0];
+			jointMats[12 * i + 7] += offset[1];
+			jointMats[12 * i + 11] += offset[2];
+		}
+	}
+}
+
+/*
+================
 BG_ModelAim
 
 Turns a pose's torso and head to aim, as Quake 3 turns a player's torso and
@@ -804,7 +830,7 @@ void BG_ModelAim( const bgModel_t *model, float *jointMats, int numJoints, const
 			h[r][c] = headAxis[c][r];
 		}
 	}
-	BG_RotateJoints( model, jointMats, numJoints, model->torsoJoint, t );
+	BG_ModelRotateJoints( model, jointMats, numJoints, model->torsoJoint, t );
 
 	// the head's on top of the torso's: t h t^-1 about the head
 	for ( r = 0; r < 3; r++ ) {
@@ -823,7 +849,7 @@ void BG_ModelAim( const bgModel_t *model, float *jointMats, int numJoints, const
 			}
 		}
 	}
-	BG_RotateJoints( model, jointMats, numJoints, model->headJoint, rot );
+	BG_ModelRotateJoints( model, jointMats, numJoints, model->headJoint, rot );
 }
 
 /*
