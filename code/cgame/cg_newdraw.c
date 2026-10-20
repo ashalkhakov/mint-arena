@@ -788,6 +788,10 @@ static void CG_DrawPlayerFace( rectDef_t *rect, vec4_t color ) {
 		return;
 	}
 
+	// the item's own rect: an owner draw with text is painted after where
+	// its text ends, 8 further on, which would leave a gap in the bar
+	rect = &cgDC.paintItem->window.rect;
+
 	health = ps->stats[STAT_HEALTH];
 	if ( ps->powerups[PW_INVIS] ) {
 		state = 'h';
