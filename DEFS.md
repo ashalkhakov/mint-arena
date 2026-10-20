@@ -158,4 +158,6 @@ entityDef model_testchar {
 `misc_character` (map entity): `model`, `anim`, `anim_cycle` (seconds to the
 next animation, 0 never), `health`, `angle`. `spawncharacter <model> [anim]
 [height]` puts one in front of you (cheat). `cg_drawHitboxes 1` draws the
-boxes, `g_debugHitboxes 1` says what shots hit.
+boxes, `cg_drawSkeleton 1` the joints (a line to each parent, and the axes:
+x red, y green, z blue; 2 without the mesh), `g_debugHitboxes 1` says what
+shots hit.

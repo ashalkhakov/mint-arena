@@ -1203,6 +1203,12 @@ void					BG_InitItems( void );		// and the weapons and the models
 #define MAX_MODEL_HITBOXES		32
 #define MAX_MODEL_ZONES			16
 #define MAX_MODEL_FRAMECOMMANDS	64
+#define MAX_MODEL_JOINTS		128
+
+typedef struct {
+	char		name[32];
+	int			parent;				// -1 for a root
+} bgJoint_t;
 
 typedef struct {
 	char		name[MAX_QPATH];
@@ -1242,6 +1248,8 @@ typedef struct {
 	bgZone_t			zones[MAX_MODEL_ZONES];
 	int					numFrameCommands;
 	bgFrameCommand_t	frameCommands[MAX_MODEL_FRAMECOMMANDS];
+	int					numJoints;			// the IQM's skeleton
+	bgJoint_t			joints[MAX_MODEL_JOINTS];
 } bgModel_t;
 
 typedef struct {

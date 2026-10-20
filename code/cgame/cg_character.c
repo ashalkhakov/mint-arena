@@ -99,6 +99,53 @@ static void CG_DrawHitbox( const bgHitboxPose_t *pose, const vec4_t color ) {
 
 /*
 ================
+CG_DrawSkeleton
+
+The model's joints on the frame: a line from each to its parent, and its
+axes (x red, y green, z blue).
+================
+*/
+static void CG_DrawSkeleton( const bgModel_t *model, const refEntity_t *ent ) {
+	static const vec4_t boneColor = { 1.0f, 1.0f, 0.3f, 1.0f };
+	static const vec4_t axisColor[3] = { { 1, 0.2f, 0.2f, 1 }, { 0.2f, 1, 0.2f, 1 }, { 0.3f, 0.5f, 1, 1 } };
+	vec3_t origins[MAX_MODEL_JOINTS], axes[MAX_MODEL_JOINTS][3], end;
+	qboolean posed[MAX_MODEL_JOINTS];
+	orientation_t tag;
+	int i, j, k;
+
+	for ( i = 0; i < model->numJoints; i++ ) {
+		posed[i] = trap_R_LerpTag( &tag, ent->hModel, ent->oldframe, ent->frame, 1.0f - ent->backlerp, model->joints[i].name );
+		if ( !posed[i] ) {
+			continue;
+		}
+		VectorCopy( ent->origin, origins[i] );
+		for ( j = 0; j < 3; j++ ) {
+			VectorMA( origins[i], tag.origin[j], ent->axis[j], origins[i] );
+		}
+		for ( j = 0; j < 3; j++ ) {
+			VectorClear( axes[i][j] );
+			for ( k = 0; k < 3; k++ ) {
+				VectorMA( axes[i][j], tag.axis[j][k], ent->axis[k], axes[i][j] );
+			}
+		}
+	}
+	for ( i = 0; i < model->numJoints; i++ ) {
+		if ( !posed[i] ) {
+			continue;
+		}
+		j = model->joints[i].parent;
+		if ( j >= 0 && j < model->numJoints && posed[j] ) {
+			CG_DebugLine( origins[j], origins[i], boneColor );
+		}
+		for ( k = 0; k < 3; k++ ) {
+			VectorMA( origins[i], 3, axes[i][k], end );
+			CG_DebugLine( origins[i], end, axisColor[k] );
+		}
+	}
+}
+
+/*
+================
 CG_CharacterFrameCommands
 
 The model's frame commands of the frames the animation went through since
@@ -155,7 +202,7 @@ static void CG_CharacterFrameCommands( centity_t *cent, const bgModel_t *model, 
 CG_Character
 
 An ET_CHARACTER: its mesh on the frame of its animation, its frame
-commands, and with cg_drawHitboxes its hitboxes.
+commands, and with cg_drawHitboxes its hitboxes, cg_drawSkeleton its joints.
 ================
 */
 void CG_Character( centity_t *cent ) {
@@ -181,9 +228,16 @@ void CG_Character( centity_t *cent ) {
 	VectorCopy( cent->lerpOrigin, ent.lightingOrigin );
 	AnglesToAxis( cent->lerpAngles, ent.axis );
 	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, &animFrame );
-	trap_R_AddRefEntityToScene( &ent );
+	if ( cg_drawSkeleton.integer < 2 ) {
+		// (2: the skeleton alone)
+		trap_R_AddRefEntityToScene( &ent );
+	}
 
 	CG_CharacterFrameCommands( cent, model, s1->legsAnim, animFrame );
+
+	if ( cg_drawSkeleton.integer ) {
+		CG_DrawSkeleton( model, &ent );
+	}
 
 	if ( cg_drawHitboxes.integer ) {
 		num = BG_ModelHitboxes( model, ent.hModel, ent.frame, ent.oldframe, ent.backlerp,

@@ -80,7 +80,7 @@ BG_IQMAnims
 The animations an IQM names, for "anim <name>" "<IQM animation>".
 ================
 */
-static int BG_IQMAnims( const char *meshName, bgAnim_t *anims, int max ) {
+static int BG_IQMAnims( const char *meshName, bgAnim_t *anims, int max, bgModel_t *model ) {
 	static char text[65536];
 	iqmHeader_t header;
 	iqmAnim_t anim;
@@ -126,6 +126,22 @@ static int BG_IQMAnims( const char *meshName, bgAnim_t *anims, int max ) {
 		anims[num].loop = ( LittleLong( anim.flags ) & IQM_LOOP ) != 0;
 		num++;
 	}
+
+	// the skeleton: names and parents
+	model->numJoints = 0;
+	if ( LittleLong( header.ofs_joints ) + LittleLong( header.num_joints ) * 48 <= (unsigned)length ) {
+		trap_FS_Seek( f, LittleLong( header.ofs_joints ), FS_SEEK_SET );
+		for ( i = 0; i < (int)LittleLong( header.num_joints ) && i < MAX_MODEL_JOINTS; i++ ) {
+			int joint[12];		// name, parent, translate, rotate, scale
+
+			trap_FS_Read( joint, sizeof( joint ), f );
+			if ( (unsigned)LittleLong( joint[0] ) < numText ) {
+				Q_strncpyz( model->joints[i].name, text + LittleLong( joint[0] ), sizeof( model->joints[i].name ) );
+			}
+			model->joints[i].parent = LittleLong( joint[1] );
+			model->numJoints++;
+		}
+	}
 	trap_FS_FCloseFile( f );
 	return num;
 }
@@ -162,7 +178,7 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->def = def;
 	model->name = name;
 	Q_strncpyz( model->mesh, DictGetStringReference( def, "mesh", "" ), sizeof( model->mesh ) );
-	numIqmAnims = BG_IQMAnims( model->mesh, iqmAnims, MAX_MODEL_ANIMS );
+	numIqmAnims = BG_IQMAnims( model->mesh, iqmAnims, MAX_MODEL_ANIMS, model );
 	BG_ZoneNum( model, "body" );	// zone 0: what isn't in another
 
 	for ( i = 0; i < DictGetNumKeyVals( def ); i++ ) {
