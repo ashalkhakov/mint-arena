@@ -352,6 +352,7 @@ typedef struct playerState_s {
 
 	int			legsTimer;		// don't change low priority animations until this runs out
 	int			swimPhase;		// how far through its stroke a swimmer is, of SWIM_PHASE
+	int			ladderYaw;		// the ladder a climber holds faces this way (ANGLE2SHORT), taken hold of
 	int			legsAnim;		// mask off ANIM_TOGGLEBIT
 
 	int			torsoTimer;		// don't change low priority animations until this runs out
@@ -1401,13 +1402,23 @@ void		BG_PlayerSwimOrigin( const bgModel_t *model, const vec3_t origin, const ve
 float		BG_SwimStrokePull( int swimPhase );
 qboolean	BG_PlayerClimbing( int legsAnim );
 void		BG_PlayerClimbPhase( const bgModel_t *model, bgAnimChannel_t *legs, int legsAnim, float height, int time );
-qboolean	BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, float viewYaw, int passEntityNum,
-						 float *yaw, vec3_t offset, vec4_t plane );
+// a ladder a climber holds (BG_PlayerLadder)
+#define MAX_LADDER_RUNGS	16
+typedef struct {
+	float		yaw;					// facing it
+	vec3_t		offset;					// the model moved up to it
+	vec4_t		plane;					// its rungs' face (world)
+	int			numRungs;
+	float		rungs[MAX_LADDER_RUNGS];	// their heights (world), the hands and feet go on them
+} bgLadder_t;
+
+qboolean	BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, int ladderYaw, int passEntityNum,
+							 bgLadder_t *ladder );
 qboolean	BG_ModelReachArm( const bgModel_t *model, float *jointMats, int numJoints, int arm, const vec3_t target,
 							  float weight );
 float		BG_PlayerLadderWeight( const bgModel_t *model, const bgAnimChannel_t *legs, int legsAnim, int time );
 void		BG_ModelLadderIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
-							  const vec3_t axis[3], const vec4_t plane, float weight );
+							  const vec3_t axis[3], const bgLadder_t *ladder, float weight );
 void		BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
 							const vec3_t axis[3], float floorHeight, qboolean onGround, int passEntityNum, int time,
 							bgIKState_t *state );

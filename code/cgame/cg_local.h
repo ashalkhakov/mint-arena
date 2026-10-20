@@ -223,8 +223,7 @@ typedef struct centity_s {
 	int				characterFrame[MAX_ANIM_CHANNELS];
 	bgAnimChannel_t	characterChannels[MAX_ANIM_CHANNELS];	// what they play, and cross-fade from
 	qboolean		onLadder;			// climbing one found by a trace (BG_PlayerLadder)
-	vec3_t			ladderOffset;		// the model moved up to it, so far as it's taken hold
-	vec4_t			ladderPlane;		// its face, for the hands
+	bgLadder_t		ladder;				// it (its offset so far as it's taken hold)
 	float			ladderWeight;		// how far it's taken hold of it (BG_PlayerLadderWeight)
 	qboolean		swimming;			// along its heading, centred in its box (BG_PlayerSwimAngles)
 	int				playerAnims[2], playerAnimTimes[2];	// a predicted skeletal player's legs and torso, when they started

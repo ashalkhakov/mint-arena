@@ -396,6 +396,10 @@ void BG_PlayerClimbPhase( const bgModel_t *model, bgAnimChannel_t *legs, int leg
 	legs->frameTime = time - (int)( phase * cycle );
 }
 
+#define LADDER_RAYS			80		// a unit apart, from the feet up
+#define LADDER_RUNG_DEPTH	0.6f	// a rung stands this far out of what's behind it, at least
+#define LADDER_RUNG_SPAN	4		// rays above and below a rung that miss it (rungs are thin)
+#define LADDER_FACE_SEARCH	8		// how far toward a ladder its face may be
 #define LADDER_RUNG_SEARCH	32		// how far behind a ladder's face its rungs may be
 
 /*
@@ -409,48 +413,43 @@ it, its hands ("ladder_reach" ahead of it) on the rungs. qfalse when not
 climbing, or no ladder's there.
 ================
 */
-qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, float viewYaw, int passEntityNum,
-						  float *yaw, vec3_t offset, vec4_t plane ) {
+qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, int ladderYaw, int passEntityNum,
+						  bgLadder_t *ladder ) {
 	const bgModel_t *model;
-	vec3_t mins, maxs, forward, start, end, normal;
-	float face, rungs, nearest, z, hit;
-	int pass;
+	vec3_t mins, maxs, start, end, normal;
+	float face, rungs, nearest, wall, reach, z, depth[LADDER_RAYS];
 	trace_t tr;
+	int i, n, pass, first;
 
 	if ( !BG_PlayerClimbing( legsAnim ) || !BG_ValidModel( playerModel ) ) {
 		return qfalse;
 	}
 	model = &bg_models[playerModel];
 	BG_PlayerBox( playerModel, qfalse, mins, maxs, NULL );
-	VectorSet( forward, cos( DEG2RAD( viewYaw ) ), sin( DEG2RAD( viewYaw ) ), 0 );
-	VectorMA( origin, 4, forward, end );		// ahead, as pmove looks
-	BG_IK_Trace( &tr, origin, mins, maxs, end, passEntityNum, MASK_PLAYERSOLID );
-	if ( tr.fraction == 1 || tr.startsolid || !( tr.surfaceFlags & SURF_LADDER ) ) {
-		return qfalse;
-	}
-	*yaw = RAD2DEG( atan2( -tr.plane.normal[1], -tr.plane.normal[0] ) );
-	VectorCopy( tr.plane.normal, normal );
+
+	// the ladder's facing, pmove's from when it took hold: whatever the view
+	// does, or a rail's side the box touches, the climber stays on its face
+	ladder->yaw = SHORT2ANGLE( ladderYaw & 0xffff );
+	VectorSet( normal, -cos( DEG2RAD( ladder->yaw ) ), -sin( DEG2RAD( ladder->yaw ) ), 0 );
 
 	// the ladder's face, from the origin: the box against it (an axial box
-	// reaches out along the normal by its half widths so weighted)
-	face = tr.fraction * 4 * -DotProduct( forward, normal ) + maxs[0] * fabs( normal[0] ) + maxs[1] * fabs( normal[1] );
+	// reaches out along the normal by its half widths so weighted); the box
+	// a little way toward it, else (over the top) as if touching
+	reach = maxs[0] * fabs( normal[0] ) + maxs[1] * fabs( normal[1] );
+	VectorMA( origin, -LADDER_FACE_SEARCH, normal, end );
+	BG_IK_Trace( &tr, origin, mins, maxs, end, passEntityNum, MASK_PLAYERSOLID );
+	face = reach + ( tr.startsolid || tr.fraction == 1 ? 0 : tr.fraction * LADDER_FACE_SEARCH );
 
-	// what's climbed is often behind it: Daikatana's ladders are player clip
-	// boxes in front of the rungs. The rungs' face is the nearest solid along
-	// the normal at the heights the hands and feet hold (between the rungs
-	// the wall behind them is further)
-	// rays from the player at the heights the hands and feet hold, through
-	// the ladder's box (player clip, bsp-sekai makes Daikatana's invisible
-	// ones so) and anything else not drawn: the nearest solid that is, is
-	// what's climbed
-	rungs = face;
-	nearest = face + LADDER_RUNG_SEARCH;
-	for ( z = model->mins[2] + 4; z <= model->maxs[2]; z += 3 ) {
+	// rays from the player a unit apart, from the feet to above the head,
+	// through the ladder's box (player clip, bsp-sekai makes Daikatana's
+	// invisible ones so) and anything else not drawn: the nearest solid that
+	// is, is what's climbed; where they stop nearer than around them, rungs
+	nearest = wall = -1;
+	for ( n = 0, z = model->mins[2] + 2; n < LADDER_RAYS; n++, z += 1 ) {
+		depth[n] = -1;
 		VectorCopy( origin, start );
 		start[2] += z;
 		VectorMA( start, -( face + LADDER_RUNG_SEARCH ), normal, end );
-		// on through what isn't drawn (the ladder's own box, leaning, and
-		// invisible rungs) to what is
 		for ( pass = 0; pass < 4; pass++ ) {
 			BG_IK_Trace( &tr, start, NULL, NULL, end, passEntityNum, CONTENTS_SOLID );
 			if ( tr.allsolid || tr.fraction == 1 || !( tr.surfaceFlags & SURF_NODRAW ) ) {
@@ -458,24 +457,49 @@ qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, fl
 			}
 			VectorMA( tr.endpos, -0.5f, normal, start );
 		}
-		if ( !tr.allsolid && tr.fraction < 1 && !( tr.surfaceFlags & SURF_NODRAW ) ) {
-			hit = -( DotProduct( tr.endpos, normal ) - DotProduct( origin, normal ) );
-			if ( hit < nearest ) {
-				nearest = hit;
-			}
+		if ( tr.allsolid || tr.fraction == 1 || ( tr.surfaceFlags & SURF_NODRAW ) ) {
+			continue;
+		}
+		depth[n] = -( DotProduct( tr.endpos, normal ) - DotProduct( origin, normal ) );
+		if ( nearest < 0 || depth[n] < nearest ) {
+			nearest = depth[n];
+		}
+		if ( depth[n] > wall ) {
+			wall = depth[n];
 		}
 	}
-	if ( nearest < face + LADDER_RUNG_SEARCH ) {
-		rungs = nearest;
+	rungs = nearest >= 0 ? nearest : face;
+	VectorCopy( normal, ladder->plane );
+	ladder->plane[3] = DotProduct( origin, normal ) - rungs;
+
+	// the rungs: runs of rays stopped nearer than those a little above and
+	// below them (the wall behind; a leaning ladder's gets further with height)
+	ladder->numRungs = 0;
+	for ( i = 0, first = -1; i <= LADDER_RAYS; i++ ) {
+		qboolean rung = qfalse;
+
+		if ( i < LADDER_RAYS && depth[i] >= 0 ) {
+			float above = i + LADDER_RUNG_SPAN < LADDER_RAYS ? depth[i + LADDER_RUNG_SPAN] : -1;
+			float below = i - LADDER_RUNG_SPAN >= 0 ? depth[i - LADDER_RUNG_SPAN] : -1;
+
+			rung = ( above >= 0 && depth[i] < above - LADDER_RUNG_DEPTH )
+				&& ( below >= 0 && depth[i] < below - LADDER_RUNG_DEPTH );
+		}
+		if ( rung && first < 0 ) {
+			first = i;
+		} else if ( !rung && first >= 0 ) {
+			if ( ladder->numRungs < MAX_LADDER_RUNGS ) {
+				ladder->rungs[ladder->numRungs++] = origin[2] + model->mins[2] + 2 + 0.5f * ( first + i - 1 );
+			}
+			first = -1;
+		}
 	}
-	VectorCopy( normal, plane );
-	plane[3] = DotProduct( origin, normal ) - rungs;
 
 	// the hands, "ladder_reach" ahead of the model, there
-	VectorClear( offset );
+	VectorClear( ladder->offset );
 	if ( model->ladderReach > 0 ) {
-		VectorScale( normal, -( rungs - model->ladderReach ), offset );
-		offset[2] = 0;
+		VectorScale( normal, -( rungs - model->ladderReach ), ladder->offset );
+		ladder->offset[2] = 0;
 	}
 	return qtrue;
 }
@@ -614,24 +638,42 @@ hold, letting go). The model is at origin with axis.
 */
 #define LADDER_HAND_DEPTH	1.5f	// a hand's or an ankle's middle off the rungs' face
 #define LADDER_FOOT_DEPTH	3.0f
+#define LADDER_ANKLE_RISE	3.0f	// the ankle above the rung the sole's on
+#define LADDER_SNAP_NEAR	2.0f	// a hand or foot this near a rung is on it
+#define LADDER_SNAP_FAR		6.0f	// and this far, free of it
 
 static void BG_LadderTarget( const float *jointMats, int joint, const vec3_t origin, const vec3_t axis[3],
-							 const vec4_t plane, const vec3_t normal, float depth, vec3_t target ) {
+							 const bgLadder_t *ladder, const vec3_t normal, float depth, float rise, vec3_t target ) {
 	vec3_t world;
-	float dist;
-	int k;
+	float dist, dz, best, snap;
+	int i, k;
 
 	BG_IK_JointOrigin( jointMats, joint, target );
 	VectorCopy( origin, world );
 	for ( k = 0; k < 3; k++ ) {
 		VectorMA( world, target[k], axis[k], world );
 	}
-	dist = DotProduct( world, plane ) - plane[3] - depth;
-	VectorMA( target, -dist, normal, target );		// onto the face, as high as it is
+	dist = DotProduct( world, ladder->plane ) - ladder->plane[3] - depth;
+	VectorMA( target, -dist, normal, target );		// onto the face
+
+	// onto the nearest rung, when near it (reaching for the next it's free)
+	best = 1e9f;
+	for ( i = 0; i < ladder->numRungs; i++ ) {
+		dz = ladder->rungs[i] + rise - world[2];
+		if ( fabs( dz ) < fabs( best ) ) {
+			best = dz;
+		}
+	}
+	if ( fabs( best ) < LADDER_SNAP_FAR ) {
+		snap = 1.0f - Com_Clamp( 0, 1, ( fabs( best ) - LADDER_SNAP_NEAR ) / ( LADDER_SNAP_FAR - LADDER_SNAP_NEAR ) );
+		for ( k = 0; k < 3; k++ ) {
+			target[k] += best * snap * axis[k][2];		// the world's up, in the model's space
+		}
+	}
 }
 
 void BG_ModelLadderIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
-					   const vec3_t axis[3], const vec4_t plane, float weight ) {
+					   const vec3_t axis[3], const bgLadder_t *ladder, float weight ) {
 	const bgModelIK_t *ik = &model->ik;
 	static const vec3_t forward = { 1, 0, 0 };		// knees bend forward
 	vec3_t normal, target;
@@ -641,17 +683,17 @@ void BG_ModelLadderIK( const bgModel_t *model, float *jointMats, int numJoints, 
 		return;
 	}
 	for ( k = 0; k < 3; k++ ) {
-		normal[k] = DotProduct( plane, axis[k] );		// the face's normal in the model's space
+		normal[k] = DotProduct( ladder->plane, axis[k] );		// the face's normal in the model's space
 	}
 	for ( i = 0; i < ik->numLegs; i++ ) {
 		if ( ik->ankle[i] < numJoints ) {
-			BG_LadderTarget( jointMats, ik->ankle[i], origin, axis, plane, normal, LADDER_FOOT_DEPTH, target );
+			BG_LadderTarget( jointMats, ik->ankle[i], origin, axis, ladder, normal, LADDER_FOOT_DEPTH, LADDER_ANKLE_RISE, target );
 			BG_ModelReachChain( model, jointMats, numJoints, ik->hip[i], ik->knee[i], ik->ankle[i], target, weight, forward );
 		}
 	}
 	for ( i = 0; i < ik->numArms; i++ ) {
 		if ( ik->hand[i] < numJoints ) {
-			BG_LadderTarget( jointMats, ik->hand[i], origin, axis, plane, normal, LADDER_HAND_DEPTH, target );
+			BG_LadderTarget( jointMats, ik->hand[i], origin, axis, ladder, normal, LADDER_HAND_DEPTH, 0, target );
 			BG_ModelReachArm( model, jointMats, numJoints, i, target, weight );
 		}
 	}

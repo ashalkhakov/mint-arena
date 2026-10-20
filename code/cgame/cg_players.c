@@ -1861,12 +1861,14 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 		cent->ladderWeight = BG_PlayerLadderWeight( model, &cent->characterChannels[ANIMCHANNEL_LEGS],
 													cent->currentState.legsAnim, cg.time );
 		if ( cent->ladderWeight > 0
-			 && BG_PlayerLadder( cgs.playerinfo[playerNum].modelDef, LEGS_CLIMB, cent->lerpOrigin, headAngles[YAW],
-								 cent->currentState.number, &dest, cent->ladderOffset, cent->ladderPlane ) ) {
+			 && BG_PlayerLadder( cgs.playerinfo[playerNum].modelDef, LEGS_CLIMB, cent->lerpOrigin,
+								 cent == &cg.cur_lc->predictedPlayerEntity ? cg.cur_lc->predictedPlayerState.ladderYaw
+																		   : cent->currentState.frame,
+								 cent->currentState.number, &cent->ladder ) ) {
 			cent->onLadder = qtrue;
-			VectorScale( cent->ladderOffset, cent->ladderWeight, cent->ladderOffset );
-			legsAngles[YAW] = LerpAngle( legsAngles[YAW], dest, cent->ladderWeight );
-			torsoAngles[YAW] = LerpAngle( torsoAngles[YAW], dest, cent->ladderWeight );
+			VectorScale( cent->ladder.offset, cent->ladderWeight, cent->ladder.offset );
+			legsAngles[YAW] = LerpAngle( legsAngles[YAW], cent->ladder.yaw, cent->ladderWeight );
+			torsoAngles[YAW] = LerpAngle( torsoAngles[YAW], cent->ladder.yaw, cent->ladderWeight );
 			cent->pe.legs.yawAngle = legsAngles[YAW];
 			cent->pe.torso.yawAngle = torsoAngles[YAW];
 		}

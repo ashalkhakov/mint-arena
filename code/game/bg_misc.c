@@ -611,6 +611,7 @@ vmNetField_t	bg_playerStateFields[] =
 { PSF(velocity[2]), 0 },
 { PSF(legsTimer), 8 },
 { PSF(swimPhase), 16 },
+{ PSF(ladderYaw), 16 },
 { PSF(pm_time), -16 },
 { PSF(eventSequence), 16 },
 { PSF(torsoAnim), 8 },
@@ -1355,7 +1356,8 @@ void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean 
 
 	s->angles2[YAW] = ps->movementDir;
 	s->legsAnim = ps->legsAnim;
-	s->frame = ps->swimPhase;		// a player's stroke, swimming
+	// a player's stroke swimming, the ladder's facing climbing (never both)
+	s->frame = BG_PlayerClimbing( ps->legsAnim ) ? ( ps->ladderYaw & 0xffff ) : ps->swimPhase;
 	s->torsoAnim = ps->torsoAnim;
 	s->weaponAnim = ps->weaponAnim;
 	s->playerNum = ps->playerNum;		// ET_PLAYER looks here instead of at number
@@ -1446,7 +1448,8 @@ void BG_PlayerStateToEntityStateExtraPolate( playerState_t *ps, entityState_t *s
 
 	s->angles2[YAW] = ps->movementDir;
 	s->legsAnim = ps->legsAnim;
-	s->frame = ps->swimPhase;		// a player's stroke, swimming
+	// a player's stroke swimming, the ladder's facing climbing (never both)
+	s->frame = BG_PlayerClimbing( ps->legsAnim ) ? ( ps->ladderYaw & 0xffff ) : ps->swimPhase;
 	s->torsoAnim = ps->torsoAnim;
 	s->weaponAnim = ps->weaponAnim;
 	s->playerNum = ps->playerNum;		// ET_PLAYER looks here instead of at number

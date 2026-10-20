@@ -244,7 +244,12 @@ eases them out, and the hands reach for the ladder's face (Doom 3's reach IK,
 later); the feet go onto the rungs the same way. The rungs are found by rays
 from the player through the ladder's box (which Daikatana's maps have in
 front of them, invisible: the converter makes those player clip) to what's
-drawn behind it. The weapon is put away and doesn't fire, and the view turns at most 70°
+drawn behind it, a unit apart: where they stop nearer than a little above
+and below, a rung, and a hand or foot near one goes onto it. The ladder's
+facing is pmove's from when the climber took hold (`ladderYaw`, sent as a
+climber's `frame`), so turning the view or touching a rail's side doesn't
+turn it off the ladder. Climbing goes rung to rung: a pull, then a slower
+stretch as the next hand reaches, by height between grips. The weapon is put away and doesn't fire, and the view turns at most 70°
 from the ladder. Climbing is Daikatana's way, a quarter as fast: 50 up or down (looking up or down
 while going forward, or jump and crouch), 20 across, even from water.
 

@@ -744,13 +744,42 @@ Right now all I know is that this works for VERTICAL ladders.
 Ladders with angles on them (urban2 for AQ2) haven't been tested.
 ===================
 */
+/*
+===================
+PM_LadderClimbSpeed
+
+Climbing goes rung to rung, not steadily: a pull, then the next hand
+reaching, at most LADDER_CLIMB_PEAK and at least LADDER_CLIMB_EASE of
+LADDER_CLIMB_SPEED, by where the climber is between grips (half of the
+model's "ladder_climb" each: the climb's frames go by height too, so it
+pulls and pauses with them).
+===================
+*/
+#define LADDER_CLIMB_EASE	0.5f	// of the speed while the next hand reaches
+#define LADDER_CLIMB_PEAK	2.2f	// at the pull's height
+#define LADDER_CLIMB_PULL	0.6f	// of a grip's height the pull takes
+
+static float PM_LadderClimbSpeed( void ) {
+	float grip = 13, f;
+
+	if ( BG_ValidModel( pm->playerModel ) && bg_models[pm->playerModel].ladderClimb > 0 ) {
+		grip = bg_models[pm->playerModel].ladderClimb * 0.5f;
+	}
+	f = pm->ps->origin[2] / grip;
+	f -= floor( f );
+	if ( f >= LADDER_CLIMB_PULL ) {
+		return LADDER_CLIMB_SPEED * LADDER_CLIMB_EASE;
+	}
+	return LADDER_CLIMB_SPEED * ( LADDER_CLIMB_EASE + ( LADDER_CLIMB_PEAK - LADDER_CLIMB_EASE ) * sin( M_PI * f / LADDER_CLIMB_PULL ) );
+}
+
 static void PM_LadderMove( void ) {
 	int i;
 	vec3_t wishvel;
 	float wishspeed;
 	vec3_t wishdir;
 	float scale;
-	float vel, side;
+	float vel, side, climb;
 
 	PM_Friction ();
 
@@ -767,14 +796,15 @@ static void PM_LadderMove( void ) {
 		wishvel[0] *= LADDER_SIDE_SPEED / side;
 		wishvel[1] *= LADDER_SIDE_SPEED / side;
 	}
+	climb = PM_LadderClimbSpeed();
 	if ( pm->ps->viewangles[PITCH] <= -15 && pm->cmd.forwardmove > 0 ) {
-		wishvel[2] = LADDER_CLIMB_SPEED;
+		wishvel[2] = climb;
 	} else if ( pm->ps->viewangles[PITCH] >= 15 && pm->cmd.forwardmove > 0 ) {
-		wishvel[2] = -LADDER_CLIMB_SPEED;
+		wishvel[2] = -climb;
 	} else if ( pm->cmd.upmove > 0 ) {
-		wishvel[2] = LADDER_CLIMB_SPEED;
+		wishvel[2] = climb;
 	} else if ( pm->cmd.upmove < 0 ) {
-		wishvel[2] = -LADDER_CLIMB_SPEED;
+		wishvel[2] = -climb;
 	} else {
 		wishvel[2] = 0;
 	}
@@ -782,8 +812,8 @@ static void PM_LadderMove( void ) {
 	VectorCopy (wishvel, wishdir);
 	wishspeed = VectorNormalize(wishdir);
 
-	if ( wishspeed > LADDER_CLIMB_SPEED * pm_ladderScale ) {
-		wishspeed = LADDER_CLIMB_SPEED * pm_ladderScale;
+	if ( wishspeed > climb * pm_ladderScale ) {
+		wishspeed = climb * pm_ladderScale;
 	}
 
 	PM_Accelerate (wishdir, wishspeed, pm_ladderAccelerate);
@@ -824,7 +854,13 @@ void CheckLadder( void ) {
 
 	if ((trace.fraction < 1) && (trace.surfaceFlags & SURF_LADDER)) {
 		pml.ladder = qtrue;
-		VectorCopy( trace.plane.normal, pml.ladderNormal );
+		// the ladder's facing, from when it was taken hold of: a rail's side
+		// touched later doesn't turn the climber off it
+		if ( !BG_PlayerClimbing( pm->ps->legsAnim ) ) {
+			pm->ps->ladderYaw = ANGLE2SHORT( RAD2DEG( atan2( -trace.plane.normal[1], -trace.plane.normal[0] ) ) ) & 0xffff;
+		}
+		VectorSet( pml.ladderNormal, -cos( DEG2RAD( SHORT2ANGLE( pm->ps->ladderYaw ) ) ),
+				   -sin( DEG2RAD( SHORT2ANGLE( pm->ps->ladderYaw ) ) ), 0 );
 	}
 
 }

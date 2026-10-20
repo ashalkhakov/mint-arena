@@ -511,7 +511,7 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 	// on a ladder, the climb's frames by height, the model up to the rungs
 	BG_PlayerClimbPhase( model, &cent->characterChannels[ANIMCHANNEL_LEGS], s1->legsAnim, legs->origin[2], cg.time );
 	if ( cent->onLadder ) {
-		VectorAdd( legs->origin, cent->ladderOffset, legs->origin );
+		VectorAdd( legs->origin, cent->ladder.offset, legs->origin );
 	}
 	if ( cent->swimming ) {
 		// the swimming body centred in the box, however it's turned
@@ -529,7 +529,7 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 		BG_ModelAim( model, joints, numJoints, torsoAxis, headAxis );
 		if ( cent->onLadder ) {
 			// the hands on the ladder, reaching for it as it takes hold
-			BG_ModelLadderIK( model, joints, numJoints, legs->origin, (const vec3_t *)legs->axis, cent->ladderPlane,
+			BG_ModelLadderIK( model, joints, numJoints, legs->origin, (const vec3_t *)legs->axis, &cent->ladder,
 							  cent->ladderWeight );
 		}
 		if ( cg_ik.integer ) {
