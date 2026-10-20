@@ -249,6 +249,13 @@ static void BG_ModelChannel( bgModel_t *model, int channel, const char *joints )
 BG_LoadModel
 ================
 */
+// Doom 3's surface types (SURFTYPE_*, a material's SURF_TYPE), and the
+// three Daikatana fills in after them: "snd_footstep_<name>" and the like
+const char *bg_surfaceTypeNames[MAX_SURFACE_TYPES] = {
+	"none", "metal", "stone", "flesh", "wood", "cardboard", "liquid", "glass",
+	"plastic", "ricochet", "ice", "snow", "sand", "surftype13", "surftype14", "surftype15"
+};
+
 // animNumber_t's names, for "player_anim <name>"
 static const char *bg_playerAnimNames[MAX_TOTALANIMATIONS] = {
 	"BOTH_DEATH1", "BOTH_DEAD1", "BOTH_DEATH2", "BOTH_DEAD2", "BOTH_DEATH3", "BOTH_DEAD3",
@@ -345,7 +352,8 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 			fc = &model->frameCommands[model->numFrameCommands];
 			Q_strncpyz( fc->anim, word[0], sizeof( fc->anim ) );
 			fc->frame = atoi( word[1] );
-			if ( sscanf( value, "%15s %63s", fc->command, fc->arg ) < 1 ) {
+			// the command, and the rest of the line its arguments
+			if ( sscanf( value, "%15s %63[^\n]", fc->command, fc->arg ) < 1 ) {
 				continue;
 			}
 			model->numFrameCommands++;
@@ -683,7 +691,18 @@ void BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, i
 	if ( anim >= 0 && model->playerAnimHold[legs] ) {
 		legsTime -= 3600000;	// long since over: its last frame
 	}
-	BG_AnimChannelPlay( &channels[ANIMCHANNEL_LEGS], anim < 0 ? 0 : anim, legsTime );
+	if ( anim < 0 ) {
+		// one the model doesn't have (landing): the legs go on with theirs,
+		// or its first if they have none
+		if ( channels[ANIMCHANNEL_LEGS].anim < 0 ) {
+			BG_AnimChannelPlay( &channels[ANIMCHANNEL_LEGS], 0, legsTime );
+		}
+	} else if ( anim == channels[ANIMCHANNEL_LEGS].anim && model->anims[anim].loop ) {
+		// the looping one already playing (running on after running
+		// backwards): it keeps its phase, its footsteps come round
+	} else {
+		BG_AnimChannelPlay( &channels[ANIMCHANNEL_LEGS], anim, legsTime );
+	}
 
 	anim = -1;
 	if ( torso >= 0 && torso < MAX_TOTALANIMATIONS && torso != legs ) {

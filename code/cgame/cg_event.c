@@ -523,14 +523,15 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	//
 	case EV_FOOTSTEP:
 		DEBUGNAME("EV_FOOTSTEP");
-		if (cg_footsteps.integer) {
+		// a skeletal character steps on its animation's frames
+		if (cg_footsteps.integer && !pi->modelDef) {
 			trap_S_StartSound (NULL, es->number, CHAN_BODY, 
 				cgs.media.footsteps[ pi->footsteps ][rand()&3] );
 		}
 		break;
 	case EV_FOOTSTEP_METAL:
 		DEBUGNAME("EV_FOOTSTEP_METAL");
-		if (cg_footsteps.integer) {
+		if (cg_footsteps.integer && !pi->modelDef) {
 			trap_S_StartSound (NULL, es->number, CHAN_BODY, 
 				cgs.media.footsteps[ FOOTSTEP_METAL ][rand()&3] );
 		}
@@ -560,7 +561,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_FALL_SHORT:
 		DEBUGNAME("EV_FALL_SHORT");
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.landSound );
+		trap_S_StartSound (NULL, es->number, CHAN_AUTO, pi->modelDef && CG_ModelSound( pi->modelDef, "snd_land" )
+			? CG_ModelSound( pi->modelDef, "snd_land" ) : cgs.media.landSound );
 		for (i = 0; i < CG_MaxSplitView(); i++) {
 			if ( playerNum == cg.snap->pss[i].playerNum ) {
 				// smooth landing z changes
@@ -700,6 +702,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_WATER_LEAVE:
 		DEBUGNAME("EV_WATER_LEAVE");
 		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.watrOutSound );
+		if ( pi->modelDef && CG_ModelSound( pi->modelDef, "snd_exitwater" ) ) {
+			trap_S_StartSound (NULL, es->number, CHAN_VOICE, CG_ModelSound( pi->modelDef, "snd_exitwater" ) );
+		}
 		break;
 	case EV_WATER_UNDER:
 		DEBUGNAME("EV_WATER_UNDER");

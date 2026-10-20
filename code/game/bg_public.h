@@ -1304,6 +1304,29 @@ int			BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChanne
 int			BG_ModelHitboxes( const bgModel_t *model, const float *jointMats, int numJoints,
 							  const vec3_t origin, const vec3_t axis[3], bgHitboxPose_t *poses );
 void		BG_JointOrientation( const float *jointMats, int joint, orientation_t *tag );
+// sound shaders (bg_sound.c), Doom 3's
+#define MAX_SOUND_SHADERS			512
+#define MAX_SOUND_SHADER_FILES		16
+#define SSF_NO_DUPS					1
+#define SSF_LOOPING					2
+#define SSF_GLOBAL					4
+#define SSF_PRIVATE					8
+
+typedef struct {
+	char		name[MAX_QPATH];
+	float		minDistance, maxDistance;	// Doom 3's; not used by the sound system yet
+	float		volume;
+	int			flags;						// SSF_*
+	int			numFiles;
+	char		files[MAX_SOUND_SHADER_FILES][MAX_QPATH];
+	int			lastFile;					// played last, plus one
+} bgSoundShader_t;
+
+void					BG_InitSoundShaders( void );
+const bgSoundShader_t	*BG_FindSoundShader( const char *name );
+const char				*BG_SoundShaderFile( const bgSoundShader_t *shader );
+
+extern const char *bg_surfaceTypeNames[MAX_SURFACE_TYPES];	// Doom 3's surface types' names
 int			BG_PlayerModelForName( const char *modelName );
 void		BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
 								   int torsoAnim, int torsoTime );

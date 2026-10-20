@@ -773,6 +773,7 @@ void BG_InitItems( void ) {
 	BG_ClearDefs();
 	BG_AddBuiltinItemDefs();
 	BG_LoadDefs();
+	BG_InitSoundShaders();
 	BG_InitWeapons();
 	BG_InitModels();
 

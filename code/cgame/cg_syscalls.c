@@ -274,6 +274,11 @@ void	trap_S_StartSound( vec3_t origin, int entityNum, int entchannel, sfxHandle_
 	syscall( CG_S_STARTSOUND, origin, entityNum, entchannel, sfx );
 }
 
+// a sound at a volume, 0..1 (a sound shader's "volume")
+void	trap_S_StartSoundVolume( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx, float volume ) {
+	syscall( CG_S_STARTSOUNDVOLUME, origin, entityNum, entchannel, sfx, PASSFLOAT( volume ) );
+}
+
 void	trap_S_StartLocalSound( sfxHandle_t sfx, int channelNum ) {
 	syscall( CG_S_STARTLOCALSOUND, sfx, channelNum );
 }

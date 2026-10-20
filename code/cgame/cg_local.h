@@ -1869,6 +1869,9 @@ int CG_PropTraceModels( const entityState_t *s1, traceModel_t *trms );
 // cg_character.c
 //
 void CG_Character( centity_t *cent );
+void CG_RegisterModelSounds( int modelNum );
+sfxHandle_t CG_ModelSound( int modelNum, const char *key );
+qboolean CG_StartModelSound( vec3_t origin, int entityNum, int channel, int modelNum, const char *key, float scale );
 void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *legs, const vec3_t torsoAxis[3],
 						 const vec3_t headAxis[3], refEntity_t *torso, refEntity_t *weapon, refEntity_t *flag );
 void CG_DebugLine( const vec3_t start, const vec3_t end, const vec4_t color );

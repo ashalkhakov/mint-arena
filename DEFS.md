@@ -193,6 +193,20 @@ Quake 3's angles (the legs to the movement, the torso a quarter of that and
 three quarters of the pitch, the head the view), the cgame's swinging and
 the game's not. A model without a def is drawn Quake 3's way.
 
+**Sounds and footsteps, Doom 3's way.** A model def's `snd_*` keys name
+sound shaders: `sound/*.sndshd` blocks listing files (one played at random)
+with Doom 3's parameters (`volume`, `minDistance`, `maxDistance`, `no_dups`;
+`volume` is applied, the distances are kept for later). A key may also list
+files directly. A player's voice comes from `snd_pain`, `snd_pain_heavy` (low
+health), `snd_death`, `snd_jump`, `snd_land`, `snd_land_hurt`, `snd_gasp`,
+`snd_drown`, `snd_exitwater` and `snd_taunt` instead of Quake 3's
+`sound/player/<model>/`. The frame command `footstep <joint> [volume]` traces
+under that joint, and the hit material's surface type (`SURF_TYPE` of its
+surface flags: Doom 3's `surfTypes_t`, metal, stone, flesh, wood, cardboard,
+liquid, glass, plastic, ricochet, then ice, snow and sand) picks
+`snd_footstep_<type>`, or `snd_footstep`. Players whose model has them don't
+make Quake 3's footstep events.
+
 `misc_character` (map entity): `model`, `anim`, `torso_anim`, `anim_cycle`
 (seconds to the next animation, 0 never), `health`, `angle`.
 `spawncharacter <model> [anim] [height] [side]` puts one in front of you, and

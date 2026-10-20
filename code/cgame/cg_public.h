@@ -412,6 +412,7 @@ typedef enum {
 
 	CG_R_BLENDSKELETON,		// ( qhandle_t model, const skeletonBlend_t *blends, int numBlends, float *jointMats, int maxJoints );
 	CG_R_ADDSKELETONTOSCENE,	// ( const float *jointMats, int numJoints ); returns the refEntity_t skeleton
+	CG_S_STARTSOUNDVOLUME,		// ( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx, float volume );
 
 
 	CG_CIN_PLAYCINEMATIC = 700,

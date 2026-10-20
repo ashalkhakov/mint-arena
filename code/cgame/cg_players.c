@@ -67,6 +67,25 @@ sfxHandle_t	CG_CustomSound( int playerNum, const char *soundName ) {
 	}
 	pi = &cgs.playerinfo[ playerNum ];
 
+	// a skeletal character's: its model def's "snd_*" (Doom 3's way); low
+	// health's pains are its heavy ones (Daikatana's "death" sounds)
+	if ( pi->modelDef ) {
+		static const char *keys[][2] = {
+			{ "*death1.wav", "snd_death" }, { "*death2.wav", "snd_death" }, { "*death3.wav", "snd_death" },
+			{ "*jump1.wav", "snd_jump" },
+			{ "*pain25_1.wav", "snd_pain_heavy" }, { "*pain50_1.wav", "snd_pain_heavy" },
+			{ "*pain75_1.wav", "snd_pain" }, { "*pain100_1.wav", "snd_pain" },
+			{ "*falling1.wav", "snd_pain_heavy" }, { "*gasp.wav", "snd_gasp" }, { "*drown.wav", "snd_drown" },
+			{ "*fall1.wav", "snd_land_hurt" }, { "*taunt.wav", "snd_taunt" }
+		};
+
+		for ( i = 0; i < ARRAY_LEN( keys ); i++ ) {
+			if ( !strcmp( soundName, keys[i][0] ) ) {
+				return CG_ModelSound( pi->modelDef, keys[i][1] );
+			}
+		}
+	}
+
 	for ( i = 0 ; i < MAX_CUSTOM_SOUNDS && cg_customSoundNames[i] ; i++ ) {
 		if ( !strcmp( soundName, cg_customSoundNames[i] ) ) {
 			return pi->sounds[i];
@@ -890,6 +909,9 @@ static void CG_LoadPlayerInfo( int playerNum, playerInfo_t *pi ) {
 	// fallback)
 	pi->modelDef = BG_PlayerModelForName( pi->modelName );
 	pi->skeletalModel = pi->modelDef ? trap_R_RegisterModel( bg_models[pi->modelDef].mesh ) : 0;
+	if ( pi->skeletalModel ) {
+		CG_RegisterModelSounds( pi->modelDef );
+	}
 	if ( !pi->skeletalModel ) {
 		pi->modelDef = 0;
 	}

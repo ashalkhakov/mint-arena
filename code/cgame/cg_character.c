@@ -139,13 +139,185 @@ static void CG_DrawSkeleton( const bgModel_t *model, const float *joints, int nu
 
 /*
 ================
+CG_ModelSoundPick
+
+What a model def's "snd_*" key plays: a sound shader's files (Doom 3's way),
+or, not naming one, a list of files.
+================
+*/
+static const char *CG_ModelSoundPick( const char *value, qboolean all, int index ) {
+	static char picked[MAX_QPATH];
+	const bgSoundShader_t *shader = BG_FindSoundShader( value );
+	char files[MAX_STRING_CHARS], *p, *token;
+	int n, pick;
+
+	if ( shader ) {
+		if ( all ) {
+			return index < shader->numFiles ? shader->files[index] : NULL;
+		}
+		return BG_SoundShaderFile( shader );
+	}
+	Q_strncpyz( files, value, sizeof( files ) );
+	p = files;
+	for ( n = 0; COM_Parse( &p )[0]; n++ ) {
+	}
+	if ( !n || ( all && index >= n ) ) {
+		return NULL;
+	}
+	pick = all ? index : rand() % n;
+	p = files;
+	for ( ; ; ) {
+		token = COM_Parse( &p );
+		if ( !pick-- ) {
+			break;
+		}
+	}
+	Q_strncpyz( picked, token, sizeof( picked ) );
+	return picked;
+}
+
+/*
+================
+CG_RegisterModelSounds
+
+Every sound a model def's "snd_*" keys play, loaded now rather than when
+first played.
+================
+*/
+void CG_RegisterModelSounds( int modelNum ) {
+	const dictKeyValue_t *kv;
+	const char *key, *file;
+	int i, j;
+
+	if ( !BG_ValidModel( modelNum ) ) {
+		return;
+	}
+	for ( i = 0; i < DictGetNumKeyVals( bg_models[modelNum].def ); i++ ) {
+		kv = DictGetKeyVal( bg_models[modelNum].def, i );
+		key = PoolStrGetString( kv->key );
+		if ( Q_stricmpn( key, "snd_", 4 ) ) {
+			continue;
+		}
+		for ( j = 0; ( file = CG_ModelSoundPick( PoolStrGetString( kv->value ), qtrue, j ) ) != NULL; j++ ) {
+			trap_S_RegisterSound( file, qfalse );
+		}
+	}
+}
+
+/*
+================
+CG_ModelSound
+
+A sound of a model def's key, picked from its sound shader (or list); 0 for
+none.
+================
+*/
+sfxHandle_t CG_ModelSound( int modelNum, const char *key ) {
+	const char *value, *file;
+
+	if ( !BG_ValidModel( modelNum ) ) {
+		return 0;
+	}
+	value = DictGetStringReference( bg_models[modelNum].def, key, "" );
+	if ( !value[0] ) {
+		return 0;
+	}
+	file = CG_ModelSoundPick( value, qfalse, 0 );
+	return file ? trap_S_RegisterSound( file, qfalse ) : 0;
+}
+
+/*
+================
+CG_StartModelSound
+
+Plays a sound of a model def's key at its sound shader's volume, times
+scale. qfalse if the key has none.
+================
+*/
+qboolean CG_StartModelSound( vec3_t origin, int entityNum, int channel, int modelNum, const char *key, float scale ) {
+	const bgSoundShader_t *shader;
+	const char *value, *file;
+	float volume = 1;
+
+	if ( !BG_ValidModel( modelNum ) ) {
+		return qfalse;
+	}
+	value = DictGetStringReference( bg_models[modelNum].def, key, "" );
+	if ( !value[0] ) {
+		return qfalse;
+	}
+	shader = BG_FindSoundShader( value );
+	if ( shader ) {
+		volume = shader->volume;
+	}
+	file = CG_ModelSoundPick( value, qfalse, 0 );
+	if ( !file ) {
+		return qfalse;
+	}
+	trap_S_StartSoundVolume( origin, entityNum, channel, trap_S_RegisterSound( file, qfalse ), volume * scale );
+	return qtrue;
+}
+
+/*
+================
+CG_Footstep
+
+A foot coming down (the "footstep <joint> [volume]" frame command): what's
+under it, its material's surface type, picks the model's
+"snd_footstep_<type>", or "snd_footstep" (Doom 3's way), at the sound
+shader's volume times the command's (walking steps are quieter).
+================
+*/
+static void CG_Footstep( centity_t *cent, int modelNum, const char *args, const refEntity_t *ent,
+						 const float *joints, int numJoints ) {
+	const bgModel_t *model = &bg_models[modelNum];
+	vec3_t foot, start, end;
+	orientation_t tag;
+	trace_t tr;
+	char jointName[MAX_QPATH];
+	float scale = 1;
+	int joint, type, i;
+
+	if ( !cg_footsteps.integer ) {
+		return;
+	}
+	jointName[0] = '\0';
+	sscanf( args, "%63s %f", jointName, &scale );
+	VectorCopy( ent->origin, foot );
+	joint = BG_ModelJointIndex( model, jointName );
+	if ( joint >= 0 && joint < numJoints ) {
+		BG_JointOrientation( joints, joint, &tag );
+		for ( i = 0; i < 3; i++ ) {
+			VectorMA( foot, tag.origin[i], ent->axis[i], foot );
+		}
+	}
+	VectorCopy( foot, start );
+	start[2] += 8;
+	VectorCopy( foot, end );
+	end[2] -= 24;
+	CG_Trace( &tr, start, NULL, NULL, end, cent->currentState.number, MASK_PLAYERSOLID );
+	if ( tr.fraction == 1.0f || ( tr.surfaceFlags & SURF_NOSTEPS ) ) {
+		return;		// in the air
+	}
+	type = SURF_TYPE( tr.surfaceFlags );
+	if ( !CG_StartModelSound( tr.endpos, cent->currentState.number, CHAN_BODY, modelNum,
+							  va( "snd_footstep_%s", bg_surfaceTypeNames[type] ), scale ) ) {
+		CG_StartModelSound( tr.endpos, cent->currentState.number, CHAN_BODY, modelNum, "snd_footstep", scale );
+	}
+}
+
+/*
+================
 CG_CharacterFrameCommands
 
 The model's frame commands of the frames a channel's animation went through
-since the last: "sound <file>", "fx <effect>". ("event"s are the game's.)
+since the last: "sound <file>", "fx <effect>", "footstep <joint>". ("event"s
+are the game's.) ent and joints are the pose drawn.
 ================
 */
-static void CG_CharacterFrameCommands( centity_t *cent, const bgModel_t *model, int channel ) {
+static void CG_CharacterFrameCommands( centity_t *cent, int modelNum, int channel, const refEntity_t *ent,
+									   const float *joints, int numJoints ) {
+	const bgModel_t *model = &bg_models[modelNum];
 	const bgAnimChannel_t *ch = &cent->characterChannels[channel];
 	const bgAnim_t *a;
 	int i, from, to, f, frame, oldFrame, animFrame;
@@ -189,6 +361,8 @@ static void CG_CharacterFrameCommands( centity_t *cent, const bgModel_t *model, 
 				vec3_t up = { 0, 0, 1 };
 
 				CG_FX_PlayEffect( fc->arg, cent->lerpOrigin, up );
+			} else if ( !Q_stricmp( fc->command, "footstep" ) ) {
+				CG_Footstep( cent, modelNum, fc->arg, ent, joints, numJoints );
 			}
 		}
 	}
@@ -240,7 +414,7 @@ void CG_Character( centity_t *cent ) {
 	}
 
 	for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
-		CG_CharacterFrameCommands( cent, model, c );
+		CG_CharacterFrameCommands( cent, s1->modelindex2, c, &ent, joints, numJoints );
 	}
 
 	if ( cg_drawSkeleton.integer && numJoints > 0 ) {
@@ -344,7 +518,7 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 	}
 
 	for ( i = 0; i < MAX_ANIM_CHANNELS; i++ ) {
-		CG_CharacterFrameCommands( cent, model, i );
+		CG_CharacterFrameCommands( cent, pi->modelDef, i, legs, joints, numJoints );
 	}
 
 	CG_JointEntity( legs, joints, numJoints, model->torsoJoint, torso );

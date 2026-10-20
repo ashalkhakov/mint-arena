@@ -89,3 +89,24 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define	SURF_NODLIGHT			0x20000	// don't dlight even if solid (solid lava, skies)
 #define SURF_DUST				0x40000 // leave a dust trail when walking on this surface
 #define SURF_COLLISION          0x80000 // collision surface
+
+// what a surface is made of, Doom 3's surface types (surfTypes_t): its
+// material's type, for footsteps and impacts. A number in four bits of the
+// surface flags; 10 and up are free in Doom 3, Daikatana's ice, snow and sand
+#define SURF_TYPE_SHIFT			20
+#define SURF_TYPE_MASK			0x00F00000
+#define SURF_TYPE( flags )		( ( (flags) & SURF_TYPE_MASK ) >> SURF_TYPE_SHIFT )
+#define SURFTYPE_NONE			0
+#define SURFTYPE_METAL			1
+#define SURFTYPE_STONE			2
+#define SURFTYPE_FLESH			3
+#define SURFTYPE_WOOD			4
+#define SURFTYPE_CARDBOARD		5
+#define SURFTYPE_LIQUID			6
+#define SURFTYPE_GLASS			7
+#define SURFTYPE_PLASTIC		8
+#define SURFTYPE_RICOCHET		9
+#define SURFTYPE_ICE			10
+#define SURFTYPE_SNOW			11
+#define SURFTYPE_SAND			12
+#define MAX_SURFACE_TYPES		16
