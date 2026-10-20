@@ -93,7 +93,7 @@ void CG_LoadingItem( int itemNum ) {
 
 	item = BG_ItemForItemNum( itemNum );
 	
-	if ( item->icon && loadingItemIconCount < MAX_LOADING_ITEM_ICONS ) {
+	if ( item->icon[0] && loadingItemIconCount < MAX_LOADING_ITEM_ICONS ) {
 		loadingItemIcons[loadingItemIconCount++] = trap_R_RegisterShaderNoMip( item->icon );
 	}
 

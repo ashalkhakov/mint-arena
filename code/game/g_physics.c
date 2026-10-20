@@ -1867,7 +1867,7 @@ void Svcmd_PropBlast_f( void ) {
 		trap_Argv( 1 + i, arg, sizeof( arg ) );
 		org[i] = atof( arg );
 	}
-	G_RadiusDamage( org, &g_entities[ENTITYNUM_WORLD], 100, 120, NULL, MOD_ROCKET_SPLASH );
+	G_RadiusDamage( org, &g_entities[ENTITYNUM_WORLD], 100, 120, NULL, MOD_BREAKABLE_SPLASH );
 }
 
 /*

@@ -276,10 +276,8 @@ void Cmd_Give_f (gentity_t *ent)
 
 	if (give_all || Q_stricmp(name, "weapons") == 0)
 	{
-		for ( i = WP_NONE + 1; i < WP_NUM_WEAPONS; i++ ) {
-			if ( i != WP_GRAPPLING_HOOK ) {
-				BG_GiveWeapon( &ent->player->ps, i );
-			}
+		for ( i = WP_NONE + 1; i < bg_numWeapons; i++ ) {
+			BG_GiveWeapon( &ent->player->ps, i );
 		}
 		if (!give_all)
 			return;
@@ -287,8 +285,8 @@ void Cmd_Give_f (gentity_t *ent)
 
 	if (give_all || Q_stricmp(name, "ammo") == 0)
 	{
-		for ( i = 0 ; i < MAX_WEAPONS ; i++ ) {
-			ent->player->ps.ammo[i] = 999;
+		for ( i = 1 ; i < bg_numWeapons ; i++ ) {
+			ent->player->ps.ammo[i] = BG_Weapon( i )->maxAmmo;
 		}
 		if (!give_all)
 			return;
@@ -1267,7 +1265,7 @@ static void Cmd_VoiceTaunt_f( gentity_t *ent ) {
 		who = g_entities + ent->player->lastkilled_player;
 		if (who->player) {
 			// who is the person I just killed
-			if (who->player->lasthurt_mod == MOD_GAUNTLET) {
+			if ( BG_Weapon( MOD_WEAPON( who->player->lasthurt_mod ) )->melee ) {
 				G_Voice( ent, who, SAY_TELL, VOICECHAT_KILLGAUNTLET, qfalse );	// and I killed them with a gauntlet
 			} else {
 				G_Voice( ent, who, SAY_TELL, VOICECHAT_KILLINSULT, qfalse );	// and I killed them with something else

@@ -519,6 +519,15 @@ qboolean DictGetVector2( const dict_t *d, const char *key, const char *defaultSt
 
 /*
 ================
+DictGetVector
+================
+*/
+void DictGetVector( const dict_t *d, const char *key, const char *defaultString, vec3_t out ) {
+	DictGetVector2( d, key, defaultString, out );
+}
+
+/*
+================
 DictGetVec2_2
 ================
 */

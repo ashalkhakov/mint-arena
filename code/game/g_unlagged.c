@@ -260,7 +260,7 @@ void G_TimeShiftAllClients( int time, gentity_t *skip ) {
 	gentity_t	*ent;
 #if 0 // TODO
 	qboolean debug = ( skip != NULL && skip->player && 
-			skip->player->pers.debugDelag && skip->s.weapon == WP_RAILGUN );
+			skip->player->pers.debugDelag && BG_Weapon( skip->s.weapon )->hitscan );
 #else
 	qboolean	debug = qfalse;
 #endif

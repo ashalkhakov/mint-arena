@@ -635,7 +635,7 @@ static void Controls_UpdateModel( int anim ) {
 	s_controls.playerMoveangles[YAW] = s_controls.playerViewangles[YAW];
 	s_controls.playerLegs		     = LEGS_IDLE;
 	s_controls.playerTorso			 = TORSO_STAND;
-	s_controls.playerWeapon			 = WP_NUM_WEAPONS;
+	s_controls.playerWeapon			 = UI_WEAPON_UNCHANGED;
 	s_controls.playerChat			 = qfalse;
 
 	switch( anim ) {
@@ -686,56 +686,56 @@ static void Controls_UpdateModel( int anim ) {
 		break;
 
 	case ANIM_WEAPON1:
-		s_controls.playerWeapon = WP_GAUNTLET;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON2:
-		s_controls.playerWeapon = WP_MACHINEGUN;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON3:
-		s_controls.playerWeapon = WP_SHOTGUN;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON4:
-		s_controls.playerWeapon = WP_GRENADE_LAUNCHER;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON5:
-		s_controls.playerWeapon = WP_ROCKET_LAUNCHER;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON6:
-		s_controls.playerWeapon = WP_LIGHTNING;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON7:
-		s_controls.playerWeapon = WP_RAILGUN;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON8:
-		s_controls.playerWeapon = WP_PLASMAGUN;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON9:
-		s_controls.playerWeapon = WP_BFG;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON10:
-		s_controls.playerWeapon = WP_GRAPPLING_HOOK;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 #ifdef MISSIONPACK
 	case ANIM_WEAPON11:
-		s_controls.playerWeapon = WP_NAILGUN;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON12:
-		s_controls.playerWeapon = WP_PROX_LAUNCHER;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 
 	case ANIM_WEAPON13:
-		s_controls.playerWeapon = WP_CHAINGUN;
+		s_controls.playerWeapon = WP_NONE;
 		break;
 #endif
 

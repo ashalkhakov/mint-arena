@@ -825,24 +825,35 @@ static void CG_DrawPlayerFace( rectDef_t *rect, vec4_t color ) {
 ==============
 Weapon slots
 
-A weapon selector in a menu script: each owner draw takes its weapon's
-number from the item's special.
+A weapon selector in a menu script: each owner draw takes its slot (the
+weapon defs' "weapon_slot") from the item's special, and draws the weapon the
+player has in the slot, the selected one if it's there.
 ==============
 */
-static qboolean CG_HasWeapon( int weapon ) {
-	if ( weapon <= WP_NONE || weapon >= WP_NUM_WEAPONS ) {
-		return qfalse;
+static int CG_SlotWeapon( int slot ) {
+	int w;
+
+	w = cg.cur_lc->weaponSelect;
+	if ( BG_ValidWeapon( w ) && BG_Weapon( w )->slot == slot && BG_HasWeapon( cg.cur_ps, w ) ) {
+		return w;
 	}
-	return BG_HasWeapon( cg.cur_ps, weapon ) != 0;
+	for ( w = 1; w < bg_numWeapons; w++ ) {
+		if ( BG_Weapon( w )->slot == slot && BG_HasWeapon( cg.cur_ps, w ) ) {
+			return w;
+		}
+	}
+	return WP_NONE;
 }
 
 // the weapon's model turning on the rect's middle, or its icon in the rect
-static void CG_DrawWeaponIcon( rectDef_t *rect, int weapon, qboolean draw2D ) {
+static void CG_DrawWeaponIcon( rectDef_t *rect, int slot, qboolean draw2D ) {
 	weaponInfo_t	*wi;
 	vec3_t			mins, maxs, center, origin, angles, axis[3];
 	float			radius, size;
+	int				weapon;
 
-	if ( !CG_HasWeapon( weapon ) ) {
+	weapon = CG_SlotWeapon( slot );
+	if ( weapon == WP_NONE ) {
 		return;
 	}
 	CG_RegisterWeapon( weapon );
@@ -875,11 +886,12 @@ static void CG_DrawWeaponIcon( rectDef_t *rect, int weapon, qboolean draw2D ) {
 }
 
 // the weapon's ammo, for a weapon that has some and uses it
-static void CG_DrawWeaponAmmo( rectDef_t *rect, int weapon, float scale, vec4_t color, int textStyle ) {
+static void CG_DrawWeaponAmmo( rectDef_t *rect, int slot, float scale, vec4_t color, int textStyle ) {
 	char	num[16];
-	int		value;
+	int		value, weapon;
 
-	if ( !CG_HasWeapon( weapon ) ) {
+	weapon = CG_SlotWeapon( slot );
+	if ( weapon == WP_NONE || BG_Weapon( weapon )->ammoRequired <= 0 ) {
 		return;
 	}
 	value = cg.cur_ps->ammo[weapon];
@@ -891,8 +903,8 @@ static void CG_DrawWeaponAmmo( rectDef_t *rect, int weapon, float scale, vec4_t 
 }
 
 // the item's background when the weapon is the one selected
-static void CG_DrawWeaponSelected( rectDef_t *rect, int weapon, vec4_t color, qhandle_t shader ) {
-	if ( !shader || weapon != cg.cur_lc->weaponSelect || !CG_HasWeapon( weapon ) ) {
+static void CG_DrawWeaponSelected( rectDef_t *rect, int slot, vec4_t color, qhandle_t shader ) {
+	if ( !shader || CG_SlotWeapon( slot ) == WP_NONE || CG_SlotWeapon( slot ) != cg.cur_lc->weaponSelect ) {
 		return;
 	}
 	trap_R_SetColor( color );

@@ -370,17 +370,7 @@ void Use_Shooter( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 
 	VectorNormalize( dir );
 
-	switch ( ent->s.weapon ) {
-	case WP_GRENADE_LAUNCHER:
-		fire_grenade( ent, ent->s.origin, dir );
-		break;
-	case WP_ROCKET_LAUNCHER:
-		fire_rocket( ent, ent->s.origin, dir );
-		break;
-	case WP_PLASMAGUN:
-		fire_plasma( ent, ent->s.origin, dir );
-		break;
-	}
+	fire_projectile( ent, BG_Weapon( ent->s.weapon )->projectile, ent->s.weapon, ent->s.origin, dir );
 
 	G_AddEvent( ent, EV_FIRE_WEAPON, 0 );
 }
@@ -392,11 +382,25 @@ static void InitShooter_Finish( gentity_t *ent ) {
 	ent->nextthink = 0;
 }
 
-void InitShooter( gentity_t *ent, int weapon ) {
+void InitShooter( gentity_t *ent ) {
+	char	*name;
+	int		weapon;
+
+	G_SpawnString( "weapon", "", &name );
+	weapon = BG_WeaponForName( name );
+	if ( weapon == WP_NONE || !BG_Weapon( weapon )->projectile || BG_Weapon( weapon )->hitscan ) {
+		G_Printf( S_COLOR_YELLOW "WARNING: %s at %s: \"weapon\" \"%s\" isn't a weapon with projectiles\n",
+			ent->classname, vtos( ent->s.origin ), name );
+		G_FreeEntity( ent );
+		return;
+	}
+
 	ent->use = Use_Shooter;
 	ent->s.weapon = weapon;
 
-	RegisterItem( BG_FindItemForWeapon( weapon ) );
+	if ( BG_FindItemForWeapon( weapon ) ) {
+		RegisterItem( BG_FindItemForWeapon( weapon ) );
+	}
 
 	G_SetMovedir( ent->s.angles, ent->movedir );
 
@@ -414,10 +418,11 @@ void InitShooter( gentity_t *ent, int weapon ) {
 
 /*QUAKED shooter_rocket (1 0 0) (-16 -16 -16) (16 16 16)
 Fires at either the target or the current direction.
+"weapon" the weapon def whose projectiles it fires.
 "random" the number of degrees of deviance from the taget. (1.0 default)
 */
 void SP_shooter_rocket( gentity_t *ent ) {
-	InitShooter( ent, WP_ROCKET_LAUNCHER );
+	InitShooter( ent );
 }
 
 /*QUAKED shooter_plasma (1 0 0) (-16 -16 -16) (16 16 16)
@@ -425,7 +430,7 @@ Fires at either the target or the current direction.
 "random" is the number of degrees of deviance from the taget. (1.0 default)
 */
 void SP_shooter_plasma( gentity_t *ent ) {
-	InitShooter( ent, WP_PLASMAGUN);
+	InitShooter( ent );
 }
 
 /*QUAKED shooter_grenade (1 0 0) (-16 -16 -16) (16 16 16)
@@ -433,7 +438,7 @@ Fires at either the target or the current direction.
 "random" is the number of degrees of deviance from the taget. (1.0 default)
 */
 void SP_shooter_grenade( gentity_t *ent ) {
-	InitShooter( ent, WP_GRENADE_LAUNCHER);
+	InitShooter( ent );
 }
 
 /*QUAKED corona (0 1 0) (-4 -4 -4) (4 4 4) START_OFF

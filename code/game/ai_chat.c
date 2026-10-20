@@ -261,51 +261,10 @@ BotWeaponNameForMeansOfDeath
 ==================
 */
 char *BotWeaponNameForMeansOfDeath(int mod) {
-	weapon_t	weapon;
 	gitem_t		*item;
 
 	switch(mod) {
-		case MOD_SHOTGUN:
-			weapon = WP_SHOTGUN;
-			break;
-		case MOD_GAUNTLET:
-			weapon = WP_GAUNTLET;
-			break;
-		case MOD_MACHINEGUN:
-			weapon = WP_MACHINEGUN;
-			break;
-		case MOD_GRENADE:
-		case MOD_GRENADE_SPLASH:
-			weapon = WP_GRENADE_LAUNCHER;
-			break;
-		case MOD_ROCKET:
-		case MOD_ROCKET_SPLASH:
-			weapon = WP_ROCKET_LAUNCHER;
-			break;
-		case MOD_PLASMA:
-		case MOD_PLASMA_SPLASH:
-			weapon = WP_PLASMAGUN;
-			break;
-		case MOD_RAILGUN:
-			weapon = WP_RAILGUN;
-			break;
-		case MOD_LIGHTNING:
-			weapon = WP_LIGHTNING;
-			break;
-		case MOD_BFG:
-		case MOD_BFG_SPLASH:
-			weapon = WP_BFG;
-			break;
 #ifdef MISSIONPACK
-		case MOD_NAIL:
-			weapon = WP_NAILGUN;
-			break;
-		case MOD_CHAINGUN:
-			weapon = WP_CHAINGUN;
-			break;
-		case MOD_PROXIMITY_MINE:
-			weapon = WP_PROX_LAUNCHER;
-			break;
 		case MOD_KAMIKAZE:
 			return "Kamikaze";
 		case MOD_JUICED:
@@ -314,12 +273,12 @@ char *BotWeaponNameForMeansOfDeath(int mod) {
 		case MOD_GRAPPLE:
 			return "Grapple";
 		default:
-			return "[unknown weapon]";
+			break;
 	}
 
-	item = BG_FindItemForWeapon( weapon );
+	item = BG_FindItemForWeapon( MOD_WEAPON( mod ) );
 
-	if ( item ) {
+	if ( item && item->pickup_name ) {
 		return item->pickup_name;
 	}
 
@@ -335,21 +294,14 @@ char *BotRandomWeaponName(void) {
 	int rnd;
 	gitem_t	*item;
 
-#if 0
-	rnd = 1 + random() * ( (float)WP_NUM_WEAPONS - 1.1f );
-#else
-	// skip grapple
-	rnd = 1 + random() * ( (float)WP_NUM_WEAPONS - 2.1f );
-
-	// only happens if there is a weapon after grapple, like in Team Arena
-	if ( rnd >= WP_GRAPPLING_HOOK ) {
-		rnd++;
+	if ( bg_numWeapons < 2 ) {
+		return "[unknown weapon]";
 	}
-#endif
+	rnd = 1 + random() * ( (float)bg_numWeapons - 1.1f );
 
 	item = BG_FindItemForWeapon( rnd );
 
-	if ( item ) {
+	if ( item && item->pickup_name ) {
 		return item->pickup_name;
 	}
 
@@ -652,26 +604,11 @@ int BotChat_Death(bot_state_t *bs) {
 			BotAI_BotInitialChat(bs, "death_kamikaze", name, NULL);
 #endif
 		else {
-			if ((bs->botdeathtype == MOD_GAUNTLET ||
-				bs->botdeathtype == MOD_RAILGUN ||
-				bs->botdeathtype == MOD_BFG ||
-				bs->botdeathtype == MOD_BFG_SPLASH) && random() < 0.5) {
-
-				if (bs->botdeathtype == MOD_GAUNTLET)
-					BotAI_BotInitialChat(bs, "death_gauntlet",
-							name,												// 0
-							BotWeaponNameForMeansOfDeath(bs->botdeathtype),		// 1
-							NULL);
-				else if (bs->botdeathtype == MOD_RAILGUN)
-					BotAI_BotInitialChat(bs, "death_rail",
-							name,												// 0
-							BotWeaponNameForMeansOfDeath(bs->botdeathtype),		// 1
-							NULL);
-				else
-					BotAI_BotInitialChat(bs, "death_bfg",
-							name,												// 0
-							BotWeaponNameForMeansOfDeath(bs->botdeathtype),		// 1
-							NULL);
+			if (BG_Weapon( MOD_WEAPON( bs->botdeathtype ) )->melee && random() < 0.5) {
+				BotAI_BotInitialChat(bs, "death_gauntlet",
+						name,												// 0
+						BotWeaponNameForMeansOfDeath(bs->botdeathtype),		// 1
+						NULL);
 			}
 			//choose between insult and praise
 			else if (random() < Characteristic_BFloat(bs->character, CHARACTERISTIC_CHAT_INSULT, 0, 1)) {
@@ -734,11 +671,8 @@ int BotChat_Kill(bot_state_t *bs) {
 			return qfalse;			// don't wait
 		}
 		//
-		if (bs->enemydeathtype == MOD_GAUNTLET) {
+		if (BG_Weapon( MOD_WEAPON( bs->enemydeathtype ) )->melee) {
 			BotAI_BotInitialChat(bs, "kill_gauntlet", name, NULL);
-		}
-		else if (bs->enemydeathtype == MOD_RAILGUN) {
-			BotAI_BotInitialChat(bs, "kill_rail", name, NULL);
 		}
 		else if (bs->enemydeathtype == MOD_TELEFRAG) {
 			BotAI_BotInitialChat(bs, "kill_telefrag", name, NULL);

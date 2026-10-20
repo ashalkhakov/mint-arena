@@ -359,6 +359,157 @@ void BG_LoadDefs( void ) {
 /*
 ===============================================================================
 
+WEAPONS
+
+A weapon is an entity def with a "weapon_slot", the number key that selects
+it. Weapons are numbered from 1 by slot, then by name, the same in the game
+and the cgame. Its keys (Doom 3's names where Doom 3 has one):
+	"weapon_slot" N			the number key
+	"fireRate" S			seconds between shots
+	"ammoRequired" N		ammo a shot takes, 0 for none
+	"maxAmmo" N				the most ammo it holds
+	"raiseTime" S, "lowerTime" S	seconds to raise and put it away
+	"melee" 1				fires only at something in reach
+	"def_projectile" "<def>"	what it fires
+	"numProjectiles" N		that many a shot
+	"spread" D				degrees off aim, at most
+A projectile with "hitscan" "1" is traced at once, to its "range".
+A weapon is often an item too, Doom 3 style, with "inv_weapon" naming itself.
+
+===============================================================================
+*/
+
+bgWeapon_t	bg_weapons[MAX_WEAPONS];
+int			bg_numWeapons = 1;
+
+typedef struct {
+	const dict_t	*def;
+	const char		*name;
+	int				slot;
+} bgWeaponSort_t;
+
+static int QDECL BG_CompareWeapons( const void *a, const void *b ) {
+	const bgWeaponSort_t *wa = a, *wb = b;
+
+	if ( wa->slot != wb->slot ) {
+		return wa->slot - wb->slot;
+	}
+	return Q_stricmp( wa->name, wb->name );
+}
+
+static int BG_DefMsec( const dict_t *dict, const char *key, const char *defaultSeconds ) {
+	return (int)( DictGetFloat( dict, key, defaultSeconds ) * 1000.0f + 0.5f );
+}
+
+/*
+================
+BG_InitWeapons
+================
+*/
+static void BG_InitWeapons( void ) {
+	static bgWeaponSort_t sorted[MAX_WEAPONS];
+	bgWeapon_t *w;
+	const dict_t *dict;
+	const char *projectile;
+	int i, num;
+
+	num = 0;
+	for ( i = 0; i < BG_NumDefs(); i++ ) {
+		dict = BG_DefForNum( i );
+		if ( !DictFindKey( dict, "weapon_slot" ) ) {
+			continue;
+		}
+		if ( num == MAX_WEAPONS - 1 ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d weapons, %s left out\n", MAX_WEAPONS - 1, BG_DefName( i ) );
+			break;
+		}
+		sorted[num].def = dict;
+		sorted[num].name = BG_DefName( i );
+		sorted[num].slot = DictGetInt( dict, "weapon_slot", "0" );
+		num++;
+	}
+	qsort( sorted, num, sizeof( sorted[0] ), BG_CompareWeapons );
+
+	memset( bg_weapons, 0, sizeof( bg_weapons ) );
+	bg_weapons[WP_NONE].name = "";
+	for ( i = 0; i < num; i++ ) {
+		w = &bg_weapons[i + 1];
+		dict = sorted[i].def;
+		w->def = dict;
+		w->name = sorted[i].name;
+		w->slot = sorted[i].slot;
+		w->fireTime = BG_DefMsec( dict, "fireRate", "0.5" );
+		if ( w->fireTime < 1 ) {
+			w->fireTime = 1;
+		}
+		w->ammoRequired = DictGetInt( dict, "ammoRequired", "1" );
+		w->maxAmmo = DictGetInt( dict, "maxAmmo", "200" );
+		w->raiseTime = BG_DefMsec( dict, "raiseTime", "0.25" );
+		w->lowerTime = BG_DefMsec( dict, "lowerTime", "0.2" );
+		w->melee = DictGetBool( dict, "melee", "0" );
+		w->numProjectiles = DictGetInt( dict, "numProjectiles", "1" );
+		w->spread = DictGetFloat( dict, "spread", "0" );
+		if ( DictGetString( dict, "def_projectile", "", &projectile ) && projectile[0] ) {
+			w->projectile = BG_FindDef( projectile );
+			if ( !w->projectile ) {
+				Com_Printf( S_COLOR_YELLOW "WARNING: weapon %s: no projectile def %s\n", w->name, projectile );
+			}
+		}
+		if ( w->projectile ) {
+			w->hitscan = DictGetBool( w->projectile, "hitscan", "0" );
+			w->range = DictGetFloat( w->projectile, "range", "8192" );
+		}
+	}
+	bg_numWeapons = num + 1;
+}
+
+/*
+================
+BG_WeaponForName
+
+The number of the weapon def, WP_NONE for none.
+================
+*/
+int BG_WeaponForName( const char *name ) {
+	int i;
+
+	if ( !name || !name[0] ) {
+		return WP_NONE;
+	}
+	for ( i = 1; i < bg_numWeapons; i++ ) {
+		if ( !Q_stricmp( bg_weapons[i].name, name ) ) {
+			return i;
+		}
+	}
+	return WP_NONE;
+}
+
+/*
+================
+BG_HitscanDir
+
+One shot of a hitscan weapon, at most spread degrees off forward. The game
+and the cgame make the same shots from the same seed.
+================
+*/
+void BG_HitscanDir( const vec3_t forward, const vec3_t right, const vec3_t up, float spread, int *seed, vec3_t dir ) {
+	float r, u, s;
+
+	if ( spread <= 0 ) {
+		VectorCopy( forward, dir );
+		return;
+	}
+	s = tan( DEG2RAD( spread ) );
+	r = Q_crandom( seed ) * s;
+	u = Q_crandom( seed ) * s;
+	VectorMA( forward, r, right, dir );
+	VectorMA( dir, u, up, dir );
+	VectorNormalize( dir );
+}
+
+/*
+===============================================================================
+
 ITEMS
 
 Items are entity defs with "spawnclass" "item". The built-in ones (the
@@ -417,7 +568,7 @@ A def for each built-in item, with its keys.
 ================
 */
 static void BG_AddBuiltinItemDefs( void ) {
-	const gitem_t *it, *weapon;
+	const gitem_t *it;
 	dict_t *dict;
 	int i;
 
@@ -451,22 +602,6 @@ static void BG_AddBuiltinItemDefs( void ) {
 			break;
 		case IT_ARMOR:
 			DictSetInt( dict, "inv_armor", it->quantity );
-			break;
-		case IT_WEAPON:
-			DictSet( dict, "inv_weapon", it->classname );
-			DictSetInt( dict, "inv_ammo", it->quantity );
-			break;
-		case IT_AMMO:
-			for ( weapon = bg_builtinItems + 1; weapon->classname; weapon++ ) {
-				if ( weapon->giType == IT_WEAPON && weapon->giTag == it->giTag ) {
-					break;
-				}
-			}
-			if ( !weapon->classname ) {
-				weapon = NULL;
-			}
-			DictSetInt( dict, "inv_ammo", it->quantity );
-			DictSet( dict, "ammo_type", weapon ? weapon->classname : "" );
 			break;
 		case IT_POWERUP:
 			DictSet( dict, "inv_powerup", it->classname );
@@ -511,6 +646,28 @@ static qboolean BG_ItemTag( const dict_t *dict, const char *key, itemType_t type
 	return qtrue;
 }
 
+/*
+================
+BG_WeaponTag
+
+The number of the weapon a key names.
+================
+*/
+static qboolean BG_WeaponTag( const dict_t *dict, const char *key, int *tag ) {
+	const char *name;
+
+	if ( !DictGetString( dict, key, "", &name ) || !name[0] ) {
+		return qfalse;
+	}
+	*tag = BG_WeaponForName( name );
+	if ( *tag == WP_NONE ) {
+		Com_Printf( S_COLOR_YELLOW "WARNING: item %s: %s \"%s\" isn't a weapon\n",
+					DictGetStringReference( dict, "classname", "?" ), key, name );
+		return qfalse;
+	}
+	return qtrue;
+}
+
 static char *BG_DefString( const dict_t *dict, const char *key ) {
 	const char *value;
 
@@ -541,6 +698,16 @@ static qboolean BG_ItemFromDef( const dict_t *dict, gitem_t *item ) {
 	if ( !item->sounds ) {
 		item->sounds = "";
 	}
+	// Quake 3's code takes these for granted
+	if ( !item->icon ) {
+		item->icon = "";
+	}
+	if ( !item->pickup_name ) {
+		item->pickup_name = item->classname;
+	}
+	if ( !item->world_model[0] ) {
+		item->world_model[0] = "";
+	}
 
 	if ( DictFindKey( dict, "inv_health" ) ) {
 		item->giType = IT_HEALTH;
@@ -548,10 +715,10 @@ static qboolean BG_ItemFromDef( const dict_t *dict, gitem_t *item ) {
 	} else if ( DictFindKey( dict, "inv_armor" ) ) {
 		item->giType = IT_ARMOR;
 		item->quantity = DictGetInt( dict, "inv_armor", "0" );
-	} else if ( BG_ItemTag( dict, "inv_weapon", IT_WEAPON, &tag ) ) {
+	} else if ( BG_WeaponTag( dict, "inv_weapon", &tag ) ) {
 		item->giType = IT_WEAPON;
 		item->quantity = DictGetInt( dict, "inv_ammo", "0" );
-	} else if ( BG_ItemTag( dict, "ammo_type", IT_WEAPON, &tag ) ) {
+	} else if ( BG_WeaponTag( dict, "ammo_type", &tag ) ) {
 		item->giType = IT_AMMO;
 		item->quantity = DictGetInt( dict, "inv_ammo", "0" );
 	} else if ( BG_ItemTag( dict, "inv_powerup", IT_POWERUP, &tag ) ) {
@@ -591,6 +758,7 @@ void BG_InitItems( void ) {
 	BG_ClearDefs();
 	BG_AddBuiltinItemDefs();
 	BG_LoadDefs();
+	BG_InitWeapons();
 
 	// the built-in items keep their numbers
 	memset( bg_defItems, 0, sizeof( bg_defItems ) );
@@ -627,7 +795,7 @@ void BG_InitItems( void ) {
 	bg_itemlist = bg_defItems;
 	bg_numItems = num;
 
-	Com_DPrintf( "%d entity defs, %d items (%d from defs)\n", BG_NumDefs(), num - 1, num - firstNew );
+	Com_DPrintf( "%d entity defs, %d items (%d from defs), %d weapons\n", BG_NumDefs(), num - 1, num - firstNew, bg_numWeapons - 1 );
 }
 
 /*

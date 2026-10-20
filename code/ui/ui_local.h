@@ -201,6 +201,8 @@ typedef struct {
 	int				localPlayerNum;
 } uiPlayerInfo_t;
 
+#define UI_WEAPON_UNCHANGED		-1	// UI_PlayerInfo_SetInfo keeps the weapon
+
 void UI_DrawPlayer( float x, float y, float w, float h, uiPlayerInfo_t *pi, int time );
 void UI_PlayerInfo_SetModel( uiPlayerInfo_t *pi, const char *model, const char *headmodel, char *teamName );
 void UI_PlayerInfo_SetInfo( uiPlayerInfo_t *pi, int localPlayerNum, int legsAnim, int torsoAnim, vec3_t viewAngles, vec3_t moveAngles, weapon_t weaponNum, qboolean chat );

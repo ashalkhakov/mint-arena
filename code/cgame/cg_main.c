@@ -2767,7 +2767,7 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 	cgs.serverCommandSequence = serverCommandSequence;
 
 	for (i = 0; i < CG_MaxSplitView(); i++) {
-		cg.localPlayers[i].weaponSelect = WP_GAUNTLET;
+		cg.localPlayers[i].weaponSelect = WP_NONE;
 	}
 
 	cgs.redflag = cgs.blueflag = -1; // For compatibily, default to unset for

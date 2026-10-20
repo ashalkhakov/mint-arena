@@ -461,40 +461,28 @@ void PlayerTimerActions( gentity_t *ent, int msec ) {
 	}
 #ifdef MISSIONPACK
 	if( BG_ItemForItemNum( player->ps.stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_AMMOREGEN ) {
-		int w, max, inc, t, i;
-    int weapList[]={WP_MACHINEGUN,WP_SHOTGUN,WP_GRENADE_LAUNCHER,WP_ROCKET_LAUNCHER,WP_LIGHTNING,WP_RAILGUN,WP_PLASMAGUN,WP_BFG,WP_NAILGUN,WP_PROX_LAUNCHER,WP_CHAINGUN};
-    int weapCount = ARRAY_LEN( weapList );
-		//
-    for (i = 0; i < weapCount; i++) {
-		  w = weapList[i];
+		int w, max, t;
 
-		  switch(w) {
-			  case WP_MACHINEGUN: max = 50; inc = 4; t = 1000; break;
-			  case WP_SHOTGUN: max = 10; inc = 1; t = 1500; break;
-			  case WP_GRENADE_LAUNCHER: max = 10; inc = 1; t = 2000; break;
-			  case WP_ROCKET_LAUNCHER: max = 10; inc = 1; t = 1750; break;
-			  case WP_LIGHTNING: max = 50; inc = 5; t = 1500; break;
-			  case WP_RAILGUN: max = 10; inc = 1; t = 1750; break;
-			  case WP_PLASMAGUN: max = 50; inc = 5; t = 1500; break;
-			  case WP_BFG: max = 10; inc = 1; t = 4000; break;
-			  case WP_NAILGUN: max = 10; inc = 1; t = 1250; break;
-			  case WP_PROX_LAUNCHER: max = 5; inc = 1; t = 2000; break;
-			  case WP_CHAINGUN: max = 100; inc = 5; t = 1000; break;
-			  default: max = 0; inc = 0; t = 1000; break;
-		  }
-		  player->ammoTimes[w] += msec;
-		  if ( player->ps.ammo[w] >= max ) {
-			  player->ammoTimes[w] = 0;
-		  }
-		  if ( player->ammoTimes[w] >= t ) {
-			  while ( player->ammoTimes[w] >= t )
-				  player->ammoTimes[w] -= t;
-			  player->ps.ammo[w] += inc;
-			  if ( player->ps.ammo[w] > max ) {
-				  player->ps.ammo[w] = max;
-			  }
-		  }
-    }
+		// a weapon's ammo comes back to a quarter of its most
+		for ( w = 1; w < bg_numWeapons; w++ ) {
+			if ( !BG_HasWeapon( &player->ps, w ) || BG_Weapon( w )->ammoRequired <= 0 ) {
+				continue;
+			}
+			max = BG_Weapon( w )->maxAmmo / 4;
+			t = BG_Weapon( w )->fireTime * 2;
+			player->ammoTimes[w] += msec;
+			if ( player->ps.ammo[w] >= max ) {
+				player->ammoTimes[w] = 0;
+			}
+			if ( player->ammoTimes[w] >= t ) {
+				while ( player->ammoTimes[w] >= t )
+					player->ammoTimes[w] -= t;
+				player->ps.ammo[w]++;
+				if ( player->ps.ammo[w] > max ) {
+					player->ps.ammo[w] = max;
+				}
+			}
+		}
 	}
 #endif
 }
@@ -835,12 +823,6 @@ void PlayerThink_real( gentity_t *ent ) {
 #endif
 	if ( player->ps.powerups[PW_HASTE] ) {
 		player->ps.speed *= 1.3;
-	}
-
-	// Let go of the hook if we aren't firing
-	if ( player->ps.weapon == WP_GRAPPLING_HOOK &&
-		player->hook && !( ucmd->buttons & BUTTON_ATTACK ) ) {
-		Weapon_HookFree(player->hook);
 	}
 
 	// set up for pmove

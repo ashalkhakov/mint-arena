@@ -476,45 +476,54 @@ typedef struct {
 // each WP_* weapon enum has an associated weaponInfo_t
 // that contains media references necessary to present the
 // weapon and its effects
+// each weapon has a weaponInfo_t, made from its entity def and its
+// projectile's (CG_RegisterWeapon)
+#define MAX_WEAPON_SOUNDS		4
+
 typedef struct weaponInfo_s {
 	qboolean		registered;
-	gitem_t			*item;
+	gitem_t			*item;				// NULL for a weapon with no pickup
 
 	qhandle_t		handsModel;			// the hands don't actually draw, they just position the weapon
-	qhandle_t		weaponModel;
-	qhandle_t		barrelModel;
-	qhandle_t		flashModel;
+	qhandle_t		weaponModel;		// "model_world", on the player's tag_weapon
+	qhandle_t		flashModel;			// "model_flash", on the weapon's tag_flash
 
-	qhandle_t	firstModel;	//Elder: view model
-	qboolean	animated;
-	animation_t animations[MAX_WEAPON_ANIMATIONS];
+	qhandle_t		firstModel;			// "model_view", in first person
+	qboolean		animated;			// the view model has its "anim_*" animations
+	animation_t		animations[MAX_WEAPON_ANIMATIONS];
 
 	vec3_t			weaponMidpoint;		// so it will rotate centered instead of by tag
 
-	float			flashDlight;
-	vec3_t			flashDlightColor;
-	sfxHandle_t		flashSound[4];		// fast firing weapons randomly choose
+	float			flashDlight;		// "flashRadius"
+	vec3_t			flashDlightColor;	// "flashColor"
+	sfxHandle_t		flashSound[MAX_WEAPON_SOUNDS];	// "snd_fire", chosen at random
+	qhandle_t		muzzleEffect;		// "fx_muzzle"
 
 	qhandle_t		weaponIcon;
 	qhandle_t		ammoIcon;
 
 	qhandle_t		ammoModel;
 
-	qhandle_t		missileModel;
-	sfxHandle_t		missileSound;
+	// the projectile
+	qhandle_t		missileModel;		// "model"
+	sfxHandle_t		missileSound;		// "snd_fly"
 	void			(*missileTrailFunc)( centity_t *, const struct weaponInfo_s *wi );
-	float			missileDlight;
-	vec3_t			missileDlightColor;
+	float			missileDlight;		// "light_radius"
+	vec3_t			missileDlightColor;	// "light_color"
+	qhandle_t		flyEffect;			// "fx_fly", every "fx_fly_interval" seconds
+	int				flyInterval;
+	qhandle_t		detonateEffect;		// "fx_detonate"
+	sfxHandle_t		detonateSound[MAX_WEAPON_SOUNDS];	// "snd_explode"
+	qhandle_t		impactEffect;		// "fx_impact", where hitscan shots hit
+	qhandle_t		impactFleshEffect;	// "fx_impact_flesh"
+	sfxHandle_t		impactSound[MAX_WEAPON_SOUNDS];	// "snd_impact"
+	qhandle_t		markShader;			// "mtr_detonate"
+	float			markRadius;			// "decal_size"
 
-	void			(*ejectBrassFunc)( centity_t * );
+	sfxHandle_t		readySound;			// "snd_hum", looped
+	sfxHandle_t		firingSound;		// "snd_firing", looped while firing
+	sfxHandle_t		raiseSound;			// "snd_raise"
 
-	float			trailRadius;
-	float			wiTrailTime;
-
-	sfxHandle_t		readySound;
-	sfxHandle_t		firingSound;
-
-	// Elder: sounds to queue
 	sfxWeapTiming_t animationSounds[MAX_ANIM_SOUNDS];
 } weaponInfo_t;
 
@@ -1860,7 +1869,7 @@ void CG_FireWeapon( centity_t *cent );
 void CG_MissileHitWall( int weapon, int playerNum, vec3_t origin, vec3_t dir, impactSound_t soundType );
 void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum );
 void CG_ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, int otherEntNum );
-void CG_ShotgunFire( entityState_t *es );
+void CG_HitscanFire( entityState_t *es );
 void CG_Bullet( vec3_t origin, int sourceEntityNum, vec3_t normal, qboolean flesh, int fleshEntityNum );
 
 void CG_RailTrail( playerInfo_t *pi, vec3_t start, vec3_t end );

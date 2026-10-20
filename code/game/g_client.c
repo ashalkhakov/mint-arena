@@ -1045,6 +1045,74 @@ void PlayerBegin( int playerNum ) {
 
 /*
 ===========
+G_IsStartWeapon
+
+Whether players start with the weapon: the "player" entity def's "weapon"
+key (Doom 3's) lists the weapon defs they do.
+===========
+*/
+qboolean G_IsStartWeapon( int weapon ) {
+	const dict_t *def;
+	const char *list;
+	char *p, *token;
+	char buf[MAX_STRING_CHARS];
+
+	def = BG_FindDef( "player" );
+	if ( !def || !DictGetString( def, "weapon", "", &list ) ) {
+		return qfalse;
+	}
+	Q_strncpyz( buf, list, sizeof( buf ) );
+	for ( p = buf; ; ) {
+		token = COM_ParseExt( &p, qfalse );
+		if ( !token[0] ) {
+			return qfalse;
+		}
+		if ( !Q_stricmp( token, BG_Weapon( weapon )->name ) ) {
+			return qtrue;
+		}
+	}
+}
+
+/*
+===========
+G_GiveStartWeapons
+
+The start weapons, each with its def's "startAmmo".
+===========
+*/
+static void G_GiveStartWeapons( gplayer_t *player ) {
+	int weapon;
+
+	BG_ClearWeapons( &player->ps );
+	for ( weapon = 1; weapon < bg_numWeapons; weapon++ ) {
+		if ( !G_IsStartWeapon( weapon ) ) {
+			continue;
+		}
+		BG_GiveWeapon( &player->ps, weapon );
+		player->ps.ammo[weapon] = g_instagib.integer ? 999 : DictGetInt( BG_Weapon( weapon )->def, "startAmmo", "0" );
+	}
+}
+
+/*
+===========
+G_FirstWeapon
+
+The lowest weapon the player has.
+===========
+*/
+static int G_FirstWeapon( playerState_t *ps ) {
+	int i;
+
+	for ( i = 1; i < bg_numWeapons; i++ ) {
+		if ( BG_HasWeapon( ps, i ) ) {
+			return i;
+		}
+	}
+	return WP_NONE;
+}
+
+/*
+===========
 PlayerSpawn
 
 Called every time a player is placed fresh in the world:
@@ -1170,25 +1238,7 @@ void PlayerSpawn(gentity_t *ent) {
 
 	player->ps.playerNum = index;
 
-	if ( g_instagib.integer ) {
-		BG_ClearWeapons( &player->ps );
-		BG_GiveWeapon( &player->ps, WP_RAILGUN );
-		player->ps.ammo[WP_RAILGUN] = 999;
-	} else {
-#if 0
-		BG_ClearWeapons( &player->ps );
-		BG_GiveWeapon( &player->ps, WP_MACHINEGUN );
-		if ( g_gametype.integer == GT_TEAM ) {
-			player->ps.ammo[WP_MACHINEGUN] = 50;
-		} else {
-			player->ps.ammo[WP_MACHINEGUN] = 100;
-		}
-#endif
-	}
-
-	BG_GiveWeapon( &player->ps, WP_GAUNTLET );
-	player->ps.ammo[WP_GAUNTLET] = -1;
-	player->ps.ammo[WP_GRAPPLING_HOOK] = -1;
+	G_GiveStartWeapons( player );
 
 	// health will count down towards max_health
 	ent->health = player->ps.stats[STAT_HEALTH] = player->ps.stats[STAT_MAX_HEALTH] + 25;
@@ -1217,14 +1267,14 @@ void PlayerSpawn(gentity_t *ent) {
 		if (ent->player->sess.sessionTeam != TEAM_SPECTATOR) {
 			G_KillBox(ent);
 			// force the base weapon up
-			player->ps.weapon = WP_GAUNTLET;
+			player->ps.weapon = G_FirstWeapon( &player->ps );
 			player->ps.weaponstate = WEAPON_READY;
 			// fire the targets of the spawn point
 			G_UseTargets(spawnPoint, ent);
 			// select the highest weapon number available, after any spawn given items have fired
-			player->ps.weapon = 1;
+			player->ps.weapon = G_FirstWeapon( &player->ps );
 
-			for (i = WP_NUM_WEAPONS - 1 ; i > 0 ; i--) {
+			for (i = bg_numWeapons - 1 ; i > 0 ; i--) {
 				if ( BG_HasWeapon( &player->ps, i ) ) {
 					player->ps.weapon = i;
 					break;

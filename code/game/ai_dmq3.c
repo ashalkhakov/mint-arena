@@ -1754,6 +1754,45 @@ void BotCheckItemPickup(bot_state_t *bs, int *oldinventory) {
 
 /*
 ==================
+BotWeaponInventory
+==================
+*/
+static void BotWeaponInventory( bot_state_t *bs ) {
+	static const int slotWeapons[][2] = {
+		{ INVENTORY_GAUNTLET, -1 },
+		{ INVENTORY_GAUNTLET, -1 },
+		{ INVENTORY_MACHINEGUN, INVENTORY_BULLETS },
+		{ INVENTORY_GRENADELAUNCHER, INVENTORY_GRENADES },
+		{ INVENTORY_SHOTGUN, INVENTORY_SHELLS },
+		{ INVENTORY_ROCKETLAUNCHER, INVENTORY_ROCKETS },
+		{ INVENTORY_BFG10K, INVENTORY_BFGAMMO },
+		{ INVENTORY_RAILGUN, INVENTORY_SLUGS },
+	};
+	int w, slot;
+
+	for ( w = 0; w < ARRAY_LEN( slotWeapons ); w++ ) {
+		bs->inventory[slotWeapons[w][0]] = 0;
+		if ( slotWeapons[w][1] >= 0 ) {
+			bs->inventory[slotWeapons[w][1]] = 0;
+		}
+	}
+	for ( w = 1; w < bg_numWeapons; w++ ) {
+		if ( !BG_HasWeapon( &bs->cur_ps, w ) ) {
+			continue;
+		}
+		slot = BG_Weapon( w )->slot;
+		if ( slot < 0 || slot >= ARRAY_LEN( slotWeapons ) ) {
+			continue;
+		}
+		bs->inventory[slotWeapons[slot][0]] = 1;
+		if ( slotWeapons[slot][1] >= 0 ) {
+			bs->inventory[slotWeapons[slot][1]] = bs->cur_ps.ammo[w];
+		}
+	}
+}
+
+/*
+==================
 BotUpdateInventory
 ==================
 */
@@ -1763,36 +1802,9 @@ void BotUpdateInventory(bot_state_t *bs) {
 	memcpy(oldinventory, bs->inventory, sizeof(oldinventory));
 	//armor
 	bs->inventory[INVENTORY_ARMOR] = bs->cur_ps.stats[STAT_ARMOR];
-	//weapons
-	bs->inventory[INVENTORY_GAUNTLET] = BG_HasWeapon( &bs->cur_ps, WP_GAUNTLET );
-	bs->inventory[INVENTORY_SHOTGUN] = BG_HasWeapon( &bs->cur_ps, WP_SHOTGUN );
-	bs->inventory[INVENTORY_MACHINEGUN] = BG_HasWeapon( &bs->cur_ps, WP_MACHINEGUN );
-	bs->inventory[INVENTORY_GRENADELAUNCHER] = BG_HasWeapon( &bs->cur_ps, WP_GRENADE_LAUNCHER );
-	bs->inventory[INVENTORY_ROCKETLAUNCHER] = BG_HasWeapon( &bs->cur_ps, WP_ROCKET_LAUNCHER );
-	bs->inventory[INVENTORY_LIGHTNING] = BG_HasWeapon( &bs->cur_ps, WP_LIGHTNING );
-	bs->inventory[INVENTORY_RAILGUN] = BG_HasWeapon( &bs->cur_ps, WP_RAILGUN );
-	bs->inventory[INVENTORY_PLASMAGUN] = BG_HasWeapon( &bs->cur_ps, WP_PLASMAGUN );
-	bs->inventory[INVENTORY_BFG10K] = BG_HasWeapon( &bs->cur_ps, WP_BFG );
-	bs->inventory[INVENTORY_GRAPPLINGHOOK] = BG_HasWeapon( &bs->cur_ps, WP_GRAPPLING_HOOK );
-#ifdef MISSIONPACK
-	bs->inventory[INVENTORY_NAILGUN] = BG_HasWeapon( &bs->cur_ps, WP_NAILGUN );
-	bs->inventory[INVENTORY_PROXLAUNCHER] = BG_HasWeapon( &bs->cur_ps, WP_PROX_LAUNCHER );
-	bs->inventory[INVENTORY_CHAINGUN] = BG_HasWeapon( &bs->cur_ps, WP_CHAINGUN );
-#endif
-	//ammo
-	bs->inventory[INVENTORY_SHELLS] = bs->cur_ps.ammo[WP_SHOTGUN];
-	bs->inventory[INVENTORY_BULLETS] = bs->cur_ps.ammo[WP_MACHINEGUN];
-	bs->inventory[INVENTORY_GRENADES] = bs->cur_ps.ammo[WP_GRENADE_LAUNCHER];
-	bs->inventory[INVENTORY_CELLS] = bs->cur_ps.ammo[WP_PLASMAGUN];
-	bs->inventory[INVENTORY_LIGHTNINGAMMO] = bs->cur_ps.ammo[WP_LIGHTNING];
-	bs->inventory[INVENTORY_ROCKETS] = bs->cur_ps.ammo[WP_ROCKET_LAUNCHER];
-	bs->inventory[INVENTORY_SLUGS] = bs->cur_ps.ammo[WP_RAILGUN];
-	bs->inventory[INVENTORY_BFGAMMO] = bs->cur_ps.ammo[WP_BFG];
-#ifdef MISSIONPACK
-	bs->inventory[INVENTORY_NAILS] = bs->cur_ps.ammo[WP_NAILGUN];
-	bs->inventory[INVENTORY_MINES] = bs->cur_ps.ammo[WP_PROX_LAUNCHER];
-	bs->inventory[INVENTORY_BELT] = bs->cur_ps.ammo[WP_CHAINGUN];
-#endif
+	//weapons: the bot weapon config is still Quake 3's, so a weapon counts
+	//as the Quake 3 one in its slot
+	BotWeaponInventory( bs );
 	//powerups
 	bs->inventory[INVENTORY_HEALTH] = bs->cur_ps.stats[STAT_HEALTH];
 	bs->inventory[INVENTORY_TELEPORTER] = bs->cur_ps.stats[STAT_HOLDABLE_ITEM] == MODELINDEX_TELEPORTER;
@@ -2281,7 +2293,7 @@ float BotAggression(bot_state_t *bs) {
 	//if the bot has quad
 	if (bs->inventory[INVENTORY_QUAD]) {
 		//if the bot is not holding the gauntlet or the enemy is really nearby
-		if (bs->weaponnum != WP_GAUNTLET ||
+		if (!BG_Weapon( bs->weaponnum )->melee ||
 			bs->inventory[ENEMY_HORIZONTAL_DIST] < 80) {
 			return 70;
 		}
@@ -2326,13 +2338,13 @@ BotFeelingBad
 ==================
 */
 float BotFeelingBad(bot_state_t *bs) {
-	if (bs->weaponnum == WP_GAUNTLET) {
+	if (BG_Weapon( bs->weaponnum )->melee) {
 		return 100;
 	}
 	if (bs->inventory[INVENTORY_HEALTH] < 40) {
 		return 100;
 	}
-	if (bs->weaponnum == WP_MACHINEGUN) {
+	if (BG_Weapon( bs->weaponnum )->slot <= 2) {
 		return 90;
 	}
 	if (bs->inventory[INVENTORY_HEALTH] < 60) {
@@ -2802,7 +2814,7 @@ bot_moveresult_t BotAttackMove(bot_state_t *bs, int tfl) {
 			bs->attackjump_time = FloatTime() + 1;
 		}
 	}
-	if (bs->cur_ps.weapon == WP_GAUNTLET) {
+	if (BG_Weapon( bs->cur_ps.weapon )->melee) {
 		attack_dist = 0;
 		attack_range = 0;
 	}
@@ -3452,6 +3464,7 @@ void BotAimAtEnemy(bot_state_t *bs) {
 	vec3_t dir, bestorigin, end, start, groundtarget, cmdmove, enemyvelocity;
 	vec3_t mins = {-4,-4,-4}, maxs = {4, 4, 4};
 	weaponinfo_t wi;
+	const bgWeapon_t *weapon;
 	aas_entityinfo_t entinfo;
 	bot_goal_t goal;
 	bsp_trace_t trace;
@@ -3490,33 +3503,20 @@ void BotAimAtEnemy(bot_state_t *bs) {
 	//get the weapon information
 	BotGetWeaponInfo(bs->ws, bs->weaponnum, &wi);
 	//get the weapon specific aim accuracy and or aim skill
-	if (wi.number == WP_MACHINEGUN) {
-		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_MACHINEGUN, 0, 1);
-	}
-	else if (wi.number == WP_SHOTGUN) {
+	weapon = BG_Weapon( bs->weaponnum );
+	if (weapon->hitscan && weapon->numProjectiles > 1) {
 		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_SHOTGUN, 0, 1);
 	}
-	else if (wi.number == WP_GRENADE_LAUNCHER) {
+	else if (weapon->hitscan) {
+		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_MACHINEGUN, 0, 1);
+	}
+	else if (weapon->projectile && DictGetFloat( weapon->projectile, "gravity", "0" )) {
 		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_GRENADELAUNCHER, 0, 1);
 		aim_skill = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_GRENADELAUNCHER, 0, 1);
 	}
-	else if (wi.number == WP_ROCKET_LAUNCHER) {
+	else if (weapon->projectile) {
 		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_ROCKETLAUNCHER, 0, 1);
 		aim_skill = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_ROCKETLAUNCHER, 0, 1);
-	}
-	else if (wi.number == WP_LIGHTNING) {
-		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_LIGHTNING, 0, 1);
-	}
-	else if (wi.number == WP_RAILGUN) {
-		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_RAILGUN, 0, 1);
-	}
-	else if (wi.number == WP_PLASMAGUN) {
-		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_PLASMAGUN, 0, 1);
-		aim_skill = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_PLASMAGUN, 0, 1);
-	}
-	else if (wi.number == WP_BFG) {
-		aim_accuracy = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_BFG10K, 0, 1);
-		aim_skill = Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_BFG10K, 0, 1);
 	}
 	//
 	if (aim_skill > 0.95) {
@@ -3669,9 +3669,7 @@ void BotAimAtEnemy(bot_state_t *bs) {
 		//if the bot is skilled enough
 		if (aim_skill > 0.5) {
 			//do prediction shots around corners
-			if (wi.number == WP_BFG ||
-				wi.number == WP_ROCKET_LAUNCHER ||
-				wi.number == WP_GRENADE_LAUNCHER) {
+			if (weapon->projectile && !weapon->hitscan && DictFindKey( weapon->projectile, "def_splash_damage" )) {
 				//create the chase goal
 				goal.entitynum = bs->playernum;
 				goal.areanum = bs->areanum;
@@ -3701,10 +3699,7 @@ void BotAimAtEnemy(bot_state_t *bs) {
 	//get aim direction
 	VectorSubtract(bestorigin, bs->eye, dir);
 	//
-	if (wi.number == WP_MACHINEGUN ||
-		wi.number == WP_SHOTGUN ||
-		wi.number == WP_LIGHTNING ||
-		wi.number == WP_RAILGUN) {
+	if (weapon->hitscan) {
 		//distance towards the enemy
 		dist = VectorLength(dir);
 		if (dist > 150) dist = 150;
@@ -3791,8 +3786,8 @@ void BotCheckAttack(bot_state_t *bs) {
 	//
 	VectorSubtract(bs->aimtarget, bs->eye, dir);
 	//
-	if (bs->weaponnum == WP_GAUNTLET) {
-		if (VectorLengthSquared(dir) > Square(60)) {
+	if (BG_Weapon( bs->weaponnum )->melee) {
+		if (VectorLengthSquared(dir) > Square(BG_Weapon( bs->weaponnum )->range)) {
 			return;
 		}
 	}
@@ -5055,7 +5050,7 @@ BotCheckEvents
 */
 void BotCheckForGrenades(bot_state_t *bs, entityState_t *state) {
 	// if this is not a grenade
-	if (state->eType != ET_MISSILE || state->weapon != WP_GRENADE_LAUNCHER)
+	if (state->eType != ET_MISSILE || state->pos.trType != TR_GRAVITY)
 		return;
 	// try to avoid the grenade
 	BotAddAvoidSpot(bs->ms, state->pos.trBase, 160, AVOID_ALWAYS);
@@ -5068,8 +5063,8 @@ BotCheckForProxMines
 ==================
 */
 void BotCheckForProxMines(bot_state_t *bs, entityState_t *state) {
-	// if this is not a prox mine
-	if (state->eType != ET_MISSILE || state->weapon != WP_PROX_LAUNCHER)
+	// there are no prox mines among the weapons now
+	if (state->eType != ET_MISSILE || qtrue)
 		return;
 	// if this prox mine is from someone on our own team
 	if (state->team == BotTeam(bs))

@@ -94,20 +94,19 @@ void TossPlayerItems( gentity_t *self ) {
 	weapon = self->s.weapon;
 
 	// make a special check to see if they are changing to a new
-	// weapon that isn't the mg or gauntlet.  Without this, a player
-	// can pick up a weapon, be killed, and not drop the weapon because
-	// their weapon change hasn't completed yet and they are still holding the MG.
-	if ( weapon == WP_MACHINEGUN || weapon == WP_GRAPPLING_HOOK ) {
-		if ( self->player->ps.weaponstate == WEAPON_DROPPING ) {
-			BG_DecomposeUserCmdValue( self->player->pers.cmd.stateValue, &weapon );
-		}
+	// weapon.  Without this, a player can pick up a weapon, be killed,
+	// and not drop the weapon because their weapon change hasn't
+	// completed yet and they are still holding the old one.
+	if ( self->player->ps.weaponstate == WEAPON_DROPPING ) {
+		BG_DecomposeUserCmdValue( self->player->pers.cmd.stateValue, &weapon );
 		if ( !BG_HasWeapon( &self->player->ps, weapon ) ) {
-			weapon = WP_NONE;
+			weapon = self->s.weapon;
 		}
 	}
 
-	if ( weapon > WP_MACHINEGUN && weapon != WP_GRAPPLING_HOOK && 
-		self->player->ps.ammo[ weapon ] && !g_instagib.integer ) {
+	// the weapons players start with aren't dropped
+	if ( BG_ValidWeapon( weapon ) && !G_IsStartWeapon( weapon ) && BG_FindItemForWeapon( weapon )
+		&& self->player->ps.ammo[ weapon ] && !g_instagib.integer ) {
 		// find the item type for this weapon
 		item = BG_FindItemForWeapon( weapon );
 
@@ -362,21 +361,8 @@ void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int d
 
 
 // these are just for logging, the client prints its own messages
-char	*modNames[] = {
+static const char *modNames[MOD_WEAPON_FIRST] = {
 	"MOD_UNKNOWN",
-	"MOD_SHOTGUN",
-	"MOD_GAUNTLET",
-	"MOD_MACHINEGUN",
-	"MOD_GRENADE",
-	"MOD_GRENADE_SPLASH",
-	"MOD_ROCKET",
-	"MOD_ROCKET_SPLASH",
-	"MOD_PLASMA",
-	"MOD_PLASMA_SPLASH",
-	"MOD_RAILGUN",
-	"MOD_LIGHTNING",
-	"MOD_BFG",
-	"MOD_BFG_SPLASH",
 	"MOD_WATER",
 	"MOD_SLIME",
 	"MOD_LAVA",
@@ -387,9 +373,6 @@ char	*modNames[] = {
 	"MOD_TARGET_LASER",
 	"MOD_TRIGGER_HURT",
 #ifdef MISSIONPACK
-	"MOD_NAIL",
-	"MOD_CHAINGUN",
-	"MOD_PROXIMITY_MINE",
 	"MOD_KAMIKAZE",
 	"MOD_JUICED",
 #endif
@@ -397,6 +380,16 @@ char	*modNames[] = {
 	"MOD_SUICIDE_TEAM_CHANGE",
 	"MOD_BREAKABLE_SPLASH"
 };
+
+static const char *G_ModName( int mod ) {
+	if ( mod >= MOD_WEAPON_FIRST && BG_ValidWeapon( MOD_WEAPON( mod ) ) ) {
+		return va( "%s%s", BG_Weapon( MOD_WEAPON( mod ) )->name, MOD_IS_SPLASH( mod ) ? "_splash" : "" );
+	}
+	if ( mod < 0 || mod >= MOD_WEAPON_FIRST ) {
+		return "<bad obituary>";
+	}
+	return modNames[mod];
+}
 
 #ifdef MISSIONPACK
 /*
@@ -524,7 +517,8 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	int			contents;
 	int			killer;
 	int			i;
-	char		*killerName, *obit;
+	char		*killerName;
+	const char	*obit;
 	qboolean	gibPlayer;
 
 	if ( self->player->ps.pm_type == PM_DEAD ) {
@@ -572,11 +566,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 		killerName = "<world>";
 	}
 
-	if ( meansOfDeath < 0 || meansOfDeath >= ARRAY_LEN( modNames ) ) {
-		obit = "<bad obituary>";
-	} else {
-		obit = modNames[meansOfDeath];
-	}
+	obit = G_ModName( meansOfDeath );
 
 	G_LogPrintf("Kill: %i %i %i: %s killed %s by %s\n", 
 		killer, self->s.number, meansOfDeath, killerName, 
@@ -604,7 +594,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 		} else {
 			AddScore( attacker, self->r.currentOrigin, 1 );
 
-			if( meansOfDeath == MOD_GAUNTLET ) {
+			if( MOD_WEAPON( meansOfDeath ) && BG_Weapon( MOD_WEAPON( meansOfDeath ) )->melee && !MOD_IS_SPLASH( meansOfDeath ) ) {
 				
 				// play humiliation on player
 				attacker->player->ps.persistant[PERS_GAUNTLET_FRAG_COUNT]++;
@@ -1026,16 +1016,6 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 				return;
 			}
 		}
-#ifdef MISSIONPACK
-		if (mod == MOD_PROXIMITY_MINE) {
-			if (inflictor && inflictor->parent && OnSameTeam(targ, inflictor->parent)) {
-				return;
-			}
-			if (targ == attacker) {
-				return;
-			}
-		}
-#endif
 
 		// check for godmode
 		if ( targ->flags & FL_GODMODE ) {

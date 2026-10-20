@@ -60,101 +60,14 @@ UI_PlayerInfo_SetWeapon
 ===============
 */
 static void UI_PlayerInfo_SetWeapon( uiPlayerInfo_t *pi, weapon_t weaponNum ) {
-	gitem_t *	item;
-	char		path[MAX_QPATH];
-
-	pi->currentWeapon = weaponNum;
-tryagain:
-	pi->realWeapon = weaponNum;
+	// weapons are entity defs, which only the game and the cgame load, so
+	// the player models here hold none
+	pi->currentWeapon = WP_NONE;
+	pi->realWeapon = WP_NONE;
 	pi->weaponModel = 0;
 	pi->barrelModel = 0;
 	pi->flashModel = 0;
-
-	if ( weaponNum == WP_NONE ) {
-		return;
-	}
-
-	item = BG_FindItemForWeapon( weaponNum );
-	if ( item ) {
-		pi->weaponModel = trap_R_RegisterModel( item->world_model[0] );
-	}
-
-	if( pi->weaponModel == 0 ) {
-		if( weaponNum == WP_MACHINEGUN ) {
-			weaponNum = WP_NONE;
-			goto tryagain;
-		}
-		weaponNum = WP_MACHINEGUN;
-		goto tryagain;
-	}
-
-	COM_StripExtension( item->world_model[0], path, sizeof(path) );
-	Q_strcat( path, sizeof(path), "_barrel.md3" );
-	pi->barrelModel = trap_R_RegisterModel( path );
-
-	COM_StripExtension( item->world_model[0], path, sizeof(path) );
-	Q_strcat( path, sizeof(path), "_flash.md3" );
-	pi->flashModel = trap_R_RegisterModel( path );
-
-	switch( weaponNum ) {
-	case WP_GAUNTLET:
-		MAKERGB( pi->flashDlightColor, 0.6f, 0.6f, 1 );
-		break;
-
-	case WP_MACHINEGUN:
-		MAKERGB( pi->flashDlightColor, 1, 1, 0 );
-		break;
-
-	case WP_SHOTGUN:
-		MAKERGB( pi->flashDlightColor, 1, 1, 0 );
-		break;
-
-	case WP_GRENADE_LAUNCHER:
-		MAKERGB( pi->flashDlightColor, 1, 0.7f, 0.5f );
-		break;
-
-	case WP_ROCKET_LAUNCHER:
-		MAKERGB( pi->flashDlightColor, 1, 0.75f, 0 );
-		break;
-
-	case WP_LIGHTNING:
-		MAKERGB( pi->flashDlightColor, 0.6f, 0.6f, 1 );
-		break;
-
-	case WP_RAILGUN:
-		MAKERGB( pi->flashDlightColor, 1, 0.5f, 0 );
-		break;
-
-	case WP_PLASMAGUN:
-		MAKERGB( pi->flashDlightColor, 0.6f, 0.6f, 1 );
-		break;
-
-	case WP_BFG:
-		MAKERGB( pi->flashDlightColor, 1, 0.7f, 1 );
-		break;
-
-	case WP_GRAPPLING_HOOK:
-		MAKERGB( pi->flashDlightColor, 0.6f, 0.6f, 1 );
-		break;
-
-#ifdef MISSIONPACK
-	case WP_NAILGUN:
-		MAKERGB( pi->flashDlightColor, 1, 0.75f, 0 );
-		break;
-
-	case WP_PROX_LAUNCHER:
-		MAKERGB( pi->flashDlightColor, 1, 0.70f, 0 );
-		break;
-
-	case WP_CHAINGUN:
-		MAKERGB( pi->flashDlightColor, 1, 1, 0 );
-		break;
-#endif
-
-	default:
-		MAKERGB( pi->flashDlightColor, 1, 1, 1 );
-		break;
-	}
+	MAKERGB( pi->flashDlightColor, 1, 1, 1 );
 }
 
 
@@ -762,10 +675,10 @@ void UI_DrawPlayer( float x, float y, float w, float h, uiPlayerInfo_t *pi, int 
 
 	dp_realtime = time;
 
-	if ( pi->pendingWeapon != WP_NUM_WEAPONS && dp_realtime > pi->weaponTimer ) {
+	if ( pi->pendingWeapon != UI_WEAPON_UNCHANGED && dp_realtime > pi->weaponTimer ) {
 		pi->weapon = pi->pendingWeapon;
 		pi->lastWeapon = pi->pendingWeapon;
-		pi->pendingWeapon = WP_NUM_WEAPONS;
+		pi->pendingWeapon = UI_WEAPON_UNCHANGED;
 		pi->weaponTimer = 0;
 		if( pi->currentWeapon != pi->weapon ) {
 			trap_S_StartLocalSound( weaponChangeSound, CHAN_LOCAL );
@@ -1317,10 +1230,10 @@ UI_PlayerInfo_SetModel
 void UI_PlayerInfo_SetModel( uiPlayerInfo_t *pi, const char *model, const char *headmodel, char *teamName ) {
 	memset( pi, 0, sizeof(*pi) );
 	UI_RegisterPlayerModelname( pi, model, headmodel, teamName );
-	pi->weapon = WP_MACHINEGUN;
+	pi->weapon = WP_NONE;
 	pi->currentWeapon = pi->weapon;
 	pi->lastWeapon = pi->weapon;
-	pi->pendingWeapon = WP_NUM_WEAPONS;
+	pi->pendingWeapon = UI_WEAPON_UNCHANGED;
 	pi->weaponTimer = 0;
 	pi->chat = qfalse;
 	pi->newModel = qtrue;
@@ -1376,11 +1289,11 @@ void UI_PlayerInfo_SetInfo( uiPlayerInfo_t *pi, int localPlayerNum, int legsAnim
 		pi->torso.yawAngle = viewAngles[YAW];
 		pi->torso.yawing = qfalse;
 
-		if ( weaponNumber != WP_NUM_WEAPONS ) {
+		if ( weaponNumber != UI_WEAPON_UNCHANGED ) {
 			pi->weapon = weaponNumber;
 			pi->currentWeapon = weaponNumber;
 			pi->lastWeapon = weaponNumber;
-			pi->pendingWeapon = WP_NUM_WEAPONS;
+			pi->pendingWeapon = UI_WEAPON_UNCHANGED;
 			pi->weaponTimer = 0;
 			UI_PlayerInfo_SetWeapon( pi, pi->weapon );
 		}
@@ -1389,8 +1302,8 @@ void UI_PlayerInfo_SetInfo( uiPlayerInfo_t *pi, int localPlayerNum, int legsAnim
 	}
 
 	// weapon
-	if ( weaponNumber == WP_NUM_WEAPONS ) {
-		pi->pendingWeapon = WP_NUM_WEAPONS;
+	if ( weaponNumber == UI_WEAPON_UNCHANGED ) {
+		pi->pendingWeapon = UI_WEAPON_UNCHANGED;
 		pi->weaponTimer = 0;
 	}
 	else if ( weaponNumber != WP_NONE ) {
@@ -1428,7 +1341,7 @@ void UI_PlayerInfo_SetInfo( uiPlayerInfo_t *pi, int localPlayerNum, int legsAnim
 
 	// torso animation
 	if ( torsoAnim == TORSO_STAND || torsoAnim == TORSO_STAND2 ) {
-		if ( weaponNum == WP_NONE || weaponNum == WP_GAUNTLET ) {
+		if ( weaponNum == WP_NONE || weaponNum == WP_NONE ) {
 			torsoAnim = TORSO_STAND2;
 		}
 		else {
@@ -1437,7 +1350,7 @@ void UI_PlayerInfo_SetInfo( uiPlayerInfo_t *pi, int localPlayerNum, int legsAnim
 	}
 
 	if ( torsoAnim == TORSO_ATTACK || torsoAnim == TORSO_ATTACK2 ) {
-		if ( weaponNum == WP_NONE || weaponNum == WP_GAUNTLET ) {
+		if ( weaponNum == WP_NONE || weaponNum == WP_NONE ) {
 			torsoAnim = TORSO_ATTACK2;
 		}
 		else {

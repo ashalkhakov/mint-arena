@@ -184,9 +184,12 @@ int Pickup_Holdable( gentity_t *ent, gentity_t *other ) {
 
 void Add_Ammo (gentity_t *ent, int weapon, int count)
 {
+	if ( ent->player->ps.ammo[weapon] == -1 ) {
+		return;		// infinite
+	}
 	ent->player->ps.ammo[weapon] += count;
-	if ( ent->player->ps.ammo[weapon] > 200 ) {
-		ent->player->ps.ammo[weapon] = 200;
+	if ( ent->player->ps.ammo[weapon] > BG_Weapon( weapon )->maxAmmo ) {
+		ent->player->ps.ammo[weapon] = BG_Weapon( weapon )->maxAmmo;
 	}
 }
 
@@ -236,9 +239,6 @@ int Pickup_Weapon (gentity_t *ent, gentity_t *other) {
 	BG_GiveWeapon( &other->player->ps, ent->item->giTag );
 
 	Add_Ammo( other, ent->item->giTag, quantity );
-
-	if (ent->item->giTag == WP_GRAPPLING_HOOK)
-		other->player->ps.ammo[ent->item->giTag] = -1; // unlimited ammo
 
 	// team deathmatch has slow weapon respawns
 	if ( g_gametype.integer == GT_TEAM ) {
@@ -892,15 +892,16 @@ ClearRegisteredItems
 ==============
 */
 void ClearRegisteredItems( void ) {
+	int i;
+
 	memset( itemRegistered, 0, sizeof( itemRegistered ) );
 
-	// players always start with the base weapon
-	if ( g_instagib.integer ) {
-		RegisterItem( BG_FindItemForWeapon( WP_RAILGUN ) );
-	} else {
-		RegisterItem( BG_FindItemForWeapon( WP_MACHINEGUN ) );
+	// players always start with the base weapons
+	for ( i = 1; i < bg_numWeapons; i++ ) {
+		if ( G_IsStartWeapon( i ) && BG_FindItemForWeapon( i ) ) {
+			RegisterItem( BG_FindItemForWeapon( i ) );
+		}
 	}
-	RegisterItem( BG_FindItemForWeapon( WP_GAUNTLET ) );
 #ifdef MISSIONPACK
 	if( g_gametype.integer == GT_HARVESTER ) {
 		RegisterItem( BG_FindItem( "Red Cube" ) );

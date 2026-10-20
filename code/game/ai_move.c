@@ -1859,6 +1859,25 @@ bot_moveresult_t BotTravel_Jump(bot_movestate_t *ms, aas_reachability_t *reach)
 	return result;
 } //end of the function BotTravel_Jump*/
 /*
+==================
+BotSplashWeapon
+
+A weapon whose projectiles do splash damage, for jumping with.
+==================
+*/
+static int BotSplashWeapon( void ) {
+	int w;
+
+	for ( w = 1; w < bg_numWeapons; w++ ) {
+		if ( BG_Weapon( w )->projectile && !BG_Weapon( w )->hitscan
+			&& DictFindKey( BG_Weapon( w )->projectile, "def_splash_damage" ) ) {
+			return w;
+		}
+	}
+	return WP_NONE;
+}
+
+/*
 bot_moveresult_t BotTravel_Jump(bot_movestate_t *ms, aas_reachability_t *reach)
 {
 	vec3_t hordir, dir1, dir2, mins, maxs, start, end;
@@ -2658,8 +2677,7 @@ bot_moveresult_t BotTravel_Grapple(bot_movestate_t *ms, aas_reachability_t *reac
 	//
 	if (!bot_offhandgrapple.integer)
 	{
-		result.weapon = WP_GRAPPLING_HOOK;
-		result.flags |= MOVERESULT_MOVEMENTWEAPON;
+		result.weapon = WP_NONE;	// no grapple among the weapons now
 	} //end if
 	//
 	if (ms->moveflags & MFL_ACTIVEGRAPPLE)
@@ -2835,9 +2853,9 @@ bot_moveresult_t BotTravel_RocketJump(bot_movestate_t *ms, aas_reachability_t *r
 	//view is important for the movement
 	result.flags |= MOVERESULT_MOVEMENTVIEWSET;
 	//select the rocket launcher
-	EA_SelectWeapon(ms->playernum, WP_ROCKET_LAUNCHER);
+	EA_SelectWeapon(ms->playernum, BotSplashWeapon());
 	//weapon is used for movement
-	result.weapon = WP_ROCKET_LAUNCHER;
+	result.weapon = BotSplashWeapon();
 	result.flags |= MOVERESULT_MOVEMENTWEAPON;
 	//
 	VectorCopy(hordir, result.movedir);
@@ -2895,9 +2913,9 @@ bot_moveresult_t BotTravel_BFGJump(bot_movestate_t *ms, aas_reachability_t *reac
 	//view is important for the movement
 	result.flags |= MOVERESULT_MOVEMENTVIEWSET;
 	//select the rocket launcher
-	EA_SelectWeapon(ms->playernum, WP_BFG);
+	EA_SelectWeapon(ms->playernum, BotSplashWeapon());
 	//weapon is used for movement
-	result.weapon = WP_BFG;
+	result.weapon = BotSplashWeapon();
 	result.flags |= MOVERESULT_MOVEMENTWEAPON;
 	//
 	VectorCopy(hordir, result.movedir);

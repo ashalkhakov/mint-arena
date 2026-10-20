@@ -161,6 +161,7 @@ struct gentity_s {
 	int			splashRadius;
 	int			methodOfDeath;
 	int			splashMethodOfDeath;
+	int			missileFlags;	// MISSILE_*, from the projectile def
 
 	int			count;
 
@@ -359,7 +360,7 @@ struct gplayer_s {
 #ifdef MISSIONPACK
 	gentity_t	*persistantPowerup;
 	int			portalID;
-	int			ammoTimes[WP_NUM_WEAPONS];
+	int			ammoTimes[MAX_WEAPONS];
 	int			invulnerabilityTime;
 #endif
 
@@ -575,15 +576,12 @@ void TossPlayerCubes( gentity_t *self );
 //
 void G_RunMissile( gentity_t *ent );
 
-gentity_t *fire_plasma (gentity_t *self, vec3_t start, vec3_t aimdir);
-gentity_t *fire_grenade (gentity_t *self, vec3_t start, vec3_t aimdir);
-gentity_t *fire_rocket (gentity_t *self, vec3_t start, vec3_t dir);
-gentity_t *fire_bfg (gentity_t *self, vec3_t start, vec3_t dir);
-gentity_t *fire_grapple (gentity_t *self, vec3_t start, vec3_t dir);
-#ifdef MISSIONPACK
-gentity_t *fire_nail( gentity_t *self, vec3_t start, vec3_t forward, vec3_t right, vec3_t up );
-gentity_t *fire_prox( gentity_t *self, vec3_t start, vec3_t aimdir );
-#endif
+#define MISSILE_DETONATE_ON_WORLD	1	// else it bounces off, or stops with no bounce
+#define MISSILE_DETONATE_ON_ACTOR	2	// else it bounces off players and the like
+#define MISSILE_DETONATE_ON_FUSE	4	// else it goes away
+#define MISSILE_MAX_BOUNCES			8	// detonates when it would bounce again after count bounces
+
+gentity_t *fire_projectile( gentity_t *self, const struct dict_s *def, int weapon, vec3_t start, vec3_t dir );
 
 
 //
@@ -614,6 +612,7 @@ void DropPortalDestination( gentity_t *ent );
 qboolean LogAccuracyHit( gentity_t *target, gentity_t *attacker );
 void CalcMuzzlePoint ( gentity_t *ent, int weapon, vec3_t forward, vec3_t right, vec3_t up, vec3_t muzzlePoint );
 void Weapon_HookFree (gentity_t *ent);
+qboolean G_IsStartWeapon( int weapon );
 void Weapon_HookThink (gentity_t *ent);
 
 

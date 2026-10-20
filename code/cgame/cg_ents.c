@@ -678,29 +678,6 @@ static void CG_Item( centity_t *cent ) {
 	// add to refresh list
 	CG_AddRefEntityWithMinLight(&ent);
 
-	if ( item->giType == IT_WEAPON && wi && wi->barrelModel && !customModel ) {
-		refEntity_t	barrel;
-		vec3_t		angles;
-
-		memset( &barrel, 0, sizeof( barrel ) );
-
-		barrel.hModel = wi->barrelModel;
-
-		VectorCopy( ent.lightingOrigin, barrel.lightingOrigin );
-		barrel.shadowPlane = ent.shadowPlane;
-		barrel.renderfx = ent.renderfx;
-
-		angles[YAW] = 0;
-		angles[PITCH] = 0;
-		angles[ROLL] = 0;
-		AnglesToAxis( angles, barrel.axis );
-
-		CG_PositionRotatedEntityOnTag( &barrel, &ent, wi->weaponModel, "tag_barrel" );
-
-		barrel.nonNormalizedAxes = ent.nonNormalizedAxes;
-
-		CG_AddRefEntityWithMinLight( &barrel );
-	}
 
 	// accompanying rings / spheres for powerups
 	if ( !cg_simpleItems.integer ) 
@@ -747,9 +724,10 @@ static void CG_Missile( centity_t *cent ) {
 //	int	col;
 
 	s1 = &cent->currentState;
-	if ( s1->weapon >= WP_NUM_WEAPONS ) {
+	if ( !BG_ValidWeapon( s1->weapon ) ) {
 		s1->weapon = 0;
 	}
+	CG_RegisterWeapon( s1->weapon );
 	weapon = &cg_weapons[s1->weapon];
 
 	// calculate the axis
@@ -792,36 +770,18 @@ static void CG_Missile( centity_t *cent ) {
 		trap_S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, velocity, weapon->missileSound );
 	}
 
-	if ( cent->currentState.weapon == WP_GRAPPLING_HOOK && !cg_drawGrappleHook.integer ) {
-		return;
-	}
-
 	// create the render entity
 	memset (&ent, 0, sizeof(ent));
 	VectorCopy( cent->lerpOrigin, ent.origin);
 	VectorCopy( cent->lerpOrigin, ent.oldorigin);
 
-	if ( cent->currentState.weapon == WP_PLASMAGUN ) {
-		ent.reType = RT_SPRITE;
-		ent.radius = 16;
-		ent.rotation = 0;
-		ent.customShader = cgs.media.plasmaBallShader;
-		CG_AddRefEntityWithMinLight( &ent );
-		return;
-	}
-
 	// flicker between two skins
 	ent.skinNum = cg.clientFrame & 1;
 	ent.hModel = weapon->missileModel;
 	ent.renderfx = RF_NOSHADOW;
-
-#ifdef MISSIONPACK
-	if ( cent->currentState.weapon == WP_PROX_LAUNCHER ) {
-		if (s1->team == TEAM_BLUE) {
-			ent.hModel = cgs.media.blueProxMine;
-		}
+	if ( !ent.hModel ) {
+		return;		// its effects are all there is of it
 	}
-#endif
 
 	// convert direction of travel into axis
 	if ( VectorNormalize2( s1->pos.trDelta, ent.axis[0] ) == 0 ) {
@@ -832,15 +792,7 @@ static void CG_Missile( centity_t *cent ) {
 	if ( s1->pos.trType != TR_STATIONARY ) {
 		RotateAroundDirection( ent.axis, cg.time / 4 );
 	} else {
-#ifdef MISSIONPACK
-		if ( s1->weapon == WP_PROX_LAUNCHER ) {
-			AnglesToAxis( cent->lerpAngles, ent.axis );
-		}
-		else
-#endif
-		{
-			RotateAroundDirection( ent.axis, s1->time );
-		}
+		RotateAroundDirection( ent.axis, s1->time );
 	}
 
 	// add to refresh list, possibly with quad glow
@@ -860,9 +812,10 @@ static void CG_Grapple( centity_t *cent ) {
 	const weaponInfo_t		*weapon;
 
 	s1 = &cent->currentState;
-	if ( s1->weapon >= WP_NUM_WEAPONS ) {
+	if ( !BG_ValidWeapon( s1->weapon ) ) {
 		s1->weapon = 0;
 	}
+	CG_RegisterWeapon( s1->weapon );
 	weapon = &cg_weapons[s1->weapon];
 
 	// calculate the axis

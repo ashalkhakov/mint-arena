@@ -84,14 +84,41 @@ const char	*CG_PlaceString( int rank ) {
 
 /*
 =============
+CG_WeaponObituary
+
+The message of the weapon's def for its kills: "<key>" goes between the
+names, "<key>2" after them ("was blasted by", "'s ion blaster"). A splash
+kill falls back to the direct hit's.
+=============
+*/
+static qboolean CG_WeaponObituary( int mod, const char *key, const char **message, const char **message2 ) {
+	const dict_t *def;
+
+	def = BG_Weapon( MOD_WEAPON( mod ) )->def;
+	if ( !def ) {
+		return qfalse;
+	}
+	if ( !DictFindKey( def, key ) && !Q_stricmp( key, "obituary_splash" ) ) {
+		key = "obituary";
+	}
+	if ( !DictFindKey( def, key ) ) {
+		return qfalse;
+	}
+	*message = DictGetStringReference( def, key, "" );
+	*message2 = DictGetStringReference( def, va( "%s2", key ), "" );
+	return qtrue;
+}
+
+/*
+=============
 CG_Obituary
 =============
 */
 static void CG_Obituary( entityState_t *ent ) {
 	int			mod;
 	int			target, attacker;
-	char		*message;
-	char		*message2;
+	const char	*message;
+	const char	*message2;
 	const char	*targetInfo;
 	const char	*attackerInfo;
 	char		targetName[32];
@@ -168,45 +195,9 @@ static void CG_Obituary( entityState_t *ent ) {
 			message = "goes out with a bang";
 			break;
 #endif
-		case MOD_GRENADE_SPLASH:
-			if ( gender == GENDER_FEMALE )
-				message = "tripped on her own grenade";
-			else if ( gender == GENDER_NEUTER )
-				message = "tripped on its own grenade";
-			else
-				message = "tripped on his own grenade";
-			break;
-		case MOD_ROCKET_SPLASH:
-			if ( gender == GENDER_FEMALE )
-				message = "blew herself up";
-			else if ( gender == GENDER_NEUTER )
-				message = "blew itself up";
-			else
-				message = "blew himself up";
-			break;
-		case MOD_PLASMA_SPLASH:
-			if ( gender == GENDER_FEMALE )
-				message = "melted herself";
-			else if ( gender == GENDER_NEUTER )
-				message = "melted itself";
-			else
-				message = "melted himself";
-			break;
-		case MOD_BFG_SPLASH:
-			message = "should have used a smaller gun";
-			break;
-#ifdef MISSIONPACK
-		case MOD_PROXIMITY_MINE:
-			if( gender == GENDER_FEMALE ) {
-				message = "found her prox mine";
-			} else if ( gender == GENDER_NEUTER ) {
-				message = "found its prox mine";
-			} else {
-				message = "found his prox mine";
-			}
-			break;
-#endif
 		default:
+			if ( MOD_WEAPON( mod ) && CG_WeaponObituary( mod, "obituary_self", &message, &message2 ) )
+				break;
 			if ( gender == GENDER_FEMALE )
 				message = "killed herself";
 			else if ( gender == GENDER_NEUTER )
@@ -273,62 +264,7 @@ static void CG_Obituary( entityState_t *ent ) {
 		case MOD_GRAPPLE:
 			message = "was caught by";
 			break;
-		case MOD_GAUNTLET:
-			message = "was pummeled by";
-			break;
-		case MOD_MACHINEGUN:
-			message = "was machinegunned by";
-			break;
-		case MOD_SHOTGUN:
-			message = "was gunned down by";
-			break;
-		case MOD_GRENADE:
-			message = "ate";
-			message2 = "'s grenade";
-			break;
-		case MOD_GRENADE_SPLASH:
-			message = "was shredded by";
-			message2 = "'s shrapnel";
-			break;
-		case MOD_ROCKET:
-			message = "ate";
-			message2 = "'s rocket";
-			break;
-		case MOD_ROCKET_SPLASH:
-			message = "almost dodged";
-			message2 = "'s rocket";
-			break;
-		case MOD_PLASMA:
-			message = "was melted by";
-			message2 = "'s plasmagun";
-			break;
-		case MOD_PLASMA_SPLASH:
-			message = "was melted by";
-			message2 = "'s plasmagun";
-			break;
-		case MOD_RAILGUN:
-			message = "was railed by";
-			break;
-		case MOD_LIGHTNING:
-			message = "was electrocuted by";
-			break;
-		case MOD_BFG:
-		case MOD_BFG_SPLASH:
-			message = "was blasted by";
-			message2 = "'s BFG";
-			break;
 #ifdef MISSIONPACK
-		case MOD_NAIL:
-			message = "was nailed by";
-			break;
-		case MOD_CHAINGUN:
-			message = "got lead poisoning from";
-			message2 = "'s Chaingun";
-			break;
-		case MOD_PROXIMITY_MINE:
-			message = "was too close to";
-			message2 = "'s Prox Mine";
-			break;
 		case MOD_KAMIKAZE:
 			message = "falls to";
 			message2 = "'s Kamikaze blast";
@@ -342,6 +278,9 @@ static void CG_Obituary( entityState_t *ent ) {
 			message2 = "'s personal space";
 			break;
 		default:
+			if ( MOD_WEAPON( mod ) && CG_WeaponObituary( mod, MOD_IS_SPLASH( mod ) ? "obituary_splash" : "obituary", &message, &message2 ) ) {
+				break;
+			}
 			message = "was killed by";
 			break;
 		}
@@ -441,7 +380,7 @@ static void CG_ItemPickup( int localPlayerNum, int itemNum ) {
 	// see if it should be the grabbed weapon
 	if ( item->giType == IT_WEAPON ) {
 		// select it immediately
-		if ( cg_autoswitch[localPlayerNum].integer && item->giTag != WP_MACHINEGUN ) {
+		if ( cg_autoswitch[localPlayerNum].integer ) {
 			player->weaponSelectTime = cg.time;
 			player->weaponSelect = bg_itemlist[itemNum].giTag;
 		}
@@ -989,33 +928,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		CG_MissileHitWall( es->weapon, 0, position, dir, IMPACTSOUND_METAL );
 		break;
 
-	case EV_RAILTRAIL:
-		DEBUGNAME("EV_RAILTRAIL");
-		cent->currentState.weapon = WP_RAILGUN;
-
-		if ( es->playerNum >= 0 && es->playerNum < MAX_CLIENTS ) {
-			for (i = 0; i < CG_MaxSplitView(); i++) {
-				if ( es->playerNum == cg.snap->pss[i].playerNum
-					&& !cg.localPlayers[i].renderingThirdPerson)
-				{
-					if(cg_drawGun[i].integer == 2)
-						VectorMA(es->origin2, 8, cg.refdef.viewaxis[1], es->origin2);
-					else if(cg_drawGun[i].integer == 3)
-						VectorMA(es->origin2, 4, cg.refdef.viewaxis[1], es->origin2);
-					break;
-				}
-			}
-		}
-
-		CG_RailTrail(pi, es->origin2, es->pos.trBase);
-
-		// if the end was on a nomark surface, don't make an explosion
-		if ( es->eventParm != 255 ) {
-			ByteToDir( es->eventParm, dir );
-			CG_MissileHitWall( es->weapon, playerNum, position, dir, IMPACTSOUND_DEFAULT );
-		}
-		break;
-
 	case EV_BULLET_HIT_WALL:
 		DEBUGNAME("EV_BULLET_HIT_WALL");
 		ByteToDir( es->eventParm, dir );
@@ -1027,9 +939,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		CG_Bullet( es->pos.trBase, es->otherEntityNum, dir, qtrue, es->eventParm );
 		break;
 
-	case EV_SHOTGUN:
-		DEBUGNAME("EV_SHOTGUN");
-		CG_ShotgunFire( es );
+	case EV_HITSCAN:
+		DEBUGNAME("EV_HITSCAN");
+		CG_HitscanFire( es );
 		break;
 
 	case EV_GENERAL_SOUND:

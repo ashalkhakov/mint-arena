@@ -666,28 +666,37 @@ typedef enum {
 } holdable_t;
 
 
-// NOTE: may not have more than MAX_WEAPONS
-typedef enum {
-	WP_NONE,
+// weapons are entity defs (bg_defs.c), numbered from 1 when the defs are
+// loaded; 0 is none. NOTE: may not have more than MAX_WEAPONS
+typedef int weapon_t;
+#define WP_NONE					0
 
-	WP_GAUNTLET,
-	WP_MACHINEGUN,
-	WP_SHOTGUN,
-	WP_GRENADE_LAUNCHER,
-	WP_ROCKET_LAUNCHER,
-	WP_LIGHTNING,
-	WP_RAILGUN,
-	WP_PLASMAGUN,
-	WP_BFG,
-	WP_GRAPPLING_HOOK,
-#ifdef MISSIONPACK
-	WP_NAILGUN,
-	WP_PROX_LAUNCHER,
-	WP_CHAINGUN,
-#endif
+// a weapon, from its entity def
+typedef struct bgWeapon_s {
+	const struct dict_s	*def;
+	const char		*name;			// its def's name
+	int				slot;			// "weapon_slot": the number key that selects it
+	int				fireTime;		// "fireRate" seconds, in msec
+	int				ammoRequired;	// "ammoRequired" per shot, 0 for none
+	int				maxAmmo;		// "maxAmmo"
+	int				raiseTime;		// "raiseTime" seconds, in msec
+	int				lowerTime;		// "lowerTime" seconds, in msec
+	qboolean		melee;			// "melee": fires only at something in reach
+	int				numProjectiles;	// "numProjectiles"
+	float			spread;			// "spread" degrees
+	const struct dict_s	*projectile;	// "def_projectile"
+	qboolean		hitscan;		// the projectile's "hitscan"
+	float			range;			// the projectile's "range" for hitscan
+} bgWeapon_t;
 
-	WP_NUM_WEAPONS
-} weapon_t;
+extern	bgWeapon_t	bg_weapons[MAX_WEAPONS];
+extern	int			bg_numWeapons;		// weapons are 1 to bg_numWeapons - 1
+
+#define BG_ValidWeapon( w )		( (w) > WP_NONE && (w) < bg_numWeapons )
+#define BG_Weapon( w )			( &bg_weapons[BG_ValidWeapon( w ) ? (w) : WP_NONE] )
+#define BG_WeaponHasAmmo( ps, w )	( BG_Weapon( w )->ammoRequired <= 0 || (ps)->ammo[w] == -1 || (ps)->ammo[w] >= BG_Weapon( w )->ammoRequired )
+int		BG_WeaponForName( const char *name );
+void	BG_HitscanDir( const vec3_t forward, const vec3_t right, const vec3_t up, float spread, int *seed, vec3_t dir );
 
 
 // reward sounds (stored in ps->persistant[PERS_PLAYEREVENTS])
@@ -778,7 +787,7 @@ typedef enum {
 	EV_MISSILE_MISS,
 	EV_MISSILE_MISS_METAL,
 	EV_RAILTRAIL,
-	EV_SHOTGUN,
+	EV_HITSCAN,
 
 	EV_PAIN,
 	EV_DEATH1,
@@ -1017,19 +1026,6 @@ typedef enum {
 // means of death
 typedef enum {
 	MOD_UNKNOWN,
-	MOD_SHOTGUN,
-	MOD_GAUNTLET,
-	MOD_MACHINEGUN,
-	MOD_GRENADE,
-	MOD_GRENADE_SPLASH,
-	MOD_ROCKET,
-	MOD_ROCKET_SPLASH,
-	MOD_PLASMA,
-	MOD_PLASMA_SPLASH,
-	MOD_RAILGUN,
-	MOD_LIGHTNING,
-	MOD_BFG,
-	MOD_BFG_SPLASH,
 	MOD_WATER,
 	MOD_SLIME,
 	MOD_LAVA,
@@ -1040,16 +1036,19 @@ typedef enum {
 	MOD_TARGET_LASER,
 	MOD_TRIGGER_HURT,
 #ifdef MISSIONPACK
-	MOD_NAIL,
-	MOD_CHAINGUN,
-	MOD_PROXIMITY_MINE,
 	MOD_KAMIKAZE,
 	MOD_JUICED,
 #endif
 	MOD_GRAPPLE,
 	MOD_SUICIDE_TEAM_CHANGE,
-	MOD_BREAKABLE_SPLASH
+	MOD_BREAKABLE_SPLASH,
+
+	MOD_WEAPON_FIRST		// then two for each weapon: its hit, its splash
 } meansOfDeath_t;
+
+#define MOD_FOR_WEAPON( w, splash )	( MOD_WEAPON_FIRST + (w) * 2 + ( (splash) ? 1 : 0 ) )
+#define MOD_WEAPON( mod )			( (mod) >= MOD_WEAPON_FIRST ? ( (mod) - MOD_WEAPON_FIRST ) / 2 : WP_NONE )
+#define MOD_IS_SPLASH( mod )		( (mod) >= MOD_WEAPON_FIRST && ( ( (mod) - MOD_WEAPON_FIRST ) & 1 ) )
 
 
 //---------------------------------------------------------
@@ -1178,7 +1177,7 @@ int						BG_NumDefs( void );
 const char				*BG_DefName( int num );
 const struct dict_s		*BG_DefForNum( int num );
 void					BG_LoadDefs( void );
-void					BG_InitItems( void );
+void					BG_InitItems( void );		// and the weapons
 const struct dict_s		*BG_ItemDef( const gitem_t *item );
 float					BG_ItemModelScale( const gitem_t *item, qboolean customModel );
 
