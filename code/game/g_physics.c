@@ -1467,6 +1467,7 @@ A rigid body that falls, tumbles and gets pushed around.
 "model"			an MD3 to draw instead, colliding as a convex hull of its mesh, or as
 				the shape when it has none
 "modelscale"	the model's scale (default 1)
+"frame"			the model's frame, drawn and collided with (default 0)
 "density"		mass per cubic unit (default g_propDensity)
 "mass"			overrides the density
 "bouncyness"	0 to 1 (default g_propBounce)
@@ -1482,12 +1483,13 @@ void SP_func_physics( gentity_t *ent ) {
 	vec3_t mins, maxs, origin, angles, centerOfMass, inertia[3];
 	traceModel_t trm;
 	propShape_t shape;
-	int isStatic, health;
+	int isStatic, health, frame;
 	gentity_t *prop;
 
 	G_SpawnString( "model", "", &model );
 	G_SpawnFloat( "modelscale", "1", &scale );
-	if ( model[0] && BG_PropModelTraceModel( model, scale, &trm ) ) {
+	G_SpawnInt( "frame", "0", &frame );
+	if ( model[0] && BG_PropModelTraceModel( model, scale, frame, &trm ) ) {
 		shape = PROP_MODEL;
 	} else {
 		// a model without a hull, one that isn't there, collides as the shape
@@ -1524,6 +1526,7 @@ void SP_func_physics( gentity_t *ent ) {
 	if ( model[0] ) {
 		prop->s.modelindex2 = G_ModelIndex( model );
 		prop->s.origin2[0] = scale;
+		prop->s.frame = frame;
 		G_PhysicsUnstick( prop );
 		G_PhysicsUpdateEntityState( prop );
 	}

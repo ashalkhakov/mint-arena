@@ -1895,12 +1895,20 @@ void Use_Breakable (gentity_t *ent, gentity_t *other, gentity_t *activator) {
 	Break_Breakable( ent, activator );
 }
 
+// shot to pieces
+void Die_Breakable( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+	Break_Breakable( self, attacker ? attacker : self );
+}
+
 /*QUAKED func_breakable (0 .5 .8) ? see PickDebrisType in g_util.c for spawnflags
 A bmodel that just sits there, doing nothing. It is removed when it received a set amount of damage.
 "model2"	.md3 model to also draw
 "color"		constantLight color
 "light"		constantLight radius
-"health"	the amount of damage required before this entity is removed
+"health"	the amount of damage required before this entity is removed (default 100)
+"dmg"		radius damage when it breaks, "radius" how far (default 120)
+"breaksound"	played when it breaks
+spawnflags 8192: an explosion when it breaks
 */
 void SP_func_breakable( gentity_t *ent ) {
 	char  *noise;
@@ -1911,6 +1919,10 @@ void SP_func_breakable( gentity_t *ent ) {
 	VectorCopy( ent->s.origin, ent->r.currentOrigin );
 	ent->takedamage = qtrue;
 	ent->use = Use_Breakable;
+	ent->die = Die_Breakable;
+	if ( ent->health <= 0 ) {
+		ent->health = 100;
+	}
 	ent->s.contents = CONTENTS_SOLID; 
 	ent->clipmask = MASK_SOLID;
 

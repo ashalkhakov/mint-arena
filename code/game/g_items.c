@@ -359,7 +359,7 @@ static qboolean G_ItemAttachBody( gentity_t *ent, const vec3_t origin, const vec
 
 	customModel = ( ent->model && ent->model[0] );
 	model = customModel ? ent->model : ent->item->world_model[0];
-	if ( !model || !BG_PropModelTraceModel( model, BG_ItemModelScale( ent->item, customModel ), &trm ) ) {
+	if ( !model || !BG_PropModelTraceModel( model, BG_ItemModelScale( ent->item, customModel ), 0, &trm ) ) {
 		shape = PROP_BOX;
 		BG_PropTraceModel( PROP_BOX, ent->s.mins, ent->s.maxs, &trm );
 	}

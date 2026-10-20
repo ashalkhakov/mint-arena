@@ -499,10 +499,11 @@ static void Hull_TraceModel( const hull_t *hull, const hullPlane_t *planes, trac
 ================
 Hull_ModelPoints
 
-The vertices of the first frame of every surface of an MD3, scaled.
+The vertices of a frame of every surface of an MD3 (the first frame for one
+it doesn't have), scaled.
 ================
 */
-static int Hull_ModelPoints( const char *modelName, float scale, vec3_t **pointsOut ) {
+static int Hull_ModelPoints( const char *modelName, float scale, int frame, vec3_t **pointsOut ) {
 	void *buffer;
 	long length;
 	const md3Header_t *header;
@@ -536,8 +537,12 @@ static int Hull_ModelPoints( const char *modelName, float scale, vec3_t **points
 
 	numPoints = 0;
 	surf = (const md3Surface_t *)( (const byte *)buffer + LittleLong( header->ofsSurfaces ) );
+	if ( frame < 0 || frame >= LittleLong( header->numFrames ) ) {
+		frame = 0;
+	}
 	for ( i = 0; i < LittleLong( header->numSurfaces ); i++ ) {
-		const md3XyzNormal_t *xyz = (const md3XyzNormal_t *)( (const byte *)surf + LittleLong( surf->ofsXyzNormals ) );
+		const md3XyzNormal_t *xyz = (const md3XyzNormal_t *)( (const byte *)surf + LittleLong( surf->ofsXyzNormals ) )
+									+ frame * LittleLong( surf->numVerts );
 		for ( j = 0; j < LittleLong( surf->numVerts ); j++ ) {
 			points[numPoints][0] = LittleShort( xyz[j].xyz[0] ) * MD3_XYZ_SCALE * scale;
 			points[numPoints][1] = LittleShort( xyz[j].xyz[1] ) * MD3_XYZ_SCALE * scale;
@@ -556,8 +561,8 @@ static int Hull_ModelPoints( const char *modelName, float scale, vec3_t **points
 ================
 BG_PropModelTraceModel
 
-A convex trace model wrapping the model's mesh at the scale, made once per
-model and scale. Fails for a model that can't be read.
+A convex trace model wrapping the model's mesh in the frame at the scale,
+made once per model, scale and frame. Fails for a model that can't be read.
 ================
 */
 #define MAX_HULL_CACHE	64
@@ -565,6 +570,7 @@ model and scale. Fails for a model that can't be read.
 typedef struct {
 	char			model[MAX_QPATH];
 	float			scale;
+	int				frame;
 	qboolean		valid;
 	traceModel_t	trm;
 } hullCache_t;
@@ -572,7 +578,7 @@ typedef struct {
 static hullCache_t	hullCache[MAX_HULL_CACHE];
 static int			numHullCache;
 
-qboolean BG_PropModelTraceModel( const char *modelName, float scale, traceModel_t *trm ) {
+qboolean BG_PropModelTraceModel( const char *modelName, float scale, int frame, traceModel_t *trm ) {
 	hullCache_t *cache;
 	vec3_t *points;
 	hull_t *hull;
@@ -583,7 +589,7 @@ qboolean BG_PropModelTraceModel( const char *modelName, float scale, traceModel_
 	}
 
 	for ( i = 0; i < numHullCache; i++ ) {
-		if ( hullCache[i].scale == scale && !Q_stricmp( hullCache[i].model, modelName ) ) {
+		if ( hullCache[i].scale == scale && hullCache[i].frame == frame && !Q_stricmp( hullCache[i].model, modelName ) ) {
 			if ( hullCache[i].valid ) {
 				*trm = hullCache[i].trm;
 			}
@@ -594,9 +600,10 @@ qboolean BG_PropModelTraceModel( const char *modelName, float scale, traceModel_
 	cache = &hullCache[numHullCache < MAX_HULL_CACHE ? numHullCache++ : MAX_HULL_CACHE - 1];
 	Q_strncpyz( cache->model, modelName, sizeof( cache->model ) );
 	cache->scale = scale;
+	cache->frame = frame;
 	cache->valid = qfalse;
 
-	numPoints = Hull_ModelPoints( modelName, scale, &points );
+	numPoints = Hull_ModelPoints( modelName, scale, frame, &points );
 	if ( numPoints ) {
 		hullPlane_t planes[HULL_MAX_PLANES];
 

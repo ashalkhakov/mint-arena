@@ -314,7 +314,7 @@ The trace model the game collides the prop with.
 */
 qboolean CG_PropTraceModel( const entityState_t *s1, traceModel_t *trm ) {
 	if ( s1->modelindex == PROP_MODEL ) {
-		return BG_PropModelTraceModel( CG_ConfigString( CS_MODELS + s1->modelindex2 ), s1->origin2[0], trm );
+		return BG_PropModelTraceModel( CG_ConfigString( CS_MODELS + s1->modelindex2 ), s1->origin2[0], s1->frame, trm );
 	}
 	BG_PropTraceModel( (propShape_t)s1->modelindex, s1->mins, s1->maxs, trm );
 	return trm->type != TRM_INVALID;
@@ -342,6 +342,7 @@ static void CG_PhysicsPropModel( centity_t *cent ) {
 	VectorCopy( cent->lerpOrigin, ent.origin );
 	VectorCopy( cent->lerpOrigin, ent.oldorigin );
 	AnglesToAxis( cent->lerpAngles, ent.axis );
+	ent.frame = ent.oldframe = s1->frame;
 
 	scale = s1->origin2[0];
 	if ( scale > 0.0f && scale != 1.0f ) {
