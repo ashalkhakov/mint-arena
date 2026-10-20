@@ -833,7 +833,7 @@ static qboolean CG_HasWeapon( int weapon ) {
 	if ( weapon <= WP_NONE || weapon >= WP_NUM_WEAPONS ) {
 		return qfalse;
 	}
-	return ( cg.cur_ps->stats[STAT_WEAPONS] & ( 1 << weapon ) ) != 0;
+	return BG_HasWeapon( cg.cur_ps, weapon ) != 0;
 }
 
 // the weapon's model turning on the rect's middle, or its icon in the rect

@@ -1673,7 +1673,6 @@ CG_DrawWeaponSelect
 */
 void CG_DrawWeaponSelect( void ) {
 	int		i;
-	int		bits;
 	int		count;
 	int		x, y;
 	char	*name;
@@ -1696,10 +1695,9 @@ void CG_DrawWeaponSelect( void ) {
 	cg.cur_lc->itemPickupTime = 0;
 
 	// count the number of weapons owned
-	bits = cg.cur_ps->stats[ STAT_WEAPONS ];
 	count = 0;
 	for ( i = 1 ; i < MAX_WEAPONS ; i++ ) {
-		if ( bits & ( 1 << i ) ) {
+		if ( BG_HasWeapon( cg.cur_ps, i ) ) {
 			count++;
 		}
 	}
@@ -1708,7 +1706,7 @@ void CG_DrawWeaponSelect( void ) {
 	y = 380;
 
 	for ( i = 1 ; i < MAX_WEAPONS ; i++ ) {
-		if ( !( bits & ( 1 << i ) ) ) {
+		if ( !BG_HasWeapon( cg.cur_ps, i ) ) {
 			continue;
 		}
 
@@ -1751,7 +1749,7 @@ static qboolean CG_WeaponSelectable( playerState_t *ps, int i ) {
 	if ( !ps->ammo[i] ) {
 		return qfalse;
 	}
-	if ( ! (ps->stats[ STAT_WEAPONS ] & ( 1 << i ) ) ) {
+	if ( !BG_HasWeapon( ps, i ) ) {
 		return qfalse;
 	}
 
@@ -1871,7 +1869,7 @@ void CG_Weapon_f( int localPlayerNum ) {
 
 	player->weaponSelectTime = cg.time;
 
-	if ( ! ( ps->stats[STAT_WEAPONS] & ( 1 << num ) ) ) {
+	if ( !BG_HasWeapon( ps, num ) ) {
 		return;		// don't have the weapon
 	}
 
@@ -1919,7 +1917,7 @@ void CG_WeaponToggle_f( int localPlayerNum ) {
 		oldweapon = WP_NONE;
 	}
 
-	if ( ! ( ps->stats[STAT_WEAPONS] & ( 1 << weapon ) ) ) {
+	if ( !BG_HasWeapon( ps, weapon ) ) {
 		return;		// don't have the weapon
 	}
 

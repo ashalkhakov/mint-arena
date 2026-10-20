@@ -276,8 +276,11 @@ void Cmd_Give_f (gentity_t *ent)
 
 	if (give_all || Q_stricmp(name, "weapons") == 0)
 	{
-		ent->player->ps.stats[STAT_WEAPONS] = (1 << WP_NUM_WEAPONS) - 1 - 
-			( 1 << WP_GRAPPLING_HOOK ) - ( 1 << WP_NONE );
+		for ( i = WP_NONE + 1; i < WP_NUM_WEAPONS; i++ ) {
+			if ( i != WP_GRAPPLING_HOOK ) {
+				BG_GiveWeapon( &ent->player->ps, i );
+			}
+		}
 		if (!give_all)
 			return;
 	}

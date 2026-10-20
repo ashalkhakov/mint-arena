@@ -1764,20 +1764,20 @@ void BotUpdateInventory(bot_state_t *bs) {
 	//armor
 	bs->inventory[INVENTORY_ARMOR] = bs->cur_ps.stats[STAT_ARMOR];
 	//weapons
-	bs->inventory[INVENTORY_GAUNTLET] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_GAUNTLET)) != 0;
-	bs->inventory[INVENTORY_SHOTGUN] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_SHOTGUN)) != 0;
-	bs->inventory[INVENTORY_MACHINEGUN] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_MACHINEGUN)) != 0;
-	bs->inventory[INVENTORY_GRENADELAUNCHER] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_GRENADE_LAUNCHER)) != 0;
-	bs->inventory[INVENTORY_ROCKETLAUNCHER] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_ROCKET_LAUNCHER)) != 0;
-	bs->inventory[INVENTORY_LIGHTNING] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_LIGHTNING)) != 0;
-	bs->inventory[INVENTORY_RAILGUN] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_RAILGUN)) != 0;
-	bs->inventory[INVENTORY_PLASMAGUN] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_PLASMAGUN)) != 0;
-	bs->inventory[INVENTORY_BFG10K] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_BFG)) != 0;
-	bs->inventory[INVENTORY_GRAPPLINGHOOK] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_GRAPPLING_HOOK)) != 0;
+	bs->inventory[INVENTORY_GAUNTLET] = BG_HasWeapon( &bs->cur_ps, WP_GAUNTLET );
+	bs->inventory[INVENTORY_SHOTGUN] = BG_HasWeapon( &bs->cur_ps, WP_SHOTGUN );
+	bs->inventory[INVENTORY_MACHINEGUN] = BG_HasWeapon( &bs->cur_ps, WP_MACHINEGUN );
+	bs->inventory[INVENTORY_GRENADELAUNCHER] = BG_HasWeapon( &bs->cur_ps, WP_GRENADE_LAUNCHER );
+	bs->inventory[INVENTORY_ROCKETLAUNCHER] = BG_HasWeapon( &bs->cur_ps, WP_ROCKET_LAUNCHER );
+	bs->inventory[INVENTORY_LIGHTNING] = BG_HasWeapon( &bs->cur_ps, WP_LIGHTNING );
+	bs->inventory[INVENTORY_RAILGUN] = BG_HasWeapon( &bs->cur_ps, WP_RAILGUN );
+	bs->inventory[INVENTORY_PLASMAGUN] = BG_HasWeapon( &bs->cur_ps, WP_PLASMAGUN );
+	bs->inventory[INVENTORY_BFG10K] = BG_HasWeapon( &bs->cur_ps, WP_BFG );
+	bs->inventory[INVENTORY_GRAPPLINGHOOK] = BG_HasWeapon( &bs->cur_ps, WP_GRAPPLING_HOOK );
 #ifdef MISSIONPACK
-	bs->inventory[INVENTORY_NAILGUN] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_NAILGUN)) != 0;;
-	bs->inventory[INVENTORY_PROXLAUNCHER] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_PROX_LAUNCHER)) != 0;;
-	bs->inventory[INVENTORY_CHAINGUN] = (bs->cur_ps.stats[STAT_WEAPONS] & (1 << WP_CHAINGUN)) != 0;;
+	bs->inventory[INVENTORY_NAILGUN] = BG_HasWeapon( &bs->cur_ps, WP_NAILGUN );
+	bs->inventory[INVENTORY_PROXLAUNCHER] = BG_HasWeapon( &bs->cur_ps, WP_PROX_LAUNCHER );
+	bs->inventory[INVENTORY_CHAINGUN] = BG_HasWeapon( &bs->cur_ps, WP_CHAINGUN );
 #endif
 	//ammo
 	bs->inventory[INVENTORY_SHELLS] = bs->cur_ps.ammo[WP_SHOTGUN];

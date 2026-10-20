@@ -286,13 +286,14 @@ typedef struct entityState_s {
 
 
 // bit limits
-#define WEAPONNUM_BITS			4
+#define WEAPONNUM_BITS			6
 
 // array limits (engine will only network arrays <= 1024 elements)
 #define	MAX_STATS				16
 #define	MAX_PERSISTANT			16
 #define	MAX_POWERUPS			16 // entityState_t::powerups bit field limits this to <= 32.
-#define	MAX_WEAPONS				(1<<WEAPONNUM_BITS) // playerState_t::stats[STAT_WEAPONS] bit field limits this to <= 16.
+#define	MAX_WEAPONS				(1<<WEAPONNUM_BITS) // the STAT_WEAPONS stats hold 16 each, WEAPON_STATS of them
+#define	WEAPON_STATS			( MAX_WEAPONS / 16 )
 
 #define	MAX_PS_EVENTS			2
 
@@ -557,7 +558,10 @@ void Pmove (pmove_t *pmove);
 typedef enum {
 	STAT_HEALTH,
 	STAT_HOLDABLE_ITEM,
-	STAT_WEAPONS,					// 16 bit fields
+	STAT_WEAPONS,					// which weapons the player has, 16 to a stat,
+	STAT_WEAPONS_2,					// WEAPON_STATS of them: use BG_HasWeapon and the like
+	STAT_WEAPONS_3,
+	STAT_WEAPONS_4,
 	STAT_ARMOR,				
 	STAT_DEAD_YAW,					// look this direction when dead (FIXME: get rid of?)
 	STAT_MAX_HEALTH,				// health / armor limit, changeable by handicap
@@ -565,6 +569,12 @@ typedef enum {
 	STAT_PERSISTANT_POWERUP
 //#endif
 } statIndex_t;
+
+// the weapons a player has, a bit each in the STAT_WEAPONS stats
+#define BG_HasWeapon( ps, w )		( ( (ps)->stats[STAT_WEAPONS + ( (w) >> 4 )] >> ( (w) & 15 ) ) & 1 )
+#define BG_GiveWeapon( ps, w )		( (ps)->stats[STAT_WEAPONS + ( (w) >> 4 )] |= 1 << ( (w) & 15 ) )
+#define BG_TakeWeapon( ps, w )		( (ps)->stats[STAT_WEAPONS + ( (w) >> 4 )] &= ~( 1 << ( (w) & 15 ) ) )
+#define BG_ClearWeapons( ps )		memset( &(ps)->stats[STAT_WEAPONS], 0, WEAPON_STATS * sizeof( (ps)->stats[0] ) )
 
 
 // player_state->persistant[] indexes

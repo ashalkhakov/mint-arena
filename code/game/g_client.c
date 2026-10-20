@@ -1171,11 +1171,13 @@ void PlayerSpawn(gentity_t *ent) {
 	player->ps.playerNum = index;
 
 	if ( g_instagib.integer ) {
-		player->ps.stats[STAT_WEAPONS] = ( 1 << WP_RAILGUN );
+		BG_ClearWeapons( &player->ps );
+		BG_GiveWeapon( &player->ps, WP_RAILGUN );
 		player->ps.ammo[WP_RAILGUN] = 999;
 	} else {
 #if 0
-		player->ps.stats[STAT_WEAPONS] = ( 1 << WP_MACHINEGUN );
+		BG_ClearWeapons( &player->ps );
+		BG_GiveWeapon( &player->ps, WP_MACHINEGUN );
 		if ( g_gametype.integer == GT_TEAM ) {
 			player->ps.ammo[WP_MACHINEGUN] = 50;
 		} else {
@@ -1184,7 +1186,7 @@ void PlayerSpawn(gentity_t *ent) {
 #endif
 	}
 
-	player->ps.stats[STAT_WEAPONS] |= ( 1 << WP_GAUNTLET );
+	BG_GiveWeapon( &player->ps, WP_GAUNTLET );
 	player->ps.ammo[WP_GAUNTLET] = -1;
 	player->ps.ammo[WP_GRAPPLING_HOOK] = -1;
 
@@ -1223,7 +1225,7 @@ void PlayerSpawn(gentity_t *ent) {
 			player->ps.weapon = 1;
 
 			for (i = WP_NUM_WEAPONS - 1 ; i > 0 ; i--) {
-				if (player->ps.stats[STAT_WEAPONS] & (1 << i)) {
+				if ( BG_HasWeapon( &player->ps, i ) ) {
 					player->ps.weapon = i;
 					break;
 				}

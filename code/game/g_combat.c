@@ -101,7 +101,7 @@ void TossPlayerItems( gentity_t *self ) {
 		if ( self->player->ps.weaponstate == WEAPON_DROPPING ) {
 			BG_DecomposeUserCmdValue( self->player->pers.cmd.stateValue, &weapon );
 		}
-		if ( !( self->player->ps.stats[STAT_WEAPONS] & ( 1 << weapon ) ) ) {
+		if ( !BG_HasWeapon( &self->player->ps, weapon ) ) {
 			weapon = WP_NONE;
 		}
 	}
