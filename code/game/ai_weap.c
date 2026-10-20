@@ -458,6 +458,25 @@ int BotChooseBestFightWeapon(int weaponstate, int *inventory)
 	return bestweapon;
 } //end of the function BotChooseBestFightWeapon
 //===========================================================================
+// The best "bot_rating" of the weapons the bot has ammo for, of its ranged
+// ones only or of all; 0 for none
+//===========================================================================
+float BotBestWeaponRating(bot_state_t *bs, qboolean ranged)
+{
+	float rating, best = 0;
+	int w;
+
+	for ( w = 1; w < bg_numWeapons; w++ ) {
+		const bgWeapon_t *weapon = BG_Weapon( w );
+
+		if ( !BG_HasWeapon( &bs->cur_ps, w ) || !BG_WeaponHasAmmo( &bs->cur_ps, w ) ) continue;
+		if ( ranged && weapon->melee ) continue;
+		rating = DictGetFloat( weapon->def, "bot_rating", va( "%d", weapon->slot * 100 ) );
+		if ( rating > best ) best = rating;
+	}
+	return best;
+} //end of the function BotBestWeaponRating
+//===========================================================================
 //
 // Parameter:				-
 // Returns:					-

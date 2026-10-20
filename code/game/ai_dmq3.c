@@ -2290,6 +2290,8 @@ BotAggression
 ==================
 */
 float BotAggression(bot_state_t *bs) {
+	float rating;
+
 	//if the bot has quad
 	if (bs->inventory[INVENTORY_QUAD]) {
 		//if the bot is not holding the gauntlet or the enemy is really nearby
@@ -2307,27 +2309,18 @@ float BotAggression(bot_state_t *bs) {
 		//if the bot has insufficient armor
 		if (bs->inventory[INVENTORY_ARMOR] < 40) return 0;
 	}
-	//if the bot can use the bfg
-	if (bs->inventory[INVENTORY_BFG10K] > 0 &&
-			bs->inventory[INVENTORY_BFGAMMO] > 7) return 100;
-	//if the bot can use the railgun
-	if (bs->inventory[INVENTORY_RAILGUN] > 0 &&
-			bs->inventory[INVENTORY_SLUGS] > 5) return 95;
-	//if the bot can use the lightning gun
-	if (bs->inventory[INVENTORY_LIGHTNING] > 0 &&
-			bs->inventory[INVENTORY_LIGHTNINGAMMO] > 50) return 90;
-	//if the bot can use the rocketlauncher
-	if (bs->inventory[INVENTORY_ROCKETLAUNCHER] > 0 &&
-			bs->inventory[INVENTORY_ROCKETS] > 5) return 90;
-	//if the bot can use the plasmagun
-	if (bs->inventory[INVENTORY_PLASMAGUN] > 0 &&
-			bs->inventory[INVENTORY_CELLS] > 40) return 85;
-	//if the bot can use the grenade launcher
-	if (bs->inventory[INVENTORY_GRENADELAUNCHER] > 0 &&
-			bs->inventory[INVENTORY_GRENADES] > 10) return 80;
-	//if the bot can use the shotgun
-	if (bs->inventory[INVENTORY_SHOTGUN] > 0 &&
-			bs->inventory[INVENTORY_SHELLS] > 10) return 50;
+	//as keen as its best weapon is good: the weapon defs' "bot_rating"
+	// (Daikatana's from 100, the glove, to 700); above 50 it chases,
+	// below it retreats
+	rating = BotBestWeaponRating(bs, qtrue);
+	if (rating > 0) {
+		rating = 50 + rating / 20;
+		return rating > 100 ? 100 : rating;
+	}
+	//only a melee weapon: fights what's close, runs from the rest
+	if (BotBestWeaponRating(bs, qfalse) > 0 && bs->inventory[ENEMY_HORIZONTAL_DIST] < 300) {
+		return 55;
+	}
 	//otherwise the bot is not feeling too good
 	return 0;
 }
@@ -2338,13 +2331,11 @@ BotFeelingBad
 ==================
 */
 float BotFeelingBad(bot_state_t *bs) {
-	if (BG_Weapon( bs->weaponnum )->melee) {
-		return 100;
-	}
 	if (bs->inventory[INVENTORY_HEALTH] < 40) {
 		return 100;
 	}
-	if (BG_Weapon( bs->weaponnum )->slot <= 2) {
+	//nothing to shoot with
+	if (BotBestWeaponRating(bs, qtrue) <= 0) {
 		return 90;
 	}
 	if (bs->inventory[INVENTORY_HEALTH] < 60) {
