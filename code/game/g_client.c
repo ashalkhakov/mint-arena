@@ -1234,8 +1234,7 @@ void PlayerSpawn(gentity_t *ent) {
 	ent->watertype = 0;
 	ent->flags = 0;
 	
-	VectorCopy (playerMins, player->ps.mins);
-	VectorCopy (playerMaxs, player->ps.maxs);
+	BG_PlayerBox( ent->characterDef, qfalse, player->ps.mins, player->ps.maxs, NULL );	// its model's
 
 	player->ps.playerNum = index;
 

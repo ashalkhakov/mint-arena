@@ -453,6 +453,7 @@ typedef struct {
 	qhandle_t		headModel;
 
 	int				modelDef;		// a skeletal model (bg_models) instead, 0 none
+	int				boxModel;		// the model def of the player's box, the server's, 0 Quake 3's
 	qhandle_t		skeletalModel;	// its mesh
 
 	cgSkin_t		modelSkin;
@@ -496,6 +497,10 @@ typedef struct weaponInfo_s {
 
 	qhandle_t		handsModel;			// the hands don't actually draw, they just position the weapon
 	qhandle_t		weaponModel;		// "model_world", on the player's tag_weapon
+	int				handFrame;			// "model_world_frame", the frame held in a skeletal character's hand
+	float			handScale;			// "model_world_scale", in a skeletal character's hand
+	vec3_t			handAngles;			// "model_world_angles", turned from the hand's
+	vec3_t			handOffset;			// "model_world_offset", in the hand's space
 	qhandle_t		flashModel;			// "model_flash", on the weapon's tag_flash
 
 	qhandle_t		firstModel;			// "model_view", in first person

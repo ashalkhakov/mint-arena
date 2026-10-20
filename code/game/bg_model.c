@@ -397,6 +397,13 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->flagJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "joint_flag", "FLAG_ATTACHER" ) );
 	BG_LoadModelIK( model );
 
+	// its box, Quake 3's player's unless it says
+	DictGetVector( def, "mins", va( "-15 -15 %d", MINS_Z ), model->mins );
+	DictGetVector( def, "maxs", "15 15 32", model->maxs );
+	model->crouchHeight = DictGetFloat( def, "crouch_height", "16" );
+	model->eyeHeight = DictGetFloat( def, "eye_height", va( "%d", DEFAULT_VIEWHEIGHT ) );
+	model->crouchEyeHeight = DictGetFloat( def, "crouch_eye_height", va( "%d", CROUCH_VIEWHEIGHT ) );
+
 	// damage scales of the zones the hitboxes name
 	for ( i = 0; i < model->numZones; i++ ) {
 		model->zones[i].damageScale = DictGetFloat( def, va( "damage_scale %s", model->zones[i].name ), "1" );
@@ -678,17 +685,32 @@ BG_PlayerAnimChannels
 
 A player's channels from its legsAnim and torsoAnim (animNumber_t, with
 the toggle bit) and when they started: each through the model's
-"player_anim"s. The torso plays its own only when it has one and isn't
-doing what the legs are (BOTH_); otherwise the legs' animation shows
-through.
+"player_anim"s, in the variant for the weapon held when the model has
+it: the weapon def's "player_anim_suffix" added to the animation's name
+(Daikatana's: "a" for pistols, "b" for rifles; Doom 3 names a weapon's
+player animations by its "animPrefix"). The torso plays its own only when
+it has one and isn't doing what the legs are (BOTH_); otherwise the legs'
+animation shows through.
 ================
 */
+static int BG_WeaponAnimVariant( const bgModel_t *model, int anim, const char *suffix ) {
+	int variant;
+
+	if ( anim < 0 || !suffix[0] ) {
+		return anim;
+	}
+	variant = BG_ModelAnimForName( model, va( "%s%s", model->anims[anim].name, suffix ) );
+	return variant >= 0 ? variant : anim;
+}
+
 void BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
-							int torsoAnim, int torsoTime ) {
+							int torsoAnim, int torsoTime, int weapon ) {
 	int legs = legsAnim & ~ANIM_TOGGLEBIT, torso = torsoAnim & ~ANIM_TOGGLEBIT;
+	const char *suffix = BG_ValidWeapon( weapon )
+		? DictGetStringReference( BG_Weapon( weapon )->def, "player_anim_suffix", "" ) : "";
 	int anim;
 
-	anim = legs >= 0 && legs < MAX_TOTALANIMATIONS ? model->playerAnims[legs] : -1;
+	anim = legs >= 0 && legs < MAX_TOTALANIMATIONS ? BG_WeaponAnimVariant( model, model->playerAnims[legs], suffix ) : -1;
 	if ( anim >= 0 && model->playerAnimHold[legs] ) {
 		legsTime -= 3600000;	// long since over: its last frame
 	}
@@ -707,7 +729,7 @@ void BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, i
 
 	anim = -1;
 	if ( torso >= 0 && torso < MAX_TOTALANIMATIONS && torso != legs ) {
-		anim = model->playerAnims[torso];
+		anim = BG_WeaponAnimVariant( model, model->playerAnims[torso], suffix );
 		if ( anim >= 0 && model->playerAnimHold[torso] ) {
 			torsoTime -= 3600000;
 		}
@@ -739,6 +761,35 @@ void BG_PlayerAimAngles( const vec3_t viewAngles, int movementDir, vec3_t legs, 
 	torso[YAW] = head[YAW] + 0.25f * movementOffsets[movementDir];
 	pitch = head[PITCH] > 180 ? head[PITCH] - 360 : head[PITCH];
 	torso[PITCH] = pitch * 0.75f;
+}
+
+/*
+================
+BG_PlayerBox
+
+A player's box and eyes, standing or crouched, by its model (0: Quake 3's).
+================
+*/
+void BG_PlayerBox( int playerModel, qboolean crouched, vec3_t mins, vec3_t maxs, int *viewheight ) {
+	const bgModel_t *model;
+
+	if ( !BG_ValidModel( playerModel ) ) {
+		VectorSet( mins, -15, -15, MINS_Z );
+		VectorSet( maxs, 15, 15, crouched ? 16 : 32 );
+		if ( viewheight ) {
+			*viewheight = crouched ? CROUCH_VIEWHEIGHT : DEFAULT_VIEWHEIGHT;
+		}
+		return;
+	}
+	model = &bg_models[playerModel];
+	VectorCopy( model->mins, mins );
+	VectorCopy( model->maxs, maxs );
+	if ( crouched ) {
+		maxs[2] = model->crouchHeight;
+	}
+	if ( viewheight ) {
+		*viewheight = (int)( ( crouched ? model->crouchEyeHeight : model->eyeHeight ) + 0.5f );
+	}
 }
 
 /*

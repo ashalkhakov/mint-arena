@@ -100,7 +100,7 @@ static void G_CharacterRecord( gentity_t *ent ) {
 	st->time = level.time;
 	if ( ent->player ) {
 		BG_PlayerAnimChannels( &bg_models[ent->characterDef], h->channels, ent->s.legsAnim, ent->s.time,
-							   ent->s.torsoAnim, ent->s.time2 );
+							   ent->s.torsoAnim, ent->s.time2, ent->s.weapon );
 		VectorCopy( ent->player->ps.viewangles, st->angles );
 		st->movementDir = ( ent->s.eFlags & EF_DEAD ) ? 0 : ent->player->ps.movementDir;
 		st->onGround = ent->player->ps.groundEntityNum != ENTITYNUM_NONE && !( ent->s.eFlags & EF_DEAD );

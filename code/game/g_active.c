@@ -868,6 +868,7 @@ void PlayerThink_real( gentity_t *ent ) {
 
 	pm.ps = &player->ps;
 	pm.cmd = *ucmd;
+	pm.playerModel = ent->characterDef;		// its box
 	if ( pm.ps->pm_type == PM_DEAD ) {
 		pm.tracemask = MASK_PLAYERSOLID & ~CONTENTS_BODY;
 	}

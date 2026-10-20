@@ -562,6 +562,7 @@ void CG_PredictPlayerState( void ) {
 
 	// prepare for pmove
 	cg_pmove.ps = &cg.cur_lc->predictedPlayerState;
+	cg_pmove.playerModel = cgs.playerinfo[cg_pmove.ps->playerNum].boxModel;	// its box
 	if (cg.cur_lc->predictedPlayerState.collisionType == CT_CAPSULE) {
 		cg_pmove.trace = CG_TraceCapsule;
 	} else {

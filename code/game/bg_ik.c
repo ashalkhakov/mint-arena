@@ -86,6 +86,8 @@ void BG_LoadModelIK( bgModel_t *model ) {
 	model->ik.footDownTrace = DictGetFloat( def, "ik_footDownTrace", "32" );
 }
 
+#define IK_MAX_SHIFT	18		// a step (STEPSIZE)
+
 static void BG_IK_JointOrigin( const float *jointMats, int joint, vec3_t out ) {
 	out[0] = jointMats[12 * joint + 3];
 	out[1] = jointMats[12 * joint + 7];
@@ -125,54 +127,40 @@ static qboolean BG_IK_SolveTwoBones( const vec3_t start, const vec3_t end, const
 
 /*
 ================
-BG_IK_BoneFrame
-
-Doom 3's idIK::GetBoneAxis: a frame along a bone, x down it, y toward dir,
-as a matrix's columns.
-================
-*/
-static void BG_IK_BoneFrame( const vec3_t start, const vec3_t end, const vec3_t dir, float m[3][3] ) {
-	vec3_t x, y, z;
-	int r;
-
-	VectorSubtract( end, start, x );
-	VectorNormalize( x );
-	VectorMA( dir, -DotProduct( dir, x ), x, y );
-	if ( VectorNormalize( y ) == 0 ) {
-		PerpendicularVector( y, x );
-	}
-	CrossProduct( x, y, z );
-	for ( r = 0; r < 3; r++ ) {
-		m[r][0] = x[r];
-		m[r][1] = y[r];
-		m[r][2] = z[r];
-	}
-}
-
-/*
-================
 BG_IK_TurnBone
 
 Turns a joint (and what's under it) about itself so its bone goes from
-along from->to old to along to new, keeping the bend's plane (dir).
+pivot->oldEnd along pivot->newEnd: the smallest rotation that does it, so the
+bone never twists about its length (a twisted thigh is a broken hip).
 ================
 */
 static void BG_IK_TurnBone( const bgModel_t *model, float *jointMats, int numJoints, int joint,
-							const vec3_t pivot, const vec3_t oldEnd, const vec3_t newEnd, const vec3_t dir ) {
-	float oldFrame[3][3], newFrame[3][3], rot[3][3];
-	int r, c, k;
+							const vec3_t pivot, const vec3_t oldEnd, const vec3_t newEnd ) {
+	vec3_t from, to, axis;
+	float rot[3][3], c, s, t;
+	int r, k;
 
-	BG_IK_BoneFrame( pivot, oldEnd, dir, oldFrame );
-	BG_IK_BoneFrame( pivot, newEnd, dir, newFrame );
-	// new * old transposed
+	VectorSubtract( oldEnd, pivot, from );
+	VectorSubtract( newEnd, pivot, to );
+	if ( VectorNormalize( from ) < 0.001f || VectorNormalize( to ) < 0.001f ) {
+		return;
+	}
+	CrossProduct( from, to, axis );
+	s = VectorNormalize( axis );
+	c = DotProduct( from, to );
+	if ( s < 0.0001f ) {
+		return;		// along already (or right back, which the solve never asks)
+	}
+	// Rodrigues: c I + s [axis]x + (1 - c) axis axis^T
+	t = 1.0f - c;
 	for ( r = 0; r < 3; r++ ) {
-		for ( c = 0; c < 3; c++ ) {
-			rot[r][c] = 0;
-			for ( k = 0; k < 3; k++ ) {
-				rot[r][c] += newFrame[r][k] * oldFrame[c][k];
-			}
+		for ( k = 0; k < 3; k++ ) {
+			rot[r][k] = t * axis[r] * axis[k] + ( r == k ? c : 0 );
 		}
 	}
+	rot[0][1] -= s * axis[2];	rot[1][0] += s * axis[2];
+	rot[0][2] += s * axis[1];	rot[2][0] -= s * axis[1];
+	rot[1][2] -= s * axis[0];	rot[2][1] += s * axis[0];
 	BG_ModelRotateJoints( model, jointMats, numJoints, joint, rot );
 }
 
@@ -242,11 +230,14 @@ void BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, co
 		VectorCopy( world, end );
 		end[2] -= ik->footDownTrace;
 		BG_IK_Trace( &tr, start, mins, maxs, end, passEntityNum, MASK_PLAYERSOLID );
-		floors[i] = tr.endpos[2];
+		// no floor found, or the trace began in a wall: the foot stays
+		floors[i] = ( tr.startsolid || tr.allsolid || tr.fraction == 1.0f ) ? floorHeight : tr.endpos[2];
 
 		// the ankle up or down by as much as the floor is from where the
-		// entity stands, smoothed
+		// entity stands, smoothed; never more than a step, as the entity's
+		// box couldn't stand there either
 		shift = floors[i] - floorHeight + ik->footShift;
+		shift = Com_Clamp( -IK_MAX_SHIFT, IK_MAX_SHIFT, shift );
 		if ( shift < smallestShift ) {
 			smallestShift = shift;
 		}
@@ -304,22 +295,39 @@ void BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, co
 		len0 = Distance( hip[i], knee[i] );
 		len1 = Distance( knee[i], ankle[i] );
 
-		// the way the knee bends: where it is off the hip-ankle line, or
-		// forward when the leg's straight
+		// the way the knee bends: where it is off the hip-ankle line, but
+		// never backward (a knee bends only forward, as Doom 3's always does);
+		// forward when the leg's nearly straight, where the offset is noise
 		VectorSubtract( ankle[i], hip[i], start );
 		VectorNormalize( start );
 		VectorSubtract( knee[i], hip[i], kneeDir );
 		VectorMA( kneeDir, -DotProduct( kneeDir, start ), start, kneeDir );
-		if ( VectorNormalize( kneeDir ) < 0.01f ) {
-			VectorSet( kneeDir, 1, 0, 0 );		// the model's forward
+		if ( VectorNormalize( kneeDir ) < 1.0f || kneeDir[0] < 0.25f ) {
+			VectorSet( world, 1, 0, 0 );		// the model's forward
+			VectorMA( world, -DotProduct( world, start ), start, kneeDir );
+			if ( VectorNormalize( kneeDir ) < 0.01f ) {
+				continue;		// the leg points forward; leave it
+			}
 		}
 
-		BG_IK_SolveTwoBones( hip[i], target[i], kneeDir, len0, len1, end );
+		// a target the leg can't reach is pulled in along the hip's line to
+		// where it can (Doom 3 leaves the knee at the midpoint, which folds
+		// the leg)
+		VectorSubtract( target[i], hip[i], start );
+		height = VectorNormalize( start );
+		if ( height > ( len0 + len1 ) * 0.999f ) {
+			VectorMA( hip[i], ( len0 + len1 ) * 0.999f, start, target[i] );
+		} else if ( height < fabs( len0 - len1 ) * 1.001f + 0.01f ) {
+			VectorMA( hip[i], fabs( len0 - len1 ) * 1.001f + 0.01f, start, target[i] );
+		}
+		if ( !BG_IK_SolveTwoBones( hip[i], target[i], kneeDir, len0, len1, end ) ) {
+			continue;		// as animated
+		}
 		// the thigh to the new knee, then the shin to the ankle's target
-		BG_IK_TurnBone( model, jointMats, numJoints, ik->hip[i], hip[i], knee[i], end, kneeDir );
+		BG_IK_TurnBone( model, jointMats, numJoints, ik->hip[i], hip[i], knee[i], end );
 		BG_IK_JointOrigin( jointMats, ik->knee[i], knee[i] );
 		BG_IK_JointOrigin( jointMats, ik->ankle[i], ankle[i] );
-		BG_IK_TurnBone( model, jointMats, numJoints, ik->knee[i], knee[i], ankle[i], target[i], kneeDir );
+		BG_IK_TurnBone( model, jointMats, numJoints, ik->knee[i], knee[i], ankle[i], target[i] );
 
 		// the ankle as it was turned: its rotation now back to before
 		for ( r = 0; r < 3; r++ ) {

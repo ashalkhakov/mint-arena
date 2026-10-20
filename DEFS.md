@@ -90,11 +90,18 @@ What it looks like: `model_view` (first person), with `anim_raise`,
 `anim_lower`, `anim_idle`, `anim_fire`, `anim_reload`, `anim_empty` naming
 the model's frames (`"shoota"` for `shoota01`..., optionally followed by
 frames a second) and `anim_fps` (10); `model_world` (on the player's
-tag_weapon), `model_flash`, `icon`, `snd_fire` (several, picked at random),
+tag_weapon; on a skeletal character's weapon joint its frame
+`model_world_frame`, -1 for none, turned and moved by `model_world_angles`
+and `model_world_offset`, scaled by `model_world_scale`), `model_flash`, `icon`, `snd_fire` (several, picked at random),
 `snd_raise`, `snd_hum`, `snd_firing`, `snd_altfire`, `flashColor` and
 `flashRadius` (a light), `fx_muzzle` (an effect, see below), `anim_altfire`.
 A first person model is drawn at the eye, facing the view, with Daikatana's
 small bob, as its models are made for that.
+
+`player_anim_suffix` picks a skeletal player's animations by the weapon, as
+Daikatana's do by weapon type and Doom 3's by `animPrefix`: with `"b"` the
+torso and legs play `atakb`, `runb`… where the model has them, else the plain
+ones.
 
 The weapons players start with are the `weapon` key of the `player` def
 (Doom 3's), a list of weapon defs.
@@ -131,7 +138,7 @@ Doom 3's `model` decl as entityDef keys (`bg_model.c`):
 ```
 entityDef model_testchar {
 	"mesh"				"characters/test/testchar.iqm"
-	"mins"				"-16 -16 -24"			// its bounding box
+	"mins"				"-16 -16 -24"			// its collision box (a player's standing)
 	"maxs"				"16 16 48"
 	"anim idle"			"idle"					// the IQM's animation of the name...
 	"anim wave"			"40 20 10 loop"			// ...or frames: first, count, fps, loop
@@ -184,7 +191,15 @@ a `misc_character`'s, rewound for lag the same. pmove's animations (Quake 3's
 	"aim_head"					"Head"
 	"joint_weapon"				"WEAPON_ATTACHER"	// where the weapon's "model_world" goes
 	"joint_flag"				"FLAG_ATTACHER"		// and the flag
+	"crouch_height"				"14"				// maxs z crouched (16)
+	"eye_height"				"25"				// the view standing (26)
+	"crouch_eye_height"			"10"				// and crouched (12)
 ```
+
+The player's box is its model's (`BG_PlayerBox`): `mins`/`maxs` standing,
+`crouch_height` its top crouched, Quake 3's without a def. The game sizes it
+by the userinfo model, and the cgame predicts by the same (the configstring's
+`model`, not what `cg_forceModel` draws).
 
 An animation without a key leaves the legs on the model's first and the
 torso to the legs. The game stamps when each started (`time`, `time2`), so
@@ -210,7 +225,10 @@ make Quake 3's footstep events.
 **Walk IK, Doom 3's** (`idIK_Walk`, `bg_ik.c`). After the animations blend,
 each foot's floor is traced, the ankles move to it (smoothed), the waist drops
 (or rises) so the feet reach, and each leg is solved as two bones keeping its
-bend; the ankles keep their orientation. The keys are Doom 3's: `ik_numLegs`,
+bend; the ankles keep their orientation. Unlike Doom 3, a foot moves at most a
+step (18), a foot over no floor (or traced from inside a wall) stays, a target
+out of reach is pulled in instead of folding the leg, the knee bends only
+forward, and the bones turn the least way, never twisting about their length. The keys are Doom 3's: `ik_numLegs`,
 `ik_waist`, `ik_hip<n>`, `ik_knee<n>`, `ik_ankle<n>`, `ik_foot<n>` (the ankle
 when missing), `ik_footSize`, `ik_smoothing`, `ik_waistSmoothing`,
 `ik_footShift`, `ik_waistShift`, `ik_minWaistAnkleDist`, `ik_footUpTrace`,

@@ -1211,6 +1211,8 @@ void CG_NewPlayerInfo( int playerNum ) {
 
 	// model
 	v = Info_ValueForKey( configstring, "model" );
+	// the box is the model the server gave, whatever's drawn (pmove's)
+	newInfo.boxModel = BG_PlayerModelForName( v );
 	if ( cg_forceModel.integer ) {
 		// forcemodel makes everyone use a single model
 		// to prevent load hitches

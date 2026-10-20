@@ -415,6 +415,11 @@ CG_RegisterWeapon
 The media of a weapon, from its entity def (see bg_defs.c):
 	"model_view"		the first person model, with "anim_*" animations
 	"model_world"		the model on the player's tag_weapon (or the item's)
+	"model_world_frame"	its frame in a skeletal character's hand (its weapon joint):
+						Daikatana's weapon models hold their held pose in frame 4;
+						-1 for nothing there
+	"model_world_scale", "model_world_angles" (pitch yaw roll), "model_world_offset"
+						and how it sits there besides
 	"model_flash"		a flash on the weapon's tag_flash
 	"icon"				(or the item's)
 	"snd_fire"			sounds to choose from at random
@@ -462,6 +467,10 @@ void CG_RegisterWeapon( int weaponNum ) {
 
 	// the models
 	weaponInfo->weaponModel = CG_DefModel( def, "model_world" );
+	weaponInfo->handFrame = DictGetInt( def, "model_world_frame", "0" );
+	weaponInfo->handScale = DictGetFloat( def, "model_world_scale", "1" );
+	DictGetVector( def, "model_world_angles", "0 0 0", weaponInfo->handAngles );
+	DictGetVector( def, "model_world_offset", "0 0 0", weaponInfo->handOffset );
 	if ( !weaponInfo->weaponModel && weaponInfo->item && weaponInfo->item->world_model[0][0] ) {
 		weaponInfo->weaponModel = trap_R_RegisterModel( weaponInfo->item->world_model[0] );
 	}
@@ -762,7 +771,7 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 	centity_t	*nonPredictedCent;
 	orientation_t	lerped;
 	playerInfo_t *pi;
-	int		anim;
+	int		anim, i;
 
 	weaponNum = cent->currentState.weapon;
 
@@ -836,12 +845,34 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 		}
 	}
 
-	if ( ( ps && weapon->animated ) || !parent->hModel ) {
+	if ( ps && weapon->animated ) {
 		// a first person model goes where the hand is, keeping its own
-		// animation's frames and lerp; on a skeletal character, where its
-		// weapon joint is
+		// animation's frames and lerp
 		VectorCopy(parent->origin, gun.origin);
 		AxisCopy( parent->axis, gun.axis );
+	} else if ( !parent->hModel ) {
+		// on a skeletal character, its weapon joint, as the def turns,
+		// scales and moves it there; a frame of -1: nothing in the hand
+		vec3_t turn[3];
+
+		if ( weapon->handFrame < 0 ) {
+			return;
+		}
+
+		AnglesToAxis( weapon->handAngles, turn );
+		MatrixMultiply( turn, ( (refEntity_t *)parent )->axis, gun.axis );
+		VectorCopy( parent->origin, gun.origin );
+		for ( i = 0; i < 3; i++ ) {
+			VectorMA( gun.origin, weapon->handOffset[i], parent->axis[i], gun.origin );
+		}
+		gun.frame = gun.oldframe = weapon->handFrame;
+		gun.backlerp = 0;
+		if ( weapon->handScale != 1.0f ) {
+			for ( i = 0; i < 3; i++ ) {
+				VectorScale( gun.axis[i], weapon->handScale, gun.axis[i] );
+			}
+			gun.nonNormalizedAxes = qtrue;
+		}
 	} else {
 		trap_R_LerpTag(&lerped, parent->hModel, parent->oldframe, parent->frame,
 			1.0 - parent->backlerp, "tag_weapon");

@@ -505,7 +505,7 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 		legsTime = s1->time;
 		torsoTime = s1->time2;
 	}
-	BG_PlayerAnimChannels( model, cent->characterChannels, s1->legsAnim, legsTime, s1->torsoAnim, torsoTime );
+	BG_PlayerAnimChannels( model, cent->characterChannels, s1->legsAnim, legsTime, s1->torsoAnim, torsoTime, s1->weapon );
 
 	legs->hModel = pi->skeletalModel;
 	legs->customSkin = 0;
@@ -531,11 +531,12 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 		CG_CharacterFrameCommands( cent, pi->modelDef, i, legs, joints, numJoints );
 	}
 
-	CG_JointEntity( legs, joints, numJoints, model->torsoJoint, torso );
 	// Daikatana's hardpoints are points: the weapon goes where the hand is,
-	// turned as the torso aims rather than as the hand is
+	// turned as the torso aims rather than as the hand is (torsoAxis first:
+	// the caller's torso may be the same as torso, filled next)
 	CG_JointEntity( legs, joints, numJoints, model->weaponJoint, weapon );
 	MatrixMultiply( (vec3_t *)torsoAxis, legs->axis, weapon->axis );
+	CG_JointEntity( legs, joints, numJoints, model->torsoJoint, torso );
 	CG_JointEntity( legs, joints, numJoints, model->flagJoint >= 0 ? model->flagJoint : model->torsoJoint, flag );
 
 	if ( cg_drawSkeleton.integer && numJoints > 0 ) {

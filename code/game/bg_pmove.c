@@ -1395,13 +1395,8 @@ static void PM_CheckDuck (void)
 	}
 	pm->ps->pm_flags &= ~PMF_INVULEXPAND;
 
-	pm->ps->mins[0] = -15;
-	pm->ps->mins[1] = -15;
-
-	pm->ps->maxs[0] = 15;
-	pm->ps->maxs[1] = 15;
-
-	pm->ps->mins[2] = MINS_Z;
+	// the box is the player model's (Doom 3's actors have theirs)
+	BG_PlayerBox( pm->playerModel, qfalse, pm->ps->mins, pm->ps->maxs, NULL );
 
 	if (pm->ps->pm_type == PM_DEAD)
 	{
@@ -1419,23 +1414,13 @@ static void PM_CheckDuck (void)
 		if (pm->ps->pm_flags & PMF_DUCKED)
 		{
 			// try to stand up
-			pm->ps->maxs[2] = 32;
 			pm->trace (&trace, pm->ps->origin, pm->ps->mins, pm->ps->maxs, pm->ps->origin, pm->ps->playerNum, pm->tracemask );
 			if (!trace.allsolid)
 				pm->ps->pm_flags &= ~PMF_DUCKED;
 		}
 	}
 
-	if (pm->ps->pm_flags & PMF_DUCKED)
-	{
-		pm->ps->maxs[2] = 16;
-		pm->ps->viewheight = CROUCH_VIEWHEIGHT;
-	}
-	else
-	{
-		pm->ps->maxs[2] = 32;
-		pm->ps->viewheight = DEFAULT_VIEWHEIGHT;
-	}
+	BG_PlayerBox( pm->playerModel, ( pm->ps->pm_flags & PMF_DUCKED ) != 0, pm->ps->mins, pm->ps->maxs, &pm->ps->viewheight );
 }
 
 

@@ -523,6 +523,7 @@ typedef struct {
 	int			debugLevel;			// if set, diagnostic output will be printed
 	qboolean	noFootsteps;		// if the game is setup for no footsteps by the server
 	qboolean	gauntletHit;		// true if a gauntlet attack would actually hit something
+	int			playerModel;		// the player's model def (bg_models): its box; 0 Quake 3's
 
 	int			framecount;
 
@@ -1298,6 +1299,10 @@ typedef struct {
 	int					torsoJoint, headJoint;	// "aim_torso", "aim_head": turned to aim, -1 none
 	int					weaponJoint, flagJoint;	// "joint_weapon", "joint_flag": what's carried goes there
 	bgModelIK_t			ik;					// "ik_*" keys
+	// its collision box, Doom 3's: "mins"/"maxs" standing (about the origin),
+	// "crouch_height" the top crouched, "eye_height", "crouch_eye_height"
+	vec3_t				mins, maxs;
+	float				crouchHeight, eyeHeight, crouchEyeHeight;
 } bgModel_t;
 
 typedef struct {
@@ -1353,11 +1358,12 @@ int			BG_PlayerModelForName( const char *modelName );
 void		BG_ModelRotateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const float rot[3][3] );
 void		BG_ModelTranslateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const vec3_t offset );
 void		BG_LoadModelIK( bgModel_t *model );
+void		BG_PlayerBox( int playerModel, qboolean crouched, vec3_t mins, vec3_t maxs, int *viewheight );
 void		BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
 							const vec3_t axis[3], float floorHeight, qboolean onGround, int passEntityNum, int time,
 							bgIKState_t *state );
 void		BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
-								   int torsoAnim, int torsoTime );
+								   int torsoAnim, int torsoTime, int weapon );
 void		BG_PlayerAimAngles( const vec3_t viewAngles, int movementDir, vec3_t legs, vec3_t torso, vec3_t head );
 void		BG_ModelAim( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t torsoAxis[3],
 						 const vec3_t headAxis[3] );
