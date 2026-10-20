@@ -595,6 +595,62 @@ static void PM_SwimStroke( vec3_t wishdir, float *wishspeed ) {
 		return;		// right back: the turn's anywhere, let the water stop it
 	}
 	RotatePointAroundVector( wishdir, axis, heading, turn );
+	// and the body with it, so the turn builds up from frame to frame
+	VectorScale( wishdir, speed, pm->ps->velocity );
+}
+
+#define SWIM_FLOAT_SPEED	50		// rising to the surface, not swimming
+#define SWIM_DIVE_PITCH		25		// degrees down from the surface that dive in
+#define SWIM_LEAP_SPEED		220		// up, out of the water
+
+/*
+===================
+PM_SwimSurface
+
+The swimmer's buoyancy and the surface. Under, not swimming anywhere, it
+floats up. At the surface (the head out, water level 2) it stays there
+swimming along it, unless it looks well down or crouches (diving in); a
+jump there leaps out. qtrue when it leapt (the move's done).
+===================
+*/
+static qboolean PM_SwimSurface( vec3_t wishvel, float scale ) {
+	float pitch = AngleNormalize180( pm->ps->viewangles[PITCH] );
+
+	if ( !scale ) {
+		// floating: up to the surface, then held there
+		wishvel[2] = pm->waterlevel == 3 ? SWIM_FLOAT_SPEED : 0;
+		if ( pm->waterlevel < 3 && pm->ps->velocity[2] < 0 ) {
+			pm->ps->velocity[2] *= 0.5f;
+		}
+		return qfalse;
+	}
+	if ( pm->waterlevel != 2 ) {
+		return qfalse;		// under: swimming wherever it looks
+	}
+
+	// a jump at the surface leaps out (once a press)
+	if ( pm->cmd.upmove > 0 && !( pm->ps->pm_flags & PMF_JUMP_HELD ) ) {
+		pm->ps->pm_flags |= PMF_JUMP_HELD;
+		pm->ps->velocity[2] = SWIM_LEAP_SPEED;
+		PM_AddEvent( EV_JUMP );
+		return qtrue;
+	}
+	if ( pm->cmd.upmove <= 0 ) {
+		pm->ps->pm_flags &= ~PMF_JUMP_HELD;
+	}
+
+	// diving in: looking well down, or crouching
+	if ( pitch > SWIM_DIVE_PITCH || pm->cmd.upmove < 0 ) {
+		return qfalse;
+	}
+	// along the surface
+	if ( wishvel[2] < 0 ) {
+		wishvel[2] = 0;
+	}
+	if ( pm->ps->velocity[2] < 0 ) {
+		pm->ps->velocity[2] *= 0.5f;
+	}
+	return qfalse;
 }
 
 static void PM_WaterMove( void ) {
@@ -638,6 +694,12 @@ static void PM_WaterMove( void ) {
 			wishvel[i] = scale * pml.forward[i]*pm->cmd.forwardmove + scale * pml.right[i]*pm->cmd.rightmove;
 
 		wishvel[2] += scale * pm->cmd.upmove;
+	}
+
+	// Turok's water: the body floats up, at the surface it swims along it
+	// (looking down, or crouching, dives in), and jumping there leaps out
+	if ( PM_SwimSurface( wishvel, scale ) ) {
+		return;
 	}
 
 	VectorCopy (wishvel, wishdir);

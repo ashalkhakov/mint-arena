@@ -213,7 +213,10 @@ bottom, it swims. Swimming goes by strokes: `swimPhase` (pmove's, sent as a
 player's `frame`) goes round a stroke a second (the swim animation's length;
 slower treading water), each pull a surge (`BG_SwimStrokePull`) and a glide
 after it, and where the swimmer goes turns toward where it looks at most
-150° a second, so it swims in arcs. The swim animation plays by the same
+150° a second, so it swims in arcs. Not swimming anywhere it floats up; at
+the surface (the head out) it swims along it, looking down (25°) or
+crouching dives in, looking up under water brings it back up, and a jump at
+the surface leaps out (Quake 3's water jump still climbs out onto a ledge). The swim animation plays by the same
 phase, so the arms pull as it surges; the body lies along where it's going,
 its middle (`swim_center`) in the box, the head turned to look (so far as a
 neck turns). In first person the view lifts with each pull, bobs with the
