@@ -818,6 +818,9 @@ void PlayerThink_real( gentity_t *ent ) {
 
 	// set speed
 	player->ps.speed = g_speed.value;
+	if ( BG_ValidModel( ent->characterDef ) && bg_models[ent->characterDef].runSpeed > 0 ) {
+		player->ps.speed = bg_models[ent->characterDef].runSpeed;		// the character's, its legs keep up
+	}
 
 #ifdef MISSIONPACK
 	if( BG_ItemForItemNum( player->ps.stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_SCOUT ) {

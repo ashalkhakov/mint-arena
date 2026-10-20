@@ -70,6 +70,18 @@ void BG_LoadModelIK( bgModel_t *model ) {
 			return;
 		}
 	}
+	// the arms (Doom 3's idIK_Reach keys)
+	model->ik.numArms = Com_Clamp( 0, MAX_IK_LEGS, DictGetInt( def, "ik_numArms", "0" ) );
+	for ( i = 0; i < model->ik.numArms; i++ ) {
+		model->ik.shoulder[i] = BG_ModelJointIndex( model, DictGetStringReference( def, va( "ik_shoulder%d", i + 1 ), "" ) );
+		model->ik.elbow[i] = BG_ModelJointIndex( model, DictGetStringReference( def, va( "ik_elbow%d", i + 1 ), "" ) );
+		model->ik.hand[i] = BG_ModelJointIndex( model, DictGetStringReference( def, va( "ik_hand%d", i + 1 ), "" ) );
+		if ( model->ik.shoulder[i] < 0 || model->ik.elbow[i] < 0 || model->ik.hand[i] < 0 ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: model %s: arm %d of its IK has no joint\n", model->name, i + 1 );
+			model->ik.numArms = 0;
+			break;
+		}
+	}
 	model->ik.waist = BG_ModelJointIndex( model, DictGetStringReference( def, "ik_waist", "" ) );
 	if ( model->ik.numLegs && model->ik.waist < 0 ) {
 		Com_Printf( S_COLOR_YELLOW "WARNING: model %s: its IK has no waist joint\n", model->name );
@@ -396,7 +408,7 @@ climbing, or no ladder's there.
 ================
 */
 qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, float viewYaw, int passEntityNum,
-						  float *yaw, vec3_t offset ) {
+						  float *yaw, vec3_t offset, vec4_t plane ) {
 	const bgModel_t *model;
 	vec3_t mins, maxs, forward, end;
 	trace_t tr;
@@ -413,6 +425,8 @@ qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, fl
 		return qfalse;
 	}
 	*yaw = RAD2DEG( atan2( -tr.plane.normal[1], -tr.plane.normal[0] ) );
+	VectorCopy( tr.plane.normal, plane );
+	plane[3] = tr.plane.dist;
 	// the box's face against the ladder (an axial box reaches out along the
 	// normal by its half widths so weighted): the hands reach from the origin
 	// to there, less their own reach
@@ -424,4 +438,151 @@ qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, fl
 		offset[2] = 0;
 	}
 	return qtrue;
+}
+
+#define LADDER_GRAB_MSEC		350		// taking hold of a ladder
+#define LADDER_RELEASE_MSEC		300		// letting go of it
+
+/*
+================
+BG_PlayerLadderWeight
+
+How far into holding a ladder the player is, 0 to 1: easing in over the
+grab after the climbing starts, out over the release after it stops (from
+the legs' channel, so the game and the cgame agree). Changing between
+climbing up and down holds on.
+================
+*/
+static qboolean BG_IsClimbAnim( const bgModel_t *model, int anim ) {
+	return anim >= 0 && ( anim == model->playerAnims[LEGS_CLIMB] || anim == model->playerAnims[LEGS_CLIMBDOWN] );
+}
+
+float BG_PlayerLadderWeight( const bgModel_t *model, const bgAnimChannel_t *legs, int legsAnim, int time ) {
+	float f;
+
+	if ( BG_PlayerClimbing( legsAnim ) ) {
+		if ( BG_IsClimbAnim( model, legs->prevAnim ) ) {
+			return 1.0f;
+		}
+		f = (float)( time - legs->time ) / LADDER_GRAB_MSEC;
+	} else if ( BG_IsClimbAnim( model, legs->prevAnim ) ) {
+		f = 1.0f - (float)( time - legs->time ) / LADDER_RELEASE_MSEC;
+	} else {
+		return 0;
+	}
+	f = Com_Clamp( 0, 1, f );
+	return f * f * ( 3 - 2 * f );		// smoothstep
+}
+
+/*
+================
+BG_ModelReachArm
+
+Doom 3's reach IK (idIK_Reach), one arm: the hand toward target (the model's
+space), weight of the way from where the animation has it; the shoulder
+stays, the elbow bends as it was, the hand keeps its orientation. For a
+ladder's rungs, and for grabbing things and pressing buttons. qfalse when
+the model has no such arm.
+================
+*/
+qboolean BG_ModelReachArm( const bgModel_t *model, float *jointMats, int numJoints, int arm, const vec3_t target,
+						   float weight ) {
+	const bgModelIK_t *ik = &model->ik;
+	vec3_t shoulder, elbow, hand, goal, line, bend, newElbow;
+	float handRot[3][3], rot[3][3], len0, len1, reach;
+	int k, r, c;
+
+	if ( arm < 0 || arm >= ik->numArms || ik->shoulder[arm] >= numJoints || ik->elbow[arm] >= numJoints
+		 || ik->hand[arm] >= numJoints ) {
+		return qfalse;
+	}
+	if ( weight <= 0 ) {
+		return qtrue;
+	}
+	BG_IK_JointOrigin( jointMats, ik->shoulder[arm], shoulder );
+	BG_IK_JointOrigin( jointMats, ik->elbow[arm], elbow );
+	BG_IK_JointOrigin( jointMats, ik->hand[arm], hand );
+	len0 = Distance( shoulder, elbow );
+	len1 = Distance( elbow, hand );
+
+	// weight of the way, in reach of the shoulder
+	VectorSubtract( target, hand, goal );
+	VectorMA( hand, Com_Clamp( 0, 1, weight ), goal, goal );
+	VectorSubtract( goal, shoulder, line );
+	reach = VectorNormalize( line );
+	if ( reach > ( len0 + len1 ) * 0.999f ) {
+		VectorMA( shoulder, ( len0 + len1 ) * 0.999f, line, goal );
+	}
+
+	// the elbow bends as it does: off the shoulder-hand line, else back
+	VectorSubtract( elbow, shoulder, bend );
+	VectorMA( bend, -DotProduct( bend, line ), line, bend );
+	if ( VectorNormalize( bend ) < 0.01f ) {
+		VectorSet( bend, -1, 0, 0 );
+		VectorMA( bend, -DotProduct( bend, line ), line, bend );
+		if ( VectorNormalize( bend ) < 0.01f ) {
+			return qtrue;
+		}
+	}
+	if ( !BG_IK_SolveTwoBones( shoulder, goal, bend, len0, len1, newElbow ) ) {
+		return qtrue;
+	}
+	for ( r = 0; r < 3; r++ ) {
+		for ( c = 0; c < 3; c++ ) {
+			handRot[r][c] = jointMats[12 * ik->hand[arm] + r * 4 + c];
+		}
+	}
+	BG_IK_TurnBone( model, jointMats, numJoints, ik->shoulder[arm], shoulder, elbow, newElbow );
+	BG_IK_JointOrigin( jointMats, ik->elbow[arm], elbow );
+	BG_IK_JointOrigin( jointMats, ik->hand[arm], hand );
+	BG_IK_TurnBone( model, jointMats, numJoints, ik->elbow[arm], elbow, hand, goal );
+	// the hand as it was turned
+	for ( r = 0; r < 3; r++ ) {
+		for ( c = 0; c < 3; c++ ) {
+			rot[r][c] = 0;
+			for ( k = 0; k < 3; k++ ) {
+				rot[r][c] += handRot[r][k] * jointMats[12 * ik->hand[arm] + c * 4 + k];
+			}
+		}
+	}
+	BG_ModelRotateJoints( model, jointMats, numJoints, ik->hand[arm], rot );
+	return qtrue;
+}
+
+/*
+================
+BG_ModelLadderIK
+
+On a ladder each hand reaches for its face (plane, world space) at the
+height the climb has it, weight of the way there (taking hold, letting go).
+The model is at origin with axis.
+================
+*/
+#define LADDER_HAND_DEPTH	1.5f	// the hand's middle off the face
+
+void BG_ModelLadderIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
+					   const vec3_t axis[3], const vec4_t plane, float weight ) {
+	vec3_t hand, world, normal, target;
+	float dist;
+	int i, k;
+
+	if ( weight <= 0 ) {
+		return;
+	}
+	for ( k = 0; k < 3; k++ ) {
+		normal[k] = DotProduct( plane, axis[k] );		// the ladder's normal in the model's space
+	}
+	for ( i = 0; i < model->ik.numArms; i++ ) {
+		if ( model->ik.hand[i] >= numJoints ) {
+			continue;
+		}
+		BG_IK_JointOrigin( jointMats, model->ik.hand[i], hand );
+		VectorCopy( origin, world );
+		for ( k = 0; k < 3; k++ ) {
+			VectorMA( world, hand[k], axis[k], world );
+		}
+		dist = DotProduct( world, plane ) - plane[3] - LADDER_HAND_DEPTH;
+		VectorMA( hand, -dist, normal, target );		// onto the face, as high as it is
+		BG_ModelReachArm( model, jointMats, numJoints, i, target, weight );
+	}
 }

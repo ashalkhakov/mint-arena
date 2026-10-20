@@ -328,7 +328,7 @@ static void CG_CharacterFrameCommands( centity_t *cent, int modelNum, int channe
 		return;
 	}
 	a = &model->anims[ch->anim];
-	BG_ModelFrame( model, ch->anim, ch->frameTime, cg.time, &frame, &oldFrame, &backlerp, &animFrame );
+	BG_ModelFrameRate( model, ch->anim, ch->frameTime, cg.time, ch->rate, &frame, &oldFrame, &backlerp, &animFrame );
 
 	// a new animation starts from its first frame
 	if ( cent->characterAnim[channel] != ch->anim || cent->characterAnimTime[channel] != ch->time ) {
@@ -515,12 +515,17 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 	legs->hModel = pi->skeletalModel;
 	legs->customSkin = 0;
 	// the legs' frames for the bounds, the blended skeleton to draw
-	BG_ModelFrame( model, cent->characterChannels[ANIMCHANNEL_LEGS].anim, cent->characterChannels[ANIMCHANNEL_LEGS].frameTime,
-				   cg.time, &legs->frame, &legs->oldframe, &legs->backlerp, NULL );
+	BG_ModelFrameRate( model, cent->characterChannels[ANIMCHANNEL_LEGS].anim, cent->characterChannels[ANIMCHANNEL_LEGS].frameTime,
+				   cg.time, cent->characterChannels[ANIMCHANNEL_LEGS].rate, &legs->frame, &legs->oldframe, &legs->backlerp, NULL );
 	VectorCopy( legs->origin, legs->oldorigin );
 	numJoints = BG_ModelPose( model, legs->hModel, cent->characterChannels, cg.time, joints );
 	if ( numJoints > 0 ) {
 		BG_ModelAim( model, joints, numJoints, torsoAxis, headAxis );
+		if ( cent->onLadder ) {
+			// the hands on the ladder, reaching for it as it takes hold
+			BG_ModelLadderIK( model, joints, numJoints, legs->origin, (const vec3_t *)legs->axis, cent->ladderPlane,
+							  cent->ladderWeight );
+		}
 		if ( cg_ik.integer ) {
 			// feet on the floor under them, where the player's box rests
 			BG_ModelWalkIK( model, joints, numJoints, legs->origin, (const vec3_t *)legs->axis, legs->origin[2] + MINS_Z,

@@ -353,6 +353,12 @@ static float PM_CmdScale( usercmd_t *cmd ) {
 		+ cmd->rightmove * cmd->rightmove + cmd->upmove * cmd->upmove );
 	scale = (float)pm->ps->speed * max / ( 127.0 * total );
 
+	// walking: the character's "walk_scale" of its run, not Quake 3's half
+	// (the walk button halves the move, 64 of 127)
+	if ( ( cmd->buttons & BUTTON_WALKING ) && BG_ValidModel( pm->playerModel ) ) {
+		scale *= bg_models[pm->playerModel].walkScale * 127.0f / 64.0f;
+	}
+
 	return scale;
 }
 

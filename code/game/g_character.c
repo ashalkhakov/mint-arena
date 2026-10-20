@@ -175,16 +175,20 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 	numJoints = BG_ModelPose( model, ent->characterModel, st.channels, time, joints );
 	if ( ent->player ) {
 		vec3_t legs, torso, head, torsoAxis[3], headAxis[3], ladderOffset;
-		float ladderYaw;
+		vec4_t ladderPlane;
+		float ladderYaw, ladderWeight;
 		qboolean onLadder;
 
 		// facing its legs, the torso and head turned to aim (as the cgame
 		// does, without its swinging); on a ladder facing it
 		BG_PlayerAimAngles( st.angles, st.movementDir, legs, torso, head );
-		onLadder = BG_PlayerLadder( ent->characterDef, st.legsAnim, ent->r.currentOrigin, st.angles[YAW], ent->s.number,
-									&ladderYaw, ladderOffset );
+		ladderWeight = BG_PlayerLadderWeight( model, &st.channels[ANIMCHANNEL_LEGS], st.legsAnim, time );
+		onLadder = ladderWeight > 0 && BG_PlayerLadder( ent->characterDef, LEGS_CLIMB, ent->r.currentOrigin, st.angles[YAW],
+														 ent->s.number, &ladderYaw, ladderOffset, ladderPlane );
 		if ( onLadder ) {
-			legs[YAW] = torso[YAW] = ladderYaw;
+			VectorScale( ladderOffset, ladderWeight, ladderOffset );
+			legs[YAW] = LerpAngle( legs[YAW], ladderYaw, ladderWeight );
+			torso[YAW] = LerpAngle( torso[YAW], ladderYaw, ladderWeight );
 		}
 		AnglesSubtract( head, torso, head );
 		AnglesSubtract( torso, legs, torso );
@@ -196,6 +200,7 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 		VectorCopy( ent->r.currentOrigin, st.origin );
 		if ( onLadder ) {
 			VectorAdd( st.origin, ladderOffset, st.origin );
+			BG_ModelLadderIK( model, joints, numJoints, st.origin, (const vec3_t *)axis, ladderPlane, ladderWeight );
 		}
 		// the feet on the floor, as the cgame draws them (unsmoothed)
 		BG_ModelWalkIK( model, joints, numJoints, st.origin, (const vec3_t *)axis, st.origin[2] + MINS_Z,

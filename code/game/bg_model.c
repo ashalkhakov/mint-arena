@@ -404,6 +404,11 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->crouchHeight = DictGetFloat( def, "crouch_height", "16" );
 	model->eyeHeight = DictGetFloat( def, "eye_height", va( "%d", DEFAULT_VIEWHEIGHT ) );
 	model->crouchEyeHeight = DictGetFloat( def, "crouch_eye_height", va( "%d", CROUCH_VIEWHEIGHT ) );
+	model->runSpeed = DictGetFloat( def, "run_speed", "0" );
+	model->walkScale = DictGetFloat( def, "walk_scale", "0.5" );
+	for ( i = 0; i < model->numAnims; i++ ) {
+		model->anims[i].speed = DictGetFloat( def, va( "anim_speed %s", model->anims[i].name ), "0" );
+	}
 	model->ladderClimb = DictGetFloat( def, "ladder_climb", "0" );
 	model->ladderReach = DictGetFloat( def, "ladder_reach", "0" );
 
@@ -483,6 +488,18 @@ the frame of the animation (not of the model) it is on.
 */
 void BG_ModelFrame( const bgModel_t *model, int animNum, int animTime, int time,
 					int *frame, int *oldFrame, float *backlerp, int *animFrame ) {
+	BG_ModelFrameRate( model, animNum, animTime, time, 1.0f, frame, oldFrame, backlerp, animFrame );
+}
+
+/*
+================
+BG_ModelFrameRate
+
+BG_ModelFrame played rate times as fast.
+================
+*/
+void BG_ModelFrameRate( const bgModel_t *model, int animNum, int animTime, int time, float rate,
+						int *frame, int *oldFrame, float *backlerp, int *animFrame ) {
 	const bgAnim_t *anim;
 	float f;
 	int cur, next;
@@ -496,7 +513,7 @@ void BG_ModelFrame( const bgModel_t *model, int animNum, int animTime, int time,
 		return;
 	}
 	anim = &model->anims[animNum];
-	f = ( time - animTime ) * 0.001f * anim->fps;
+	f = ( time - animTime ) * 0.001f * anim->fps * ( rate > 0 ? rate : 1.0f );
 	if ( f < 0 ) {
 		f = 0;
 	}
@@ -534,9 +551,11 @@ void BG_AnimChannelPlay( bgAnimChannel_t *channel, int anim, int time ) {
 	channel->prevAnim = channel->anim;
 	channel->prevTime = channel->time;
 	channel->prevFrameTime = channel->frameTime;
+	channel->prevRate = channel->rate;
 	channel->anim = anim;
 	channel->time = time;
 	channel->frameTime = time;
+	channel->rate = 1.0f;
 }
 
 /*
@@ -552,10 +571,10 @@ void BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int legs
 	BG_AnimChannelPlay( &channels[ANIMCHANNEL_TORSO], torsoAnim > 0 ? torsoAnim - 1 : -1, torsoAnim > 0 ? torsoTime : 0 );
 }
 
-static void BG_AddLayer( const bgModel_t *model, skeletonBlend_t *blend, int anim, int animTime, int time,
+static void BG_AddLayer( const bgModel_t *model, skeletonBlend_t *blend, int anim, int animTime, float rate, int time,
 						 float weight, const unsigned int *mask ) {
 	memset( blend, 0, sizeof( *blend ) );
-	BG_ModelFrame( model, anim, animTime, time, &blend->frame, &blend->oldframe, &blend->backlerp, NULL );
+	BG_ModelFrameRate( model, anim, animTime, time, rate, &blend->frame, &blend->oldframe, &blend->backlerp, NULL );
 	blend->weight = weight;
 	if ( mask ) {
 		memcpy( blend->jointMask, mask, sizeof( blend->jointMask ) );
@@ -600,21 +619,21 @@ int BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *chann
 		if ( c == ANIMCHANNEL_LEGS ) {
 			// the base: the old animation under the new one fading in
 			if ( ch->prevAnim >= 0 && fade < 1.0f ) {
-				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, time, 1.0f, NULL );
-				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->frameTime, time, fade, NULL );
+				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, ch->prevRate, time, 1.0f, NULL );
+				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->frameTime, ch->rate, time, fade, NULL );
 			} else {
-				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->frameTime, time, 1.0f, NULL );
+				BG_AddLayer( model, &blends[n++], ch->anim >= 0 ? ch->anim : 0, ch->frameTime, ch->rate, time, 1.0f, NULL );
 			}
 			continue;
 		}
 		if ( ch->anim >= 0 ) {
 			if ( ch->prevAnim >= 0 && fade < 1.0f ) {
-				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, time, 1.0f, mask );
+				BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, ch->prevRate, time, 1.0f, mask );
 			}
-			BG_AddLayer( model, &blends[n++], ch->anim, ch->frameTime, time, fade, mask );
+			BG_AddLayer( model, &blends[n++], ch->anim, ch->frameTime, ch->rate, time, fade, mask );
 		} else if ( ch->prevAnim >= 0 && fade < 1.0f ) {
 			// stopped: fades out to the legs'
-			BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, time, 1.0f - fade, mask );
+			BG_AddLayer( model, &blends[n++], ch->prevAnim, ch->prevFrameTime, ch->prevRate, time, 1.0f - fade, mask );
 		}
 	}
 	return n;
@@ -686,6 +705,41 @@ int BG_PlayerModelForName( const char *modelName ) {
 
 /*
 ================
+BG_PlayerLegsRate
+
+How much faster the legs' animation plays so the feet keep to the ground: the
+speed pmove moves the player at for it (running "run_speed", walking
+"walk_scale" of it, crouching a quarter) over the speed the animation goes
+("anim_speed"). 1 for one that doesn't move, or isn't measured.
+================
+*/
+static float BG_PlayerLegsRate( const bgModel_t *model, int legs, int anim ) {
+	float speed;
+
+	if ( model->runSpeed <= 0 || anim < 0 || anim >= model->numAnims || model->anims[anim].speed <= 0 ) {
+		return 1.0f;
+	}
+	switch ( legs ) {
+	case LEGS_RUN:
+	case LEGS_BACK:
+		speed = model->runSpeed;
+		break;
+	case LEGS_WALK:
+	case LEGS_BACKWALK:
+		speed = model->runSpeed * model->walkScale;
+		break;
+	case LEGS_WALKCR:
+	case LEGS_BACKCR:
+		speed = model->runSpeed * 0.25f;	// pm_duckScale
+		break;
+	default:
+		return 1.0f;
+	}
+	return Com_Clamp( 0.5f, 3.0f, speed / model->anims[anim].speed );
+}
+
+/*
+================
 BG_PlayerAnimChannels
 
 A player's channels from its legsAnim and torsoAnim (animNumber_t, with
@@ -731,6 +785,8 @@ void BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, i
 	} else {
 		BG_AnimChannelPlay( &channels[ANIMCHANNEL_LEGS], anim, legsTime );
 	}
+
+	channels[ANIMCHANNEL_LEGS].rate = BG_PlayerLegsRate( model, legs, channels[ANIMCHANNEL_LEGS].anim );
 
 	anim = -1;
 	if ( torso >= 0 && torso < MAX_TOTALANIMATIONS && torso != legs ) {

@@ -1230,6 +1230,7 @@ typedef struct {
 	int			numFrames;
 	float		fps;
 	qboolean	loop;
+	float		speed;				// "anim_speed <name>": how fast it goes over the ground at fps, 0 unknown
 } bgAnim_t;
 
 typedef struct {
@@ -1257,6 +1258,8 @@ typedef struct {
 	int			prevTime;
 	int			frameTime;			// its frames' time, the start's unless a climb sets them by height
 	int			prevFrameTime;
+	float		rate;				// played this much faster (the legs to the player's speed), 0 as 1
+	float		prevRate;
 } bgAnimChannel_t;
 
 typedef struct {
@@ -1282,6 +1285,9 @@ typedef struct {
 	float		smoothing, waistSmoothing;
 	float		footShift, waistShift, minWaistAnkleDist;
 	float		footUpTrace, footDownTrace;
+	// Doom 3's reach IK (idIK_Reach): the arms, for a ladder's rungs
+	int			numArms;
+	int			shoulder[MAX_IK_LEGS], elbow[MAX_IK_LEGS], hand[MAX_IK_LEGS];
 } bgModelIK_t;
 
 // what the IK keeps of an entity from frame to frame
@@ -1322,6 +1328,10 @@ typedef struct {
 	// climbs (their frames go by height, the hands and feet on the rungs),
 	// "ladder_reach" how far in front of it the hands hold the ladder
 	float				ladderClimb, ladderReach;
+	// as a player model: "run_speed" (0: the server's g_speed) and
+	// "walk_scale" of it walking; the legs' animations play at the speed
+	// their "anim_speed" says they go, so the feet keep to the ground
+	float				runSpeed, walkScale;
 } bgModel_t;
 
 typedef struct {
@@ -1339,6 +1349,8 @@ extern int			bg_numModels;
 void		BG_InitModels( void );
 int			BG_ModelForName( const char *name );
 int			BG_ModelAnimForName( const bgModel_t *model, const char *name );
+void		BG_ModelFrameRate( const bgModel_t *model, int animNum, int animTime, int time, float rate,
+							   int *frame, int *oldFrame, float *backlerp, int *animFrame );
 void		BG_ModelFrame( const bgModel_t *model, int animNum, int animTime, int time,
 						   int *frame, int *oldFrame, float *backlerp, int *animFrame );
 int			BG_ModelJointIndex( const bgModel_t *model, const char *name );
@@ -1381,7 +1393,12 @@ void		BG_PlayerBox( int playerModel, qboolean crouched, vec3_t mins, vec3_t maxs
 qboolean	BG_PlayerClimbing( int legsAnim );
 void		BG_PlayerClimbPhase( const bgModel_t *model, bgAnimChannel_t *legs, int legsAnim, float height, int time );
 qboolean	BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, float viewYaw, int passEntityNum,
-						 float *yaw, vec3_t offset );
+						 float *yaw, vec3_t offset, vec4_t plane );
+qboolean	BG_ModelReachArm( const bgModel_t *model, float *jointMats, int numJoints, int arm, const vec3_t target,
+							  float weight );
+float		BG_PlayerLadderWeight( const bgModel_t *model, const bgAnimChannel_t *legs, int legsAnim, int time );
+void		BG_ModelLadderIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
+							  const vec3_t axis[3], const vec4_t plane, float weight );
 void		BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t origin,
 							const vec3_t axis[3], float floorHeight, qboolean onGround, int passEntityNum, int time,
 							bgIKState_t *state );

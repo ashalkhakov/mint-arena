@@ -1851,15 +1851,25 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 	torsoAngles[YAW] = cent->pe.torso.yawAngle;
 	legsAngles[YAW] = cent->pe.legs.yawAngle;
 
-	// climbing a ladder: facing it, the head free to look (the view is held
-	// within reach of it by pmove)
+	// climbing a ladder: turning to face it as it takes hold (and back as it
+	// lets go), the head free to look (pmove holds the view near it)
 	cent->onLadder = qfalse;
 	playerNum = cent->currentState.playerNum;
-	if ( playerNum >= 0 && playerNum < MAX_CLIENTS && cgs.playerinfo[playerNum].modelDef
-		 && BG_PlayerLadder( cgs.playerinfo[playerNum].modelDef, cent->currentState.legsAnim, cent->lerpOrigin,
-							 headAngles[YAW], cent->currentState.number, &dest, cent->ladderOffset ) ) {
-		cent->onLadder = qtrue;
-		legsAngles[YAW] = torsoAngles[YAW] = cent->pe.legs.yawAngle = cent->pe.torso.yawAngle = dest;
+	if ( playerNum >= 0 && playerNum < MAX_CLIENTS && cgs.playerinfo[playerNum].modelDef ) {
+		const bgModel_t *model = &bg_models[cgs.playerinfo[playerNum].modelDef];
+
+		cent->ladderWeight = BG_PlayerLadderWeight( model, &cent->characterChannels[ANIMCHANNEL_LEGS],
+													cent->currentState.legsAnim, cg.time );
+		if ( cent->ladderWeight > 0
+			 && BG_PlayerLadder( cgs.playerinfo[playerNum].modelDef, LEGS_CLIMB, cent->lerpOrigin, headAngles[YAW],
+								 cent->currentState.number, &dest, cent->ladderOffset, cent->ladderPlane ) ) {
+			cent->onLadder = qtrue;
+			VectorScale( cent->ladderOffset, cent->ladderWeight, cent->ladderOffset );
+			legsAngles[YAW] = LerpAngle( legsAngles[YAW], dest, cent->ladderWeight );
+			torsoAngles[YAW] = LerpAngle( torsoAngles[YAW], dest, cent->ladderWeight );
+			cent->pe.legs.yawAngle = legsAngles[YAW];
+			cent->pe.torso.yawAngle = torsoAngles[YAW];
+		}
 	}
 
 
