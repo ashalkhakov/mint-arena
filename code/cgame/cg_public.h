@@ -38,7 +38,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // ZTM: FIXME: There is no way for the VM to know what the engine support API is
 //             so there is no way to add more system calls.
 #define CG_API_MAJOR_VERSION	1
-#define CG_API_MINOR_VERSION	1
+#define CG_API_MINOR_VERSION	2
 
 
 #define	CMD_BACKUP			64	
@@ -413,6 +413,19 @@ typedef enum {
 	CG_R_BLENDSKELETON,		// ( qhandle_t model, const skeletonBlend_t *blends, int numBlends, float *jointMats, int maxJoints );
 	CG_R_ADDSKELETONTOSCENE,	// ( const float *jointMats, int numJoints ); returns the refEntity_t skeleton
 	CG_S_STARTSOUNDVOLUME,		// ( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx, float volume );
+
+	// 1.2: Doom 3's collision queries, as the game has them (articulated figures)
+	CG_CM_TRANSLATION,		// ( cm_trace_t *results, const vec3_t start, const vec3_t end,
+							//   const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+							//   cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+	CG_CM_ROTATION,			// ( cm_trace_t *results, const vec3_t start, const rotation_t *rotation,
+							//   const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+							//   cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+	CG_CM_CONTENTS,			// ( const vec3_t start, const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+							//   cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+	CG_CM_CONTACTS,			// ( contactInfo_t *contacts, const int maxContacts, const vec3_t start, const vec6_t dir, const float depth,
+							//   const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+							//   cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
 
 
 	CG_CIN_PLAYCINEMATIC = 700,

@@ -1768,6 +1768,7 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "noclip", CG_ForwardToServer_f, CMD_INGAME },
 	{ "where", CG_ForwardToServer_f, CMD_INGAME },
 	{ "kill", CG_ForwardToServer_f, CMD_INGAME },
+	{ "damage", CG_ForwardToServer_f, CMD_INGAME },
 	{ "teamtask", CG_ForwardToServer_f, CMD_INGAME },
 	{ "levelshot", CG_ForwardToServer_f, CMD_INGAME },
 	{ "follow", CG_ForwardToServer_f, CMD_INGAME, CG_FollowComplete },

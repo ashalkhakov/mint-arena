@@ -1129,6 +1129,9 @@ set(Q3CGOBJ
   game/bg_prophull.c
   game/bg_defs.c
   game/bg_ik.c
+  game/bg_af.c
+  game/bg_afdecl.c
+  game/bg_lcp.c
   game/bg_model.c
   game/bg_sound.c
   cgame/cg_atmospheric.c
@@ -1141,6 +1144,7 @@ set(Q3CGOBJ
   cgame/cg_fx.c
   cgame/cg_aas.c
   cgame/cg_character.c
+  cgame/cg_ragdoll.c
   cgame/cg_ents.c
   cgame/cg_event.c
   cgame/cg_field.c
@@ -1390,6 +1394,9 @@ set(Q3GOBJ
   game/bg_prophull.c
   game/bg_defs.c
   game/bg_ik.c
+  game/bg_af.c
+  game/bg_afdecl.c
+  game/bg_lcp.c
   game/bg_model.c
   game/bg_sound.c
   game/g_active.c

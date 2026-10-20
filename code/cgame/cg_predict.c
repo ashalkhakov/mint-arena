@@ -140,6 +140,18 @@ static qboolean CG_ClipMoveToModel( trace_t *tr, const vec3_t start, const vec3_
 
 /*
 ====================
+CG_SolidEntities
+
+The solid entities a trace may hit this frame (CG_BuildSolidList's).
+====================
+*/
+int CG_SolidEntities( centity_t ***list ) {
+	*list = cg_solidEntities;
+	return cg_numSolidEntities;
+}
+
+/*
+====================
 CG_ClipMoveToEntities
 
 ====================

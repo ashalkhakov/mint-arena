@@ -223,6 +223,7 @@ typedef struct centity_s {
 	int				characterFrame[MAX_ANIM_CHANNELS];
 	bgAnimChannel_t	characterChannels[MAX_ANIM_CHANNELS];	// what they play, and cross-fade from
 	qboolean		onLadder;			// climbing one found by a trace (BG_PlayerLadder)
+	float			bodySink;			// a corpse sinking away, this far (CG_Corpse)
 	bgLadder_t		ladder;				// it (its offset so far as it's taken hold)
 	float			ladderWeight;		// how far it's taken hold of it (BG_PlayerLadderWeight)
 	qboolean		swimming;			// along its heading, centred in its box (BG_PlayerSwimAngles)
@@ -1443,6 +1444,8 @@ extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
 extern	vmCvar_t		cg_drawHitboxes;
 extern	vmCvar_t		cg_drawSkeleton;
+extern	vmCvar_t		cg_ragdoll;
+extern	vmCvar_t		cg_drawRagdolls;
 extern	vmCvar_t		cg_drawAAS;
 extern	vmCvar_t		cg_ik;
 extern	vmCvar_t		cg_drawAASRange;
@@ -1856,6 +1859,15 @@ void CG_WeaponAnimation(centity_t * cent, weaponInfo_t *weaponInfo, int *weaponO
 // cg_predict.c
 //
 void CG_BuildSolidList( void );
+int CG_SolidEntities( centity_t ***list );
+
+//
+// cg_ragdoll.c
+//
+void CG_ClearRagdolls( void );
+void CG_UpdateRagdolls( void );
+void CG_RagdollAlive( centity_t *cent );
+qboolean CG_Ragdoll( centity_t *cent, int modelDef, refEntity_t *legs, float *jointMats, int numJoints );
 int	CG_PointContents( const vec3_t point, int passEntityNum );
 void CG_Trace( trace_t *result, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, 
 					 int skipNumber, int mask );

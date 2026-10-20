@@ -87,7 +87,7 @@ static int BG_IQMAnims( const char *meshName, bgAnim_t *anims, int max, bgModel_
 	iqmHeader_t header;
 	iqmAnim_t anim;
 	fileHandle_t f;
-	int length, i, num = 0;
+	int length, i, k, num = 0;
 	unsigned numText;
 
 	// only the header, the text and the animations: the rest can be big
@@ -141,6 +141,12 @@ static int BG_IQMAnims( const char *meshName, bgAnim_t *anims, int max, bgModel_
 				Q_strncpyz( model->joints[i].name, text + LittleLong( joint[0] ), sizeof( model->joints[i].name ) );
 			}
 			model->joints[i].parent = LittleLong( joint[1] );
+			for ( k = 0; k < 3; k++ ) {
+				model->joints[i].bindOrigin[k] = LittleFloat( *(float *)&joint[2 + k] );
+			}
+			for ( k = 0; k < 4; k++ ) {
+				model->joints[i].bindQuat[k] = LittleFloat( *(float *)&joint[5 + k] );
+			}
 			model->numJoints++;
 		}
 	}
@@ -392,6 +398,7 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 						bg_playerAnimNames[i], word[0] );
 		}
 	}
+	Q_strncpyz( model->ragdoll, DictGetStringReference( def, "ragdoll", "" ), sizeof( model->ragdoll ) );
 	model->torsoJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "aim_torso", "Waist" ) );
 	model->headJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "aim_head", "Head" ) );
 	model->weaponJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "joint_weapon", "WEAPON_ATTACHER" ) );
@@ -655,6 +662,48 @@ int BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChannel_
 
 	n = BG_ModelSkeletonBlends( model, channels, time, blends, ARRAY_LEN( blends ) );
 	return trap_R_BlendSkeleton( hModel, blends, n, jointMats, MAX_MODEL_JOINTS );
+}
+
+/*
+================
+BG_ModelBindPose
+
+The skeleton's bind pose (the IQM's joints), model space jointMats as
+BG_ModelPose gives them: 3x4 rows, the joint's axes in the columns.
+================
+*/
+void BG_ModelBindPose( const bgModel_t *model, float *jointMats ) {
+	const bgJoint_t *joint;
+	float local[12], *m, *p;
+	float x, y, z, w;
+	int i, r, c;
+
+	for ( i = 0; i < model->numJoints; i++ ) {
+		joint = &model->joints[i];
+		x = joint->bindQuat[0]; y = joint->bindQuat[1]; z = joint->bindQuat[2]; w = joint->bindQuat[3];
+
+		local[0] = 1 - 2 * ( y * y + z * z );	local[1] = 2 * ( x * y - w * z );		local[2] = 2 * ( x * z + w * y );
+		local[4] = 2 * ( x * y + w * z );		local[5] = 1 - 2 * ( x * x + z * z );	local[6] = 2 * ( y * z - w * x );
+		local[8] = 2 * ( x * z - w * y );		local[9] = 2 * ( y * z + w * x );		local[10] = 1 - 2 * ( x * x + y * y );
+		local[3] = joint->bindOrigin[0];
+		local[7] = joint->bindOrigin[1];
+		local[11] = joint->bindOrigin[2];
+
+		m = &jointMats[12 * i];
+		if ( joint->parent < 0 || joint->parent >= i ) {
+			memcpy( m, local, sizeof( local ) );
+			continue;
+		}
+
+		// the parent's times the joint's
+		p = &jointMats[12 * joint->parent];
+		for ( r = 0; r < 3; r++ ) {
+			for ( c = 0; c < 4; c++ ) {
+				m[r * 4 + c] = p[r * 4 + 0] * local[0 * 4 + c] + p[r * 4 + 1] * local[1 * 4 + c] + p[r * 4 + 2] * local[2 * 4 + c]
+								+ ( c == 3 ? p[r * 4 + 3] : 0.0f );
+			}
+		}
+	}
 }
 
 /*

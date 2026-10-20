@@ -2948,6 +2948,7 @@ void CG_Player( centity_t *cent ) {
 		VectorCopy( cent->lerpOrigin, legs.lightingOrigin );
 		legs.shadowPlane = shadowPlane;
 		legs.renderfx = renderfx;
+		cent->bodySink = bodySinkOffset;
 		CG_PlayerCharacter( cent, pi, &legs, (const vec3_t *)torso.axis, (const vec3_t *)head.axis,
 							&torso, &weapon, &flag );
 		CG_PlayerSprites( cent, &torso );

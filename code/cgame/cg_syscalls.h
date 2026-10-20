@@ -112,6 +112,17 @@ clipHandle_t trap_CM_TempBoxModel( const vec3_t mins, const vec3_t maxs, int con
 clipHandle_t trap_CM_TempCapsuleModel( const vec3_t mins, const vec3_t maxs, int contents );
 // any trace model, the physics props use it
 clipHandle_t trap_CM_TempTraceModel( const traceModel_t *trm, int contents );
+void		trap_CM_Translation( cm_trace_t *results, const vec3_t start, const vec3_t end,
+				const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+				cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+void		trap_CM_Rotation( cm_trace_t *results, const vec3_t start, const rotation_t *rotation,
+				const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+				cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+int			trap_CM_Contents( const vec3_t start, const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+				cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+int			trap_CM_Contacts( contactInfo_t *contacts, const int maxContacts, const vec3_t start, const vec6_t dir, const float depth,
+				const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+				cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
 int			trap_CM_PointContents( const vec3_t p, clipHandle_t model );
 int			trap_CM_TransformedPointContents( const vec3_t p, clipHandle_t model, const vec3_t origin, const vec3_t angles );
 void		trap_CM_BoxTrace( trace_t *results, const vec3_t start, const vec3_t end,

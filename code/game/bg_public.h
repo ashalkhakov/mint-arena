@@ -1231,6 +1231,8 @@ void					BG_InitItems( void );		// and the weapons and the models
 typedef struct {
 	char		name[32];
 	int			parent;				// -1 for a root
+	vec3_t		bindOrigin;			// the bind pose, relative to the parent
+	vec4_t		bindQuat;			// x y z w
 } bgJoint_t;
 
 typedef struct {
@@ -1342,6 +1344,7 @@ typedef struct {
 	// their "anim_speed" says they go, so the feet keep to the ground
 	float				runSpeed, walkScale;
 	vec3_t				swimCenter;			// "swim_center": the swimming body's middle, put at the player's
+	char				ragdoll[MAX_QPATH];	// "ragdoll": its articulated figure (bg_afdecl.c), "" none
 } bgModel_t;
 
 typedef struct {
@@ -1369,6 +1372,7 @@ void		BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int leg
 struct skeletonBlend_s;
 int			BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *channels, int time, void *blends, int maxBlends );
 int			BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChannel_t *channels, int time, float *jointMats );
+void		BG_ModelBindPose( const bgModel_t *model, float *jointMats );
 int			BG_ModelHitboxes( const bgModel_t *model, const float *jointMats, int numJoints,
 							  const vec3_t origin, const vec3_t axis[3], bgHitboxPose_t *poses );
 void		BG_JointOrientation( const float *jointMats, int joint, orientation_t *tag );

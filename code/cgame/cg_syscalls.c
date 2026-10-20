@@ -214,6 +214,30 @@ clipHandle_t trap_CM_TempTraceModel( const traceModel_t *trm, int contents ) {
 	return syscall( CG_CM_TEMPTRACEMODEL, trm, contents );
 }
 
+// Doom 3's collision queries (cgame API 1.2), as the game has them
+void trap_CM_Translation( cm_trace_t *results, const vec3_t start, const vec3_t end,
+		const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+		cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+	syscall( CG_CM_TRANSLATION, results, start, end, trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+
+void trap_CM_Rotation( cm_trace_t *results, const vec3_t start, const rotation_t *rotation,
+		const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+		cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+	syscall( CG_CM_ROTATION, results, start, rotation, trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+
+int trap_CM_Contents( const vec3_t start, const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+		cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+	return syscall( CG_CM_CONTENTS, start, trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+
+int trap_CM_Contacts( contactInfo_t *contacts, const int maxContacts, const vec3_t start, const vec6_t dir, const float depth,
+		const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+		cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] ) {
+	return syscall( CG_CM_CONTACTS, contacts, maxContacts, start, dir, PASSFLOAT( depth ), trm, trmAxis, contentMask, model, modelOrigin, modelAxis );
+}
+
 int		trap_CM_PointContents( const vec3_t p, clipHandle_t model ) {
 	return syscall( CG_CM_POINTCONTENTS, p, model );
 }

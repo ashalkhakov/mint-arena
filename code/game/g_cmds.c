@@ -502,6 +502,31 @@ void Cmd_Kill_f( gentity_t *ent ) {
 
 /*
 =================
+Cmd_Damage_f
+
+damage <amount>: hurts the player as a hit from the front would, Doom 3's
+"damage" cheat for testing deaths (kill gibs)
+=================
+*/
+void Cmd_Damage_f( gentity_t *ent ) {
+	char arg[MAX_TOKEN_CHARS];
+	vec3_t forward, dir;
+
+	if ( !CheatsOk( ent ) ) {
+		return;
+	}
+	if ( ent->health <= 0 ) {
+		return;
+	}
+	trap_Argv( 1, arg, sizeof( arg ) );
+	AngleVectors( ent->player->ps.viewangles, forward, NULL, NULL );
+	VectorNegate( forward, dir );
+	ent->flags &= ~FL_GODMODE;
+	G_Damage( ent, NULL, NULL, dir, ent->r.currentOrigin, atoi( arg ) > 0 ? atoi( arg ) : 50, DAMAGE_NO_PROTECTION, MOD_TRIGGER_HURT );
+}
+
+/*
+=================
 BroadcastTeamChange
 
 Let everyone know about a team change
@@ -1993,6 +2018,8 @@ void ClientCommand( int connectionNum ) {
 		Cmd_Noclip_f (ent);
 	else if (Q_stricmp (cmd, "kill") == 0)
 		Cmd_Kill_f (ent);
+	else if (Q_stricmp (cmd, "damage") == 0)
+		Cmd_Damage_f (ent);
 	else if (Q_stricmp (cmd, "teamtask") == 0)
 		Cmd_TeamTask_f (ent);
 	else if (Q_stricmp (cmd, "levelshot") == 0)

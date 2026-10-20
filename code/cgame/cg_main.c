@@ -174,6 +174,8 @@ vmCvar_t	cg_drawTimer;
 vmCvar_t	cg_drawFPS;
 vmCvar_t	cg_drawHitboxes;
 vmCvar_t	cg_drawSkeleton;
+vmCvar_t	cg_ragdoll;
+vmCvar_t	cg_drawRagdolls;
 vmCvar_t	cg_drawAAS;
 vmCvar_t	cg_ik;
 vmCvar_t	cg_drawAASRange;
@@ -394,6 +396,8 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_drawFPS, "cg_drawFPS", "0", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_drawHitboxes, "cg_drawHitboxes", "0", CVAR_CHEAT, RANGE_BOOL },
 	{ &cg_drawSkeleton, "cg_drawSkeleton", "0", CVAR_CHEAT, RANGE_INT( 0, 2 ) },
+	{ &cg_ragdoll, "cg_ragdoll", "1", CVAR_ARCHIVE, RANGE_BOOL },	// dead players go limp (Doom 3's articulated figures)
+	{ &cg_drawRagdolls, "cg_drawRagdolls", "0", CVAR_CHEAT, RANGE_BOOL },	// Doom 3's af_showBodies
 	{ &cg_drawAAS, "cg_drawAAS", "0", CVAR_CHEAT, RANGE_INT( 0, 3 ) },
 	{ &cg_ik, "cg_ik", "1", CVAR_ARCHIVE, RANGE_BOOL },	// Doom 3's ik_enable: feet planted
 	{ &cg_drawAASRange, "cg_drawAASRange", "1024", 0, RANGE_ALL },
@@ -2843,6 +2847,7 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 	cg.loading = qfalse;	// future players will be deferred
 
 	CG_InitLocalEntities();
+	CG_ClearRagdolls();
 
 	CG_InitMarkPolys();
 

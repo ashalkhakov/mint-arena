@@ -525,7 +525,16 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 				   cg.time, cent->characterChannels[ANIMCHANNEL_LEGS].rate, &legs->frame, &legs->oldframe, &legs->backlerp, NULL );
 	VectorCopy( legs->origin, legs->oldorigin );
 	numJoints = BG_ModelPose( model, legs->hModel, cent->characterChannels, cg.time, joints );
-	if ( numJoints > 0 ) {
+	if ( !( s1->eFlags & EF_DEAD ) ) {
+		CG_RagdollAlive( cent );
+	} else if ( numJoints > 0 && CG_Ragdoll( cent, pi->modelDef, legs, joints, numJoints ) ) {
+		// limp: the ragdoll's pose, where it lies
+		legs->skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
+		numJoints = -numJoints;
+	}
+	if ( numJoints < 0 ) {
+		numJoints = -numJoints;
+	} else if ( numJoints > 0 ) {
 		BG_ModelAim( model, joints, numJoints, torsoAxis, headAxis );
 		if ( cent->onLadder ) {
 			// the hands on the ladder, reaching for it as it takes hold
