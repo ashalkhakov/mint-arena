@@ -249,6 +249,17 @@ static void BG_ModelChannel( bgModel_t *model, int channel, const char *joints )
 BG_LoadModel
 ================
 */
+// animNumber_t's names, for "player_anim <name>"
+static const char *bg_playerAnimNames[MAX_TOTALANIMATIONS] = {
+	"BOTH_DEATH1", "BOTH_DEAD1", "BOTH_DEATH2", "BOTH_DEAD2", "BOTH_DEATH3", "BOTH_DEAD3",
+	"TORSO_GESTURE", "TORSO_ATTACK", "TORSO_ATTACK2", "TORSO_DROP", "TORSO_RAISE", "TORSO_STAND", "TORSO_STAND2",
+	"LEGS_WALKCR", "LEGS_WALK", "LEGS_RUN", "LEGS_BACK", "LEGS_SWIM", "LEGS_JUMP", "LEGS_LAND", "LEGS_JUMPB",
+	"LEGS_LANDB", "LEGS_IDLE", "LEGS_IDLECR", "LEGS_TURN",
+	"TORSO_GETFLAG", "TORSO_GUARDBASE", "TORSO_PATROL", "TORSO_FOLLOWME", "TORSO_AFFIRMATIVE", "TORSO_NEGATIVE",
+	NULL,	// MAX_ANIMATIONS
+	"LEGS_BACKCR", "LEGS_BACKWALK", "FLAG_RUN", "FLAG_STAND", "FLAG_STAND2RUN"
+};
+
 static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name ) {
 	bgAnim_t iqmAnims[MAX_MODEL_ANIMS];
 	const dictKeyValue_t *kv;
@@ -353,6 +364,29 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	BG_ModelChannel( model, ANIMCHANNEL_TORSO, DictGetStringReference( def, "channel torso", "*Waist" ) );
 	BG_ModelChannel( model, ANIMCHANNEL_HEAD, DictGetStringReference( def, "channel head", "*Head" ) );
 	model->blendTime = DictGetFloat( def, "blend_time", "0.2" ) * 1000;
+
+	// as a player model
+	for ( i = 0; i < MAX_TOTALANIMATIONS; i++ ) {
+		model->playerAnims[i] = -1;
+		if ( !bg_playerAnimNames[i] ) {
+			continue;
+		}
+		word[1][0] = 0;
+		if ( sscanf( DictGetStringReference( def, va( "player_anim %s", bg_playerAnimNames[i] ), "" ),
+					 "%63s %63s", word[0], word[1] ) < 1 ) {
+			continue;
+		}
+		model->playerAnims[i] = BG_ModelAnimForName( model, word[0] );
+		model->playerAnimHold[i] = !Q_stricmp( word[1], "hold" );
+		if ( model->playerAnims[i] < 0 ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: model %s: player_anim %s: no animation %s\n", name,
+						bg_playerAnimNames[i], word[0] );
+		}
+	}
+	model->torsoJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "aim_torso", "Waist" ) );
+	model->headJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "aim_head", "Head" ) );
+	model->weaponJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "joint_weapon", "WEAPON_ATTACHER" ) );
+	model->flagJoint = BG_ModelJointIndex( model, DictGetStringReference( def, "joint_flag", "FLAG_ATTACHER" ) );
 
 	// damage scales of the zones the hitboxes name
 	for ( i = 0; i < model->numZones; i++ ) {
@@ -599,6 +633,178 @@ void BG_JointOrientation( const float *jointMats, int joint, orientation_t *tag 
 		}
 		tag->origin[r] = m[r * 4 + 3];
 	}
+}
+
+/*
+================
+BG_PlayerModelForName
+
+The model def of a player model ("model" in the userinfo, "hiro" or
+"hiro/skin"): model_<name>, or the def of the name itself. 0 for none,
+a Quake 3 model then.
+================
+*/
+int BG_PlayerModelForName( const char *modelName ) {
+	char name[MAX_QPATH], *slash;
+	int m;
+
+	Q_strncpyz( name, modelName, sizeof( name ) );
+	slash = strchr( name, '/' );
+	if ( slash ) {
+		*slash = 0;
+	}
+	if ( !name[0] ) {
+		return 0;
+	}
+	m = BG_ModelForName( va( "model_%s", name ) );
+	if ( !m ) {
+		m = BG_ModelForName( name );
+	}
+	return m;
+}
+
+/*
+================
+BG_PlayerAnimChannels
+
+A player's channels from its legsAnim and torsoAnim (animNumber_t, with
+the toggle bit) and when they started: each through the model's
+"player_anim"s. The torso plays its own only when it has one and isn't
+doing what the legs are (BOTH_); otherwise the legs' animation shows
+through.
+================
+*/
+void BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
+							int torsoAnim, int torsoTime ) {
+	int legs = legsAnim & ~ANIM_TOGGLEBIT, torso = torsoAnim & ~ANIM_TOGGLEBIT;
+	int anim;
+
+	anim = legs >= 0 && legs < MAX_TOTALANIMATIONS ? model->playerAnims[legs] : -1;
+	if ( anim >= 0 && model->playerAnimHold[legs] ) {
+		legsTime -= 3600000;	// long since over: its last frame
+	}
+	BG_AnimChannelPlay( &channels[ANIMCHANNEL_LEGS], anim < 0 ? 0 : anim, legsTime );
+
+	anim = -1;
+	if ( torso >= 0 && torso < MAX_TOTALANIMATIONS && torso != legs ) {
+		anim = model->playerAnims[torso];
+		if ( anim >= 0 && model->playerAnimHold[torso] ) {
+			torsoTime -= 3600000;
+		}
+	}
+	BG_AnimChannelPlay( &channels[ANIMCHANNEL_TORSO], anim, anim >= 0 ? torsoTime : 0 );
+}
+
+/*
+================
+BG_PlayerAimAngles
+
+Where a player's legs, torso and head face, Quake 3's way (CG_PlayerAngles)
+without the swinging: the legs toward the movement, the torso a quarter of
+that and three quarters of the view's pitch, the head the view.
+================
+*/
+void BG_PlayerAimAngles( const vec3_t viewAngles, int movementDir, vec3_t legs, vec3_t torso, vec3_t head ) {
+	static const int movementOffsets[8] = { 0, 22, 45, -22, 0, 22, -45, -22 };
+	float pitch;
+
+	if ( movementDir < 0 || movementDir > 7 ) {
+		movementDir = 0;
+	}
+	VectorCopy( viewAngles, head );
+	head[YAW] = AngleMod( head[YAW] );
+	VectorClear( legs );
+	VectorClear( torso );
+	legs[YAW] = head[YAW] + movementOffsets[movementDir];
+	torso[YAW] = head[YAW] + 0.25f * movementOffsets[movementDir];
+	pitch = head[PITCH] > 180 ? head[PITCH] - 360 : head[PITCH];
+	torso[PITCH] = pitch * 0.75f;
+}
+
+/*
+================
+BG_RotateJoints
+
+Turns a joint and every joint under it by rot (columns: the new axes, in
+the model's space) about the joint.
+================
+*/
+static void BG_RotateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const float rot[3][3] ) {
+	qboolean under[MAX_MODEL_JOINTS];
+	float pivot[3], m[12], *j;
+	int i, r, c, k;
+
+	if ( joint < 0 || joint >= numJoints || joint >= model->numJoints ) {
+		return;
+	}
+	for ( r = 0; r < 3; r++ ) {
+		pivot[r] = jointMats[12 * joint + r * 4 + 3];
+	}
+	for ( i = 0; i < numJoints && i < model->numJoints; i++ ) {
+		// IQM joints come after their parents
+		under[i] = i == joint || ( model->joints[i].parent >= 0 && model->joints[i].parent < i
+								   && under[model->joints[i].parent] );
+		if ( !under[i] ) {
+			continue;
+		}
+		j = &jointMats[12 * i];
+		for ( r = 0; r < 3; r++ ) {
+			for ( c = 0; c < 3; c++ ) {
+				m[r * 4 + c] = 0;
+				for ( k = 0; k < 3; k++ ) {
+					m[r * 4 + c] += rot[r][k] * j[k * 4 + c];
+				}
+			}
+			m[r * 4 + 3] = pivot[r];
+			for ( k = 0; k < 3; k++ ) {
+				m[r * 4 + 3] += rot[r][k] * ( j[k * 4 + 3] - pivot[k] );
+			}
+		}
+		memcpy( j, m, sizeof( m ) );
+	}
+}
+
+/*
+================
+BG_ModelAim
+
+Turns a pose's torso and head to aim, as Quake 3 turns a player's torso and
+head models: torsoAxis relative to the legs (the entity), headAxis relative
+to the torso (CG_PlayerAngles's).
+================
+*/
+void BG_ModelAim( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t torsoAxis[3],
+				  const vec3_t headAxis[3] ) {
+	float t[3][3], h[3][3], th[3][3], rot[3][3];
+	int r, c, k;
+
+	// as matrices, the axes their columns
+	for ( r = 0; r < 3; r++ ) {
+		for ( c = 0; c < 3; c++ ) {
+			t[r][c] = torsoAxis[c][r];
+			h[r][c] = headAxis[c][r];
+		}
+	}
+	BG_RotateJoints( model, jointMats, numJoints, model->torsoJoint, t );
+
+	// the head's on top of the torso's: t h t^-1 about the head
+	for ( r = 0; r < 3; r++ ) {
+		for ( c = 0; c < 3; c++ ) {
+			th[r][c] = 0;
+			for ( k = 0; k < 3; k++ ) {
+				th[r][c] += t[r][k] * h[k][c];
+			}
+		}
+	}
+	for ( r = 0; r < 3; r++ ) {
+		for ( c = 0; c < 3; c++ ) {
+			rot[r][c] = 0;
+			for ( k = 0; k < 3; k++ ) {
+				rot[r][c] += th[r][k] * t[c][k];	// t^-1 = t transposed
+			}
+		}
+	}
+	BG_RotateJoints( model, jointMats, numJoints, model->headJoint, rot );
 }
 
 /*

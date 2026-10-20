@@ -836,9 +836,10 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 		}
 	}
 
-	if ( ps && weapon->animated ) {
+	if ( ( ps && weapon->animated ) || !parent->hModel ) {
 		// a first person model goes where the hand is, keeping its own
-		// animation's frames and lerp
+		// animation's frames and lerp; on a skeletal character, where its
+		// weapon joint is
 		VectorCopy(parent->origin, gun.origin);
 		AxisCopy( parent->axis, gun.axis );
 	} else {

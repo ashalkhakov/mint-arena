@@ -1154,6 +1154,8 @@ void PlayerEndFrame( gentity_t *ent ) {
 
 	// store the client's position for backward reconciliation later
 	G_StoreHistory( ent );
+	// a skeletal player's animations and history, for its hitboxes
+	G_PlayerCharacterFrame( ent );
 
 	// set the bit for the reachability area the player is currently in
 //	i = trap_AAS_PointReachabilityAreaIndex( ent->player->ps.origin );

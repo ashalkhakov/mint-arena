@@ -222,6 +222,7 @@ typedef struct centity_s {
 	int				characterAnimTime[MAX_ANIM_CHANNELS];
 	int				characterFrame[MAX_ANIM_CHANNELS];
 	bgAnimChannel_t	characterChannels[MAX_ANIM_CHANNELS];	// what they play, and cross-fade from
+	int				playerAnims[2], playerAnimTimes[2];	// a predicted skeletal player's legs and torso, when they started
 
 	entityState_t	currentState;	// from cg.frame
 	entityState_t	nextState;		// from cg.nextFrame, if available
@@ -449,6 +450,9 @@ typedef struct {
 	qhandle_t		legsModel;
 	qhandle_t		torsoModel;
 	qhandle_t		headModel;
+
+	int				modelDef;		// a skeletal model (bg_models) instead, 0 none
+	qhandle_t		skeletalModel;	// its mesh
 
 	cgSkin_t		modelSkin;
 
@@ -1860,6 +1864,8 @@ int CG_PropTraceModels( const entityState_t *s1, traceModel_t *trms );
 // cg_character.c
 //
 void CG_Character( centity_t *cent );
+void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *legs, const vec3_t torsoAxis[3],
+						 const vec3_t headAxis[3], refEntity_t *torso, refEntity_t *weapon, refEntity_t *flag );
 void CG_DebugLine( const vec3_t start, const vec3_t end, const vec4_t color );
 void CG_AddRefEntityWithMinLight( const refEntity_t *entity );
 void CG_SetEntitySoundPosition( centity_t *cent );

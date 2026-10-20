@@ -170,6 +170,29 @@ entityDef model_testchar {
   in `legsAnim` and its start in `time`, the torso's in `torsoAnim` (+1, 0
   for none) and `time2`; the head's is to come.
 
+**Players.** A player whose model (`model` in the userinfo, `hiro` or
+`hiro/skin`) names a model def, `model_hiro` or `hiro` itself, is a skeletal
+character: drawn from the def's mesh, with hitboxes that shots hit as they hit
+a `misc_character`'s, rewound for lag the same. pmove's animations (Quake 3's
+`animNumber_t`, `animation.cfg`'s order) play through the def's keys:
+
+```
+	"player_anim LEGS_RUN"		"run"			// the model's animation for it
+	"player_anim BOTH_DEAD1"	"die hold"		// hold: its last frame, for a corpse
+	"player_anim TORSO_ATTACK"	"atak"			// on the torso channel, over the legs'
+	"aim_torso"					"Waist"			// the joints that turn to aim (the defaults)
+	"aim_head"					"Head"
+	"joint_weapon"				"WEAPON_ATTACHER"	// where the weapon's "model_world" goes
+	"joint_flag"				"FLAG_ATTACHER"		// and the flag
+```
+
+An animation without a key leaves the legs on the model's first and the
+torso to the legs. The game stamps when each started (`time`, `time2`), so
+the cgame and the hitboxes blend them alike; the torso and head turn by
+Quake 3's angles (the legs to the movement, the torso a quarter of that and
+three quarters of the pitch, the head the view), the cgame's swinging and
+the game's not. A model without a def is drawn Quake 3's way.
+
 `misc_character` (map entity): `model`, `anim`, `torso_anim`, `anim_cycle`
 (seconds to the next animation, 0 never), `health`, `angle`.
 `spawncharacter <model> [anim] [height] [side]` puts one in front of you, and

@@ -1271,6 +1271,11 @@ typedef struct {
 	bgJoint_t			joints[MAX_MODEL_JOINTS];
 	unsigned int		channelMask[MAX_ANIM_CHANNELS][4];	// SKELETON_MASK_WORDS
 	int					blendTime;			// "blend_time" seconds of a cross-fade, in msec
+	// as a player model: "player_anim <animNumber_t name>" "<anim> [hold]"
+	int					playerAnims[MAX_TOTALANIMATIONS];	// the model's animation, -1 none
+	qboolean			playerAnimHold[MAX_TOTALANIMATIONS];	// stays on its last frame
+	int					torsoJoint, headJoint;	// "aim_torso", "aim_head": turned to aim, -1 none
+	int					weaponJoint, flagJoint;	// "joint_weapon", "joint_flag": what's carried goes there
 } bgModel_t;
 
 typedef struct {
@@ -1299,6 +1304,12 @@ int			BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChanne
 int			BG_ModelHitboxes( const bgModel_t *model, const float *jointMats, int numJoints,
 							  const vec3_t origin, const vec3_t axis[3], bgHitboxPose_t *poses );
 void		BG_JointOrientation( const float *jointMats, int joint, orientation_t *tag );
+int			BG_PlayerModelForName( const char *modelName );
+void		BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
+								   int torsoAnim, int torsoTime );
+void		BG_PlayerAimAngles( const vec3_t viewAngles, int movementDir, vec3_t legs, vec3_t torso, vec3_t head );
+void		BG_ModelAim( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t torsoAxis[3],
+						 const vec3_t headAxis[3] );
 const struct dict_s		*BG_ItemDef( const gitem_t *item );
 float					BG_ItemModelScale( const gitem_t *item, qboolean customModel );
 

@@ -792,6 +792,7 @@ void PlayerUserinfoChanged( int playerNum ) {
 		Q_strncpyz( model, Info_ValueForKey (userinfo, "model"), sizeof( model ) );
 		Q_strncpyz( headModel, Info_ValueForKey (userinfo, "headmodel"), sizeof( headModel ) );
 	}
+	G_PlayerSetModel( ent, model );
 
 	// teamInfo
 	s = Info_ValueForKey( userinfo, "teamoverlay" );

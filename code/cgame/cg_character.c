@@ -254,3 +254,109 @@ void CG_Character( centity_t *cent ) {
 		}
 	}
 }
+
+/*
+================
+CG_JointEntity
+
+A refEntity at a joint of a pose drawn as ent, with no model of its own,
+for what goes there (the weapon, the flag); at ent if there's no joint.
+================
+*/
+static void CG_JointEntity( const refEntity_t *ent, const float *joints, int numJoints, int joint, refEntity_t *out ) {
+	orientation_t tag;
+	int i, j;
+
+	memset( out, 0, sizeof( *out ) );
+	VectorCopy( ent->origin, out->origin );
+	AxisCopy( ent->axis, out->axis );
+	if ( joint >= 0 && joint < numJoints ) {
+		BG_JointOrientation( joints, joint, &tag );
+		for ( i = 0; i < 3; i++ ) {
+			VectorMA( out->origin, tag.origin[i], ent->axis[i], out->origin );
+		}
+		for ( i = 0; i < 3; i++ ) {
+			VectorClear( out->axis[i] );
+			for ( j = 0; j < 3; j++ ) {
+				VectorMA( out->axis[i], tag.axis[i][j], ent->axis[j], out->axis[i] );
+			}
+		}
+	}
+	VectorCopy( out->origin, out->oldorigin );
+	VectorCopy( ent->lightingOrigin, out->lightingOrigin );
+	out->shadowPlane = ent->shadowPlane;
+	out->renderfx = ent->renderfx;
+}
+
+/*
+================
+CG_PlayerCharacter
+
+A player whose model is a model def: legs (origin, axis, renderfx set)
+becomes its mesh on its legsAnim and torsoAnim through the def's
+"player_anim"s, blended as the game blends them for its hitboxes, the torso
+and head turned to aim by torsoAxis (relative to the legs) and headAxis (to
+the torso), as Quake 3 turns its models. torso, weapon and flag come back
+at their joints, for what's drawn there.
+================
+*/
+void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *legs, const vec3_t torsoAxis[3],
+						 const vec3_t headAxis[3], refEntity_t *torso, refEntity_t *weapon, refEntity_t *flag ) {
+	static const vec4_t hitboxColor = { 1.0f, 0.3f, 0.1f, 1.0f };
+	const entityState_t *s1 = &cent->currentState;
+	const bgModel_t *model = &bg_models[pi->modelDef];
+	bgHitboxPose_t poses[MAX_MODEL_HITBOXES];
+	float joints[MAX_MODEL_JOINTS * 12];
+	int numJoints, legsTime, torsoTime, i, num;
+
+	if ( cent == &cg.cur_lc->predictedPlayerEntity ) {
+		// predicted: no times from the game, they start when seen
+		if ( cent->playerAnims[0] != s1->legsAnim ) {
+			cent->playerAnims[0] = s1->legsAnim;
+			cent->playerAnimTimes[0] = cg.time;
+		}
+		if ( cent->playerAnims[1] != s1->torsoAnim ) {
+			cent->playerAnims[1] = s1->torsoAnim;
+			cent->playerAnimTimes[1] = cg.time;
+		}
+		legsTime = cent->playerAnimTimes[0];
+		torsoTime = cent->playerAnimTimes[1];
+	} else {
+		legsTime = s1->time;
+		torsoTime = s1->time2;
+	}
+	BG_PlayerAnimChannels( model, cent->characterChannels, s1->legsAnim, legsTime, s1->torsoAnim, torsoTime );
+
+	legs->hModel = pi->skeletalModel;
+	legs->customSkin = 0;
+	// the legs' frames for the bounds, the blended skeleton to draw
+	BG_ModelFrame( model, cent->characterChannels[ANIMCHANNEL_LEGS].anim, cent->characterChannels[ANIMCHANNEL_LEGS].time,
+				   cg.time, &legs->frame, &legs->oldframe, &legs->backlerp, NULL );
+	VectorCopy( legs->origin, legs->oldorigin );
+	numJoints = BG_ModelPose( model, legs->hModel, cent->characterChannels, cg.time, joints );
+	if ( numJoints > 0 ) {
+		BG_ModelAim( model, joints, numJoints, torsoAxis, headAxis );
+		legs->skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
+	}
+	if ( cg_drawSkeleton.integer < 2 ) {
+		CG_AddRefEntityWithPowerups( legs, &cent->currentState );
+	}
+
+	for ( i = 0; i < MAX_ANIM_CHANNELS; i++ ) {
+		CG_CharacterFrameCommands( cent, model, i );
+	}
+
+	CG_JointEntity( legs, joints, numJoints, model->torsoJoint, torso );
+	CG_JointEntity( legs, joints, numJoints, model->weaponJoint, weapon );
+	CG_JointEntity( legs, joints, numJoints, model->flagJoint >= 0 ? model->flagJoint : model->torsoJoint, flag );
+
+	if ( cg_drawSkeleton.integer && numJoints > 0 ) {
+		CG_DrawSkeleton( model, joints, numJoints, legs );
+	}
+	if ( cg_drawHitboxes.integer && numJoints > 0 && !( legs->renderfx & RF_ONLY_MIRROR ) ) {
+		num = BG_ModelHitboxes( model, joints, numJoints, legs->origin, (const vec3_t *)legs->axis, poses );
+		for ( i = 0; i < num; i++ ) {
+			CG_DrawHitbox( &poses[i], hitboxColor );
+		}
+	}
+}

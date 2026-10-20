@@ -28,6 +28,10 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //
 // The animation and position of the last frames are kept, so a shot rewound
 // for lag (g_unlagged.c) hits the boxes where they were then.
+//
+// Players whose model is a model def ("model hiro": model_hiro) are skeletal
+// characters too: their legsAnim and torsoAnim go through the def's
+// "player_anim"s, and their torso and head turn to aim as Quake 3's models do.
 
 #include "g_local.h"
 
@@ -38,7 +42,8 @@ char *G_AddSpawnVarToken( const char *string );
 typedef struct {
 	int				time;
 	bgAnimChannel_t	channels[MAX_ANIM_CHANNELS];
-	vec3_t			origin, angles;
+	vec3_t			origin, angles;		// angles: a player's view
+	int				movementDir;		// a player's
 } characterState_t;
 
 struct characterHistory_s {
@@ -46,7 +51,27 @@ struct characterHistory_s {
 	characterState_t	states[CHARACTER_HISTORY];
 	int					head;		// the latest
 	int					num;
+	int					legsAnim, torsoAnim;		// a player's, and when they started
+	int					legsTime, torsoTime;
 };
+
+static struct characterHistory_s	g_playerHistories[MAX_CLIENTS];
+
+/*
+================
+G_ResetCharacterHistory
+================
+*/
+static void G_ResetCharacterHistory( struct characterHistory_s *h ) {
+	int c;
+
+	memset( h, 0, sizeof( *h ) );
+	// nothing to cross-fade from
+	for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
+		h->channels[c].anim = h->channels[c].prevAnim = -1;
+	}
+	h->legsAnim = h->torsoAnim = -1;
+}
 
 /*
 ================
@@ -72,10 +97,17 @@ static void G_CharacterRecord( gentity_t *ent ) {
 		st = &h->states[h->head];
 	}
 	st->time = level.time;
-	BG_AnimChannelsFromState( h->channels, ent->s.legsAnim, ent->s.time, ent->s.torsoAnim, ent->s.time2 );
+	if ( ent->player ) {
+		BG_PlayerAnimChannels( &bg_models[ent->characterDef], h->channels, ent->s.legsAnim, ent->s.time,
+							   ent->s.torsoAnim, ent->s.time2 );
+		VectorCopy( ent->player->ps.viewangles, st->angles );
+		st->movementDir = ( ent->s.eFlags & EF_DEAD ) ? 0 : ent->player->ps.movementDir;
+	} else {
+		BG_AnimChannelsFromState( h->channels, ent->s.legsAnim, ent->s.time, ent->s.torsoAnim, ent->s.time2 );
+		VectorCopy( ent->r.currentAngles, st->angles );
+	}
 	memcpy( st->channels, h->channels, sizeof( st->channels ) );
 	VectorCopy( ent->r.currentOrigin, st->origin );
-	VectorCopy( ent->r.currentAngles, st->angles );
 }
 
 /*
@@ -104,7 +136,12 @@ static void G_CharacterStateAt( const gentity_t *ent, int time, characterState_t
 		memcpy( out->channels, h->channels, sizeof( out->channels ) );
 	}
 	VectorCopy( ent->r.currentOrigin, out->origin );
-	VectorCopy( ent->r.currentAngles, out->angles );
+	if ( ent->player ) {
+		VectorCopy( ent->player->ps.viewangles, out->angles );
+		out->movementDir = ent->player->ps.movementDir;
+	} else {
+		VectorCopy( ent->r.currentAngles, out->angles );
+	}
 }
 
 /*
@@ -121,14 +158,30 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 	float joints[MAX_MODEL_JOINTS * 12];
 	int numJoints;
 
-	if ( ent->s.eType != ET_CHARACTER || !BG_ValidModel( ent->s.modelindex2 ) || !ent->characterModel ) {
+	if ( !BG_ValidModel( ent->characterDef ) || !ent->characterModel ) {
 		return 0;
 	}
-	model = &bg_models[ent->s.modelindex2];
+	model = &bg_models[ent->characterDef];
 	G_CharacterStateAt( ent, time, &st );
 	// the skeleton of its channels' animations blended, as the cgame draws it
 	numJoints = BG_ModelPose( model, ent->characterModel, st.channels, time, joints );
-	AnglesToAxis( st.angles, axis );
+	if ( ent->player ) {
+		vec3_t legs, torso, head, torsoAxis[3], headAxis[3];
+
+		// facing its legs, the torso and head turned to aim (as the cgame
+		// does, without its swinging)
+		BG_PlayerAimAngles( st.angles, st.movementDir, legs, torso, head );
+		AnglesSubtract( head, torso, head );
+		AnglesSubtract( torso, legs, torso );
+		AnglesToAxis( torso, torsoAxis );
+		AnglesToAxis( head, headAxis );
+		BG_ModelAim( model, joints, numJoints, (const vec3_t *)torsoAxis, (const vec3_t *)headAxis );
+		AnglesToAxis( legs, axis );
+		// where unlagged put it back then
+		VectorCopy( ent->r.currentOrigin, st.origin );
+	} else {
+		AnglesToAxis( st.angles, axis );
+	}
 	return BG_ModelHitboxes( model, joints, numJoints, st.origin, (const vec3_t *)axis, poses );
 }
 
@@ -192,7 +245,7 @@ static qboolean G_TraceHitboxes( gentity_t *ent, const vec3_t start, const vec3_
 	*zone = poses[bestBox].zone;
 
 	if ( g_debugHitboxes.integer ) {
-		const bgModel_t *model = &bg_models[ent->s.modelindex2];
+		const bgModel_t *model = &bg_models[ent->characterDef];
 
 		G_Printf( "hit %s %d: hitbox %s, zone %s x%.2g\n", ent->classname, ent->s.number,
 			model->hitboxes[poses[bestBox].hitbox].joint, model->zones[*zone].name, model->zones[*zone].damageScale );
@@ -229,7 +282,7 @@ void G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const
 			break;
 		}
 		ent = &g_entities[results->entityNum];
-		if ( ent->s.eType != ET_CHARACTER || !ent->characterModel ) {
+		if ( !ent->characterDef || !ent->characterModel ) {
 			break;
 		}
 		if ( G_TraceHitboxes( ent, start, mins, maxs, end, contentmask, results, &hitZone ) ) {
@@ -265,10 +318,10 @@ The damage scale of a character's zone.
 float G_HitboxDamageScale( const gentity_t *ent, int zone ) {
 	const bgModel_t *model;
 
-	if ( zone < 0 || ent->s.eType != ET_CHARACTER || !BG_ValidModel( ent->s.modelindex2 ) ) {
+	if ( zone < 0 || !BG_ValidModel( ent->characterDef ) ) {
 		return 1.0f;
 	}
-	model = &bg_models[ent->s.modelindex2];
+	model = &bg_models[ent->characterDef];
 	return zone < model->numZones ? model->zones[zone].damageScale : 1.0f;
 }
 
@@ -288,6 +341,52 @@ void G_CharacterSetAnim( gentity_t *ent, int channel, int anim ) {
 		ent->s.legsAnim = anim < 0 ? 0 : anim;
 		ent->s.time = level.time;
 	}
+	G_CharacterRecord( ent );
+}
+
+/*
+================
+G_PlayerSetModel
+
+A player's model: a model def makes it a skeletal character, with hitboxes.
+================
+*/
+void G_PlayerSetModel( gentity_t *ent, const char *modelName ) {
+	int m = BG_PlayerModelForName( modelName );
+
+	if ( m && m == ent->characterDef && ent->characterModel ) {
+		return;
+	}
+	ent->characterDef = m;
+	ent->characterModel = m ? trap_R_RegisterModel( bg_models[m].mesh ) : 0;
+	ent->characterHistory = &g_playerHistories[ent->s.number];
+	G_ResetCharacterHistory( ent->characterHistory );
+}
+
+/*
+================
+G_PlayerCharacterFrame
+
+At the end of a player's frame: when its animations started (time, time2,
+for the cgame to blend them the same), and its history.
+================
+*/
+void G_PlayerCharacterFrame( gentity_t *ent ) {
+	struct characterHistory_s *h = ent->characterHistory;
+
+	if ( !ent->characterDef || !h ) {
+		return;
+	}
+	if ( ent->s.legsAnim != h->legsAnim ) {
+		h->legsAnim = ent->s.legsAnim;
+		h->legsTime = level.time;
+	}
+	if ( ent->s.torsoAnim != h->torsoAnim ) {
+		h->torsoAnim = ent->s.torsoAnim;
+		h->torsoTime = level.time;
+	}
+	ent->s.time = h->legsTime;
+	ent->s.time2 = h->torsoTime;
 	G_CharacterRecord( ent );
 }
 
@@ -338,21 +437,14 @@ void SP_misc_character( gentity_t *ent ) {
 	model = &bg_models[ent->s.modelindex2];
 
 	ent->s.eType = ET_CHARACTER;
+	ent->characterDef = ent->s.modelindex2;
 	ent->s.modelindex = G_ModelIndex( (char *)model->mesh );
 	ent->characterModel = trap_R_RegisterModel( model->mesh );
 	if ( !ent->characterModel ) {
 		G_Printf( S_COLOR_YELLOW "WARNING: misc_character at %s: can't load %s\n", vtos( ent->s.origin ), model->mesh );
 	}
 	ent->characterHistory = trap_HeapMalloc( sizeof( *ent->characterHistory ) );
-	memset( ent->characterHistory, 0, sizeof( *ent->characterHistory ) );
-	{
-		int c;
-
-		// nothing to cross-fade from
-		for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
-			ent->characterHistory->channels[c].anim = ent->characterHistory->channels[c].prevAnim = -1;
-		}
-	}
+	G_ResetCharacterHistory( ent->characterHistory );
 
 	DictGetVector( model->def, "mins", "-16 -16 -24", ent->s.mins );
 	DictGetVector( model->def, "maxs", "16 16 48", ent->s.maxs );

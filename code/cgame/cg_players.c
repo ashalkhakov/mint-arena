@@ -886,8 +886,22 @@ static void CG_LoadPlayerInfo( int playerNum, playerInfo_t *pi ) {
 		strcat( teamname, "/" );
 	}
 #endif
+	// a model def: a skeletal character (the Quake 3 model below stays the
+	// fallback)
+	pi->modelDef = BG_PlayerModelForName( pi->modelName );
+	pi->skeletalModel = pi->modelDef ? trap_R_RegisterModel( bg_models[pi->modelDef].mesh ) : 0;
+	if ( !pi->skeletalModel ) {
+		pi->modelDef = 0;
+	}
+
 	modelloaded = qtrue;
-	if ( !CG_RegisterPlayerModelname( pi, pi->modelName, pi->skinName, pi->headModelName, pi->headSkinName, teamname ) ) {
+	if ( pi->modelDef ) {
+		// no Quake 3 model of the name: the default's, quietly
+		if ( !CG_RegisterPlayerModelname( pi, cg_defaultMaleModel.string, "default", cg_defaultMaleHeadModel.string, "default", teamname ) ) {
+			CG_Error( "Default player model %s failed to register", cg_defaultMaleModel.string );
+		}
+		modelloaded = qfalse;
+	} else if ( !CG_RegisterPlayerModelname( pi, pi->modelName, pi->skinName, pi->headModelName, pi->headSkinName, teamname ) ) {
 		if ( cg_buildScript.integer ) {
 			CG_Error( "CG_RegisterPlayerModelname( %s, %s, %s, %s %s ) failed", pi->modelName, pi->skinName, pi->headModelName, pi->headSkinName, teamname );
 		}
@@ -970,6 +984,8 @@ static void CG_CopyPlayerInfoModel( playerInfo_t *from, playerInfo_t *to ) {
 	to->legsModel = from->legsModel;
 	to->torsoModel = from->torsoModel;
 	to->headModel = from->headModel;
+	to->modelDef = from->modelDef;
+	to->skeletalModel = from->skeletalModel;
 	to->modelSkin = from->modelSkin;
 	to->modelIcon = from->modelIcon;
 
@@ -2856,6 +2872,22 @@ void CG_Player( centity_t *cent ) {
 		CG_PlayerTokens( cent, renderfx );
 	}
 #endif
+	if ( pi->modelDef ) {
+		refEntity_t weapon, flag;
+
+		// a skeletal character
+		VectorCopy( cent->lerpOrigin, legs.origin );
+		VectorCopy( cent->lerpOrigin, legs.lightingOrigin );
+		legs.shadowPlane = shadowPlane;
+		legs.renderfx = renderfx;
+		CG_PlayerCharacter( cent, pi, &legs, (const vec3_t *)torso.axis, (const vec3_t *)head.axis,
+							&torso, &weapon, &flag );
+		CG_PlayerSprites( cent, &torso );
+		CG_AddPlayerWeapon( &weapon, NULL, cent, pi->team );
+		CG_PlayerPowerups( cent, &flag );
+		return;
+	}
+
 	//
 	// add the legs
 	//
