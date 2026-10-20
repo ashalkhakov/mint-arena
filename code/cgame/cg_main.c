@@ -2790,6 +2790,8 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 
 	CG_ParseServerinfo();
 
+	CG_InitLoadingSteps();
+
 	// load the new map
 	CG_LoadingString( "collision map" );
 

@@ -817,6 +817,7 @@ typedef struct {
 
 	// information screen text during loading
 	char		infoScreenText[MAX_STRING_CHARS];
+	int			loadingStep, loadingSteps;	// progress of the level load
 
 	qboolean	lightstylesInited;
 
@@ -1956,6 +1957,7 @@ void        CG_ParseEntitiesFromString( void );
 // cg_info.c
 //
 void CG_LoadingString( const char *s );
+void CG_InitLoadingSteps( void );
 void CG_LoadingItem( int itemNum );
 void CG_LoadingPlayer( int playerNum );
 void CG_DrawInformation( void );

@@ -76,6 +76,9 @@ CG_LoadingString
 */
 void CG_LoadingString( const char *s ) {
 	Q_strncpyz( cg.infoScreenText, s, sizeof( cg.infoScreenText ) );
+	if ( s[0] ) {
+		cg.loadingStep++;
+	}
 
 	trap_UpdateScreen();
 }
@@ -152,6 +155,95 @@ void CG_LoadingPlayer( int playerNum ) {
 
 /*
 ====================
+CG_InitLoadingSteps
+
+How many loading strings the level load will show: its stages, the items
+in the level and the players.
+====================
+*/
+void CG_InitLoadingSteps( void ) {
+	const char	*items;
+	int			i;
+
+	cg.loadingStep = 0;
+	cg.loadingSteps = 8;	// collision map, sounds, map, entities, game media, graphics, players
+
+	for ( items = CG_ConfigString( CS_ITEMS ); *items; items++ ) {
+		if ( *items == '1' ) {
+			cg.loadingSteps++;
+		}
+	}
+	for ( i = 0; i < MAX_CLIENTS; i++ ) {
+		if ( CG_ConfigString( CS_PLAYERS + i )[0] ) {
+			cg.loadingSteps++;
+		}
+	}
+}
+
+// Daikatana's loading screen: the levelshot at 4:3 filling the width, and
+// its loading bar filled with blocks, in 640x480 units (cl_scrn.cpp)
+#define LOADING_BAR_IMAGE_X		383.0f
+#define LOADING_BAR_IMAGE_Y		357.0f
+#define LOADING_BAR_X			451.0f
+#define LOADING_BAR_Y			382.0f
+#define LOADING_BAR_WIDTH		184.0f
+#define LOADING_BLOCK_WIDTH		5.0f
+
+/*
+====================
+CG_DrawLoadingBar
+
+Daikatana's loading screen, used when the shaders of its loading bar
+(gfx/2d/loadingbar, gfx/2d/loadingblock) are there. Returns qfalse to draw
+Quake 3's instead.
+====================
+*/
+static qboolean CG_DrawLoadingBar( qhandle_t levelshot ) {
+	qhandle_t	bar, block;
+	float		scale, ox, oy, x, end, frac, w, h;
+
+	bar = trap_R_RegisterShaderNoMip( "gfx/2d/loadingbar" );
+	block = trap_R_RegisterShaderNoMip( "gfx/2d/loadingblock" );
+	if ( !bar || !block ) {
+		return qfalse;
+	}
+
+	// the 640x480 picture keeps its shape: it fills the width of a wide
+	// screen and loses some top and bottom
+	if ( cgs.glconfig.vidWidth * 480 > cgs.glconfig.vidHeight * 640 ) {
+		scale = cgs.glconfig.vidWidth / 640.0f;
+	} else {
+		scale = cgs.glconfig.vidHeight / 480.0f;
+		if ( cgs.glconfig.vidWidth / 640.0f < scale ) {
+			scale = cgs.glconfig.vidWidth / 640.0f;
+		}
+	}
+	ox = ( cgs.glconfig.vidWidth - 640.0f * scale ) * 0.5f;
+	oy = ( cgs.glconfig.vidHeight - 480.0f * scale ) * 0.5f;
+
+	trap_R_SetColor( NULL );
+	trap_R_DrawStretchPic( ox, oy, 640.0f * scale, 480.0f * scale, 0, 0, 1, 1, levelshot );
+
+	trap_R_DrawStretchPic( ox + LOADING_BAR_IMAGE_X * scale, oy + LOADING_BAR_IMAGE_Y * scale,
+		256.0f * scale, 64.0f * scale, 0, 0, 1, 1, bar );
+
+	frac = cg.loadingSteps > 0 ? (float)cg.loadingStep / cg.loadingSteps : 0.0f;
+	if ( frac > 1.0f ) {
+		frac = 1.0f;
+	}
+	// the 8x16 blocks overlap, a block every 5 pixels
+	w = LOADING_BLOCK_WIDTH * scale;
+	h = 16.0f * scale;
+	x = ox + LOADING_BAR_X * scale;
+	end = x + frac * LOADING_BAR_WIDTH * scale - w;
+	for ( ; x <= end; x += w ) {
+		trap_R_DrawStretchPic( x, oy + LOADING_BAR_Y * scale, 8.0f * scale, h, 0, 0, 1, 1, block );
+	}
+	return qtrue;
+}
+
+/*
+====================
 CG_DrawInformation
 
 Draw all the status / pacifier stuff during level loading
@@ -175,6 +267,10 @@ void CG_DrawInformation( void ) {
 	if ( !levelshot ) {
 		levelshot = trap_R_RegisterShaderNoMip( "menu/art/unknownmap" );
 	}
+	if ( CG_DrawLoadingBar( levelshot ) ) {
+		return;
+	}
+
 	trap_R_SetColor( NULL );
 	trap_R_DrawStretchPic( 0, 0, cgs.glconfig.vidWidth, cgs.glconfig.vidHeight, 0, 0, 1, 1, levelshot );
 
