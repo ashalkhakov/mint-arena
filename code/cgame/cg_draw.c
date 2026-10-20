@@ -1763,6 +1763,9 @@ CG_DrawCenterString
 */
 static void CG_DrawCenterString( void ) {
 	float	*color;
+#ifdef MISSIONPACK_HUD
+	menuDef_t	*menu;
+#endif
 
 	if ( !cg.cur_lc->centerPrintTime ) {
 		return;
@@ -1772,6 +1775,15 @@ static void CG_DrawCenterString( void ) {
 	if ( !color ) {
 		return;
 	}
+
+#ifdef MISSIONPACK_HUD
+	// a HUD with a centerprint_menu draws it itself (CG_CENTERPRINT)
+	menu = Menus_FindByName( "centerprint_menu" );
+	if ( menu ) {
+		Menu_Paint( menu, qtrue );
+		return;
+	}
+#endif
 
 	CG_SetScreenPlacement(PLACE_CENTER, PLACE_CENTER);
 
@@ -2788,6 +2800,29 @@ void CG_DrawTimedMenus( qboolean *voiceMenuOpen ) {
 #endif
 }
 #endif
+
+/*
+=================
+CG_DrawHudWeaponSelect
+
+A HUD with a weaponselect_menu shows it for cg_weaponSelectTime after a
+weapon change instead of Quake 3's row of icons (CG_WEAPON_* owner draws).
+=================
+*/
+static void CG_DrawHudWeaponSelect( void ) {
+#ifdef MISSIONPACK_HUD
+	menuDef_t *menu = Menus_FindByName( "weaponselect_menu" );
+
+	if ( menu ) {
+		if ( cg.cur_lc->weaponSelectTime && cg.time - cg.cur_lc->weaponSelectTime < cg_weaponSelectTime.integer ) {
+			Menu_Paint( menu, qtrue );
+		}
+		return;
+	}
+#endif
+	CG_DrawWeaponSelect();
+}
+
 /*
 =================
 CG_Draw2D
@@ -2853,7 +2888,7 @@ static void CG_Draw2D(stereoFrame_t stereoFrame, qboolean *voiceMenuOpen)
 			if(stereoFrame == STEREO_CENTER)
 				CG_DrawCrosshair();
 			CG_DrawCrosshairNames();
-			CG_DrawWeaponSelect();
+			CG_DrawHudWeaponSelect();
 
 #ifndef MISSIONPACK_HUD
 			CG_DrawHoldableItem();

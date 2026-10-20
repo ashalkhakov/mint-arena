@@ -215,6 +215,7 @@ typedef struct listBoxDef_s {
 	columnInfo_t columnInfo[MAX_LB_COLUMNS];
 	const char *doubleClick;
 	qboolean notselectable;
+	qboolean noScrollbar;		// a list that doesn't scroll, a scoreboard
 } listBoxDef_t;
 
 typedef struct editFieldDef_s {

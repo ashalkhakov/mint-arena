@@ -159,6 +159,7 @@ vmCvar_t	cg_dedicated;
 
 vmCvar_t	cg_railTrailTime;
 vmCvar_t	cg_centertime;
+vmCvar_t	cg_weaponSelectTime;
 vmCvar_t	cg_viewbob;
 vmCvar_t	cg_viewkick;
 vmCvar_t	cg_runpitch;
@@ -405,6 +406,7 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_gun_y, "cg_gunY", "0", CVAR_CHEAT, RANGE_ALL },
 	{ &cg_gun_z, "cg_gunZ", "0", CVAR_CHEAT, RANGE_ALL },
 	{ &cg_centertime, "cg_centertime", "3", CVAR_CHEAT, RANGE_ALL },
+	{ &cg_weaponSelectTime, "cg_weaponSelectTime", "1400", CVAR_ARCHIVE, RANGE_INT( 0, 60000 ) },
 	{ &cg_viewbob, "cg_viewbob", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_viewkick, "cg_viewkick", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_runpitch, "cg_runpitch", "0.002", CVAR_ARCHIVE, RANGE_ALL },
@@ -2380,13 +2382,13 @@ static const char *CG_FeederItemText(float feederID, int index, int column, qhan
 				return va("%i", info->score);
 			break;
 			case 5:
-				return va("%4i", sp->time);
+				return va("%i", sp->time);
 			break;
 			case 6:
 				if ( sp->ping == -1 ) {
 					return "connecting";
 				} 
-				return va("%4i", sp->ping);
+				return va("%i", sp->ping);
 			break;
 		}
 	}

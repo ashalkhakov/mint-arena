@@ -215,6 +215,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_2NDPLACE 68
 #define CG_CAPTURES 69
 #define CG_PLAYER_FACE 70				// the item's text names the pictures: %m model, %c state (a-e health, f dead, g invulnerable, h invisible)
+#define CG_WEAPON_ICON 71				// the weapon numbered by the item's special: its model turning, or its icon
+#define CG_WEAPON_AMMO 72				// that weapon's ammo
+#define CG_WEAPON_SELECTED 73			// the item's background when that weapon is selected
+#define CG_CENTERPRINT 74				// the centre print, a line at a time from the top of the rect
+#define CG_LEVEL_TIME 75				// the time since the level started, hh:mm:ss
 
 
 

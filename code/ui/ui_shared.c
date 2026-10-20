@@ -4135,23 +4135,25 @@ void Item_ListBox_Paint(itemDef_t *item) {
 			//
 		}
 	} else {
-		// draw scrollbar to right side of the window
-		x = item->window.rect.x + item->window.rect.w - SCROLLBAR_SIZE - 1;
-		y = item->window.rect.y + 1;
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowUp);
-		y += SCROLLBAR_SIZE - 1;
-
 		listPtr->endPos = listPtr->startPos;
-		size = item->window.rect.h - (SCROLLBAR_SIZE * 2);
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, size+1, DC->Assets.scrollBar);
-		y += size - 1;
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowDown);
-		// thumb
-		thumb = Item_ListBox_ThumbDrawPosition(item);//Item_ListBox_ThumbPosition(item);
-		if (thumb > y - SCROLLBAR_SIZE - 1) {
-			thumb = y - SCROLLBAR_SIZE - 1;
+		if (!listPtr->noScrollbar) {
+			// draw scrollbar to right side of the window
+			x = item->window.rect.x + item->window.rect.w - SCROLLBAR_SIZE - 1;
+			y = item->window.rect.y + 1;
+			DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowUp);
+			y += SCROLLBAR_SIZE - 1;
+
+			size = item->window.rect.h - (SCROLLBAR_SIZE * 2);
+			DC->drawHandlePic(x, y, SCROLLBAR_SIZE, size+1, DC->Assets.scrollBar);
+			y += size - 1;
+			DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowDown);
+			// thumb
+			thumb = Item_ListBox_ThumbDrawPosition(item);//Item_ListBox_ThumbPosition(item);
+			if (thumb > y - SCROLLBAR_SIZE - 1) {
+				thumb = y - SCROLLBAR_SIZE - 1;
+			}
+			DC->drawHandlePic(x, thumb, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarThumb);
 		}
-		DC->drawHandlePic(x, thumb, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarThumb);
 
 		// adjust size for item painting
 		size = item->window.rect.h - 2;
@@ -4191,6 +4193,10 @@ void Item_ListBox_Paint(itemDef_t *item) {
 				if (listPtr->numColumns > 0) {
 					int j;
 					for (j = 0; j < listPtr->numColumns; j++) {
+						// a column with a negative maxChars isn't shown
+						if (listPtr->columnInfo[j].maxChars < 0) {
+							continue;
+						}
 						text = DC->feederItemText(item->special, i, j, &optionalImage);
 						if (optionalImage >= 0) {
 							DC->drawHandlePic(x + 4 + listPtr->columnInfo[j].pos, y - 1 + listPtr->elementHeight / 2, listPtr->columnInfo[j].width, listPtr->columnInfo[j].width, optionalImage);
@@ -5112,6 +5118,17 @@ qboolean ItemParse_notselectable( itemDef_t *item, int handle ) {
 	return qtrue;
 }
 
+// noscrollbar: a list drawn without its scroll bar
+qboolean ItemParse_noscrollbar( itemDef_t *item, int handle ) {
+	listBoxDef_t *listPtr;
+	Item_ValidateTypeData(item);
+	listPtr = (listBoxDef_t*)item->typeData;
+	if (item->type == ITEM_TYPE_LISTBOX && listPtr) {
+		listPtr->noScrollbar = qtrue;
+	}
+	return qtrue;
+}
+
 // manually wrapped
 qboolean ItemParse_wrapped( itemDef_t *item, int handle ) {
 	item->window.flags |= WINDOW_WRAPPED;
@@ -5684,6 +5701,7 @@ keywordHash_t itemParseKeywords[] = {
 	{"style", ItemParse_style, NULL},
 	{"decoration", ItemParse_decoration, NULL},
 	{"notselectable", ItemParse_notselectable, NULL},
+	{"noscrollbar", ItemParse_noscrollbar, NULL},
 	{"wrapped", ItemParse_wrapped, NULL},
 	{"autowrapped", ItemParse_autowrapped, NULL},
 	{"horizontalscroll", ItemParse_horizontalscroll, NULL},
@@ -6304,9 +6322,9 @@ qboolean MenuParse_screenPlacement( itemDef_t *item, int handle ) {
 		return qfalse;
 
 	if (Q_stricmp(token.string, "PLACE_TOP") == 0) {
-		vpos = PLACE_RIGHT;
+		vpos = PLACE_TOP;
 	} else if (Q_stricmp(token.string, "PLACE_BOTTOM") == 0) {
-		vpos = PLACE_LEFT;
+		vpos = PLACE_BOTTOM;
 	} else if (Q_stricmp(token.string, "PLACE_CENTER") == 0) {
 		vpos = PLACE_CENTER;
 	} else if (Q_stricmp(token.string, "PLACE_STRETCH") == 0) {

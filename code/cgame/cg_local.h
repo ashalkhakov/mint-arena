@@ -1392,6 +1392,7 @@ extern	vmCvar_t		con_autoclear;
 extern	vmCvar_t		cg_dedicated;
 
 extern	vmCvar_t		cg_centertime;
+extern	vmCvar_t		cg_weaponSelectTime;
 extern	vmCvar_t		cg_viewbob;
 extern	vmCvar_t		cg_viewkick;
 extern	vmCvar_t		cg_runpitch;

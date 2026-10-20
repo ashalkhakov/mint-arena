@@ -817,6 +817,136 @@ static void CG_DrawPlayerFace( rectDef_t *rect, vec4_t color ) {
 	}
 }
 
+/*
+==============
+Weapon slots
+
+A weapon selector in a menu script: each owner draw takes its weapon's
+number from the item's special.
+==============
+*/
+static qboolean CG_HasWeapon( int weapon ) {
+	if ( weapon <= WP_NONE || weapon >= WP_NUM_WEAPONS ) {
+		return qfalse;
+	}
+	return ( cg.cur_ps->stats[STAT_WEAPONS] & ( 1 << weapon ) ) != 0;
+}
+
+// the weapon's model turning on the rect's middle, or its icon in the rect
+static void CG_DrawWeaponIcon( rectDef_t *rect, int weapon, qboolean draw2D ) {
+	weaponInfo_t	*wi;
+	vec3_t			mins, maxs, center, origin, angles, axis[3];
+	float			radius, size;
+
+	if ( !CG_HasWeapon( weapon ) ) {
+		return;
+	}
+	CG_RegisterWeapon( weapon );
+	wi = &cg_weapons[weapon];
+
+	if ( draw2D || !cg_draw3dIcons.integer || !wi->weaponModel ) {
+		if ( wi->weaponIcon && ( draw2D || cg_drawIcons.integer ) ) {
+			CG_DrawPic( rect->x, rect->y, rect->w, rect->h, wi->weaponIcon );
+		}
+		return;
+	}
+
+	// turn it about its middle, far enough away to fit whichever way it faces
+	trap_R_ModelBounds( wi->weaponModel, mins, maxs, 0, 0, 0 );
+	VectorAdd( mins, maxs, center );
+	VectorScale( center, 0.5f, center );
+	radius = 0.5f * Distance( mins, maxs );
+
+	VectorSet( angles, 0, cg.time * 0.12f, -45 );
+	AnglesToAxis( angles, axis );
+	VectorSet( origin, radius / 0.268f, 0, 0 );	// radius / tan( fov/2 )
+	VectorMA( origin, -center[0], axis[0], origin );
+	VectorMA( origin, -center[1], axis[1], origin );
+	VectorMA( origin, -center[2], axis[2], origin );
+
+	// in a square on the rect's middle, as the view is as tall as it is wide
+	size = MAX( rect->w, rect->h );
+	CG_Draw3DModel( rect->x + ( rect->w - size ) / 2, rect->y + ( rect->h - size ) / 2, size, size,
+		wi->weaponModel, NULL, origin, angles );
+}
+
+// the weapon's ammo, for a weapon that has some and uses it
+static void CG_DrawWeaponAmmo( rectDef_t *rect, int weapon, float scale, vec4_t color, int textStyle ) {
+	char	num[16];
+	int		value;
+
+	if ( !CG_HasWeapon( weapon ) ) {
+		return;
+	}
+	value = cg.cur_ps->ammo[weapon];
+	if ( value < 0 ) {
+		return;
+	}
+	Com_sprintf( num, sizeof( num ), "%i", value );
+	CG_Text_Paint( rect->x + ( rect->w - CG_Text_Width( num, scale, 0 ) ) / 2, rect->y + rect->h, scale, color, num, 0, 0, textStyle );
+}
+
+// the item's background when the weapon is the one selected
+static void CG_DrawWeaponSelected( rectDef_t *rect, int weapon, vec4_t color, qhandle_t shader ) {
+	if ( !shader || weapon != cg.cur_lc->weaponSelect || !CG_HasWeapon( weapon ) ) {
+		return;
+	}
+	trap_R_SetColor( color );
+	CG_DrawPic( rect->x, rect->y, rect->w, rect->h, shader );
+	trap_R_SetColor( NULL );
+}
+
+// the time since the level started, hh:mm:ss
+static void CG_DrawLevelTime( rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
+	int		seconds;
+
+	seconds = ( cg.time - cgs.levelStartTime ) / 1000;
+	if ( seconds < 0 ) {
+		seconds = 0;
+	}
+	CG_Text_Paint( rect->x, rect->y + rect->h, scale, color,
+		va( "%02i:%02i:%02i", seconds / 3600, seconds / 60 % 60, seconds % 60 ), 0, 0, textStyle );
+}
+
+/*
+==============
+CG_DrawCenterPrintText
+
+The centre print, a line at a time centred in the rect from its top,
+fading as the one Quake 3 draws does.
+==============
+*/
+static void CG_DrawCenterPrintText( rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
+	char	line[1024];
+	const char	*s, *end;
+	float	*fade, y, height;
+	vec4_t	c;
+	int		len;
+
+	if ( !cg.cur_lc->centerPrintTime ) {
+		return;
+	}
+	fade = CG_FadeColor( cg.cur_lc->centerPrintTime, 1000 * cg_centertime.value );
+	if ( !fade ) {
+		return;
+	}
+	Vector4Copy( color, c );
+	c[3] *= fade[3];
+
+	height = CG_Text_Height( "Ay", scale, 0 );
+	y = rect->y;
+	for ( s = cg.cur_lc->centerPrint; *s; s = *end ? end + 1 : end ) {
+		end = strchr( s, '\n' );
+		if ( !end ) {
+			end = s + strlen( s );
+		}
+		len = MIN( end - s, (int)sizeof( line ) - 1 );
+		Q_strncpyz( line, s, len + 1 );
+		y += height;
+		CG_Text_Paint( rect->x + ( rect->w - CG_Text_Width( line, scale, 0 ) ) / 2, y, scale, c, line, 0, 0, textStyle );
+	}
+}
+
 static void CG_DrawPlayerHealth(rectDef_t *rect, float scale, vec4_t color, qhandle_t shader, int textStyle ) {
 	playerState_t	*ps;
 	int value;
@@ -1907,6 +2037,21 @@ void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y
 		break;
 	case CG_PLAYER_FACE:
 		CG_DrawPlayerFace(&rect, color);
+		break;
+	case CG_WEAPON_ICON:
+		CG_DrawWeaponIcon(&rect, (int)special, ownerDrawFlags & CG_SHOW_2DONLY);
+		break;
+	case CG_WEAPON_AMMO:
+		CG_DrawWeaponAmmo(&rect, (int)special, scale, color, textStyle);
+		break;
+	case CG_WEAPON_SELECTED:
+		CG_DrawWeaponSelected(&rect, (int)special, color, shader);
+		break;
+	case CG_CENTERPRINT:
+		CG_DrawCenterPrintText(&rect, scale, color, textStyle);
+		break;
+	case CG_LEVEL_TIME:
+		CG_DrawLevelTime(&rect, scale, color, textStyle);
 		break;
   case CG_SPECTATORS:
 		CG_DrawTeamSpectators(&rect, scale, color, shader);
