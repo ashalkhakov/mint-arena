@@ -81,41 +81,52 @@ The animations an IQM names, for "anim <name>" "<IQM animation>".
 ================
 */
 static int BG_IQMAnims( const char *meshName, bgAnim_t *anims, int max ) {
-	void *buffer;
-	long length;
-	const iqmHeader_t *header;
-	const iqmAnim_t *anim;
-	const char *text;
-	int i, num = 0;
+	static char text[65536];
+	iqmHeader_t header;
+	iqmAnim_t anim;
+	fileHandle_t f;
+	int length, i, num = 0;
+	unsigned numText;
 
-	length = BG_FS_ReadFile( meshName, &buffer );
-	if ( length < (long)sizeof( iqmHeader_t ) || !buffer ) {
-		BG_FS_FreeFile( buffer );
+	// only the header, the text and the animations: the rest can be big
+	if ( Q_stricmp( COM_GetExtension( meshName ), "iqm" ) ) {
 		return 0;
 	}
-	header = (const iqmHeader_t *)buffer;
-	if ( memcmp( header->magic, IQM_MAGIC, sizeof( IQM_MAGIC ) ) || LittleLong( header->version ) != IQM_VERSION
-		|| LittleLong( header->ofs_anims ) + LittleLong( header->num_anims ) * sizeof( iqmAnim_t ) > (unsigned)length
-		|| LittleLong( header->ofs_text ) + LittleLong( header->num_text ) > (unsigned)length ) {
-		BG_FS_FreeFile( buffer );
+	length = trap_FS_FOpenFile( meshName, &f, FS_READ );
+	if ( length < (int)sizeof( header ) ) {
+		if ( f ) {
+			trap_FS_FCloseFile( f );
+		}
 		return 0;
 	}
-	text = (const char *)buffer + LittleLong( header->ofs_text );
-	anim = (const iqmAnim_t *)( (const byte *)buffer + LittleLong( header->ofs_anims ) );
-	for ( i = 0; i < (int)LittleLong( header->num_anims ) && num < max; i++, anim++ ) {
-		unsigned nameOfs = LittleLong( anim->name );
+	trap_FS_Read( &header, sizeof( header ), f );
+	numText = LittleLong( header.num_text );
+	if ( memcmp( header.magic, IQM_MAGIC, sizeof( IQM_MAGIC ) ) || LittleLong( header.version ) != IQM_VERSION
+		|| numText >= sizeof( text ) || LittleLong( header.ofs_text ) + numText > (unsigned)length
+		|| LittleLong( header.ofs_anims ) + LittleLong( header.num_anims ) * sizeof( iqmAnim_t ) > (unsigned)length ) {
+		trap_FS_FCloseFile( f );
+		return 0;
+	}
+	trap_FS_Seek( f, LittleLong( header.ofs_text ), FS_SEEK_SET );
+	trap_FS_Read( text, numText, f );
+	text[numText] = 0;
+	trap_FS_Seek( f, LittleLong( header.ofs_anims ), FS_SEEK_SET );
+	for ( i = 0; i < (int)LittleLong( header.num_anims ) && num < max; i++ ) {
+		unsigned nameOfs;
 
-		if ( nameOfs >= LittleLong( header->num_text ) ) {
+		trap_FS_Read( &anim, sizeof( anim ), f );
+		nameOfs = LittleLong( anim.name );
+		if ( nameOfs >= numText ) {
 			continue;
 		}
 		Q_strncpyz( anims[num].name, text + nameOfs, sizeof( anims[num].name ) );
-		anims[num].firstFrame = LittleLong( anim->first_frame );
-		anims[num].numFrames = LittleLong( anim->num_frames );
-		anims[num].fps = LittleFloat( anim->framerate );
-		anims[num].loop = ( LittleLong( anim->flags ) & IQM_LOOP ) != 0;
+		anims[num].firstFrame = LittleLong( anim.first_frame );
+		anims[num].numFrames = LittleLong( anim.num_frames );
+		anims[num].fps = LittleFloat( anim.framerate );
+		anims[num].loop = ( LittleLong( anim.flags ) & IQM_LOOP ) != 0;
 		num++;
 	}
-	BG_FS_FreeFile( buffer );
+	trap_FS_FCloseFile( f );
 	return num;
 }
 

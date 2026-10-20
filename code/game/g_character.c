@@ -361,14 +361,16 @@ void SP_misc_character( gentity_t *ent ) {
 ================
 Svcmd_SpawnCharacter_f
 
-spawncharacter <model def> [anim] [height]: puts one 96 units in front of
-the first player, facing them, height units up (cheat, for testing).
+spawncharacter <model def> [anim] [height] [side]: puts one 96 units in
+front of the first player, facing them, height units up and side units to
+their left (cheat, for testing).
 ================
 */
 void Svcmd_SpawnCharacter_f( void ) {
 	gentity_t *player, *ent;
 	vec3_t forward;
-	char name[MAX_QPATH], anim[MAX_QPATH], height[16];
+	char name[MAX_QPATH], anim[MAX_QPATH], height[16], side[16];
+	vec3_t right;
 
 	if ( !g_cheats.integer ) {
 		G_Printf( "Cheats are not enabled on this server.\n" );
@@ -382,11 +384,13 @@ void Svcmd_SpawnCharacter_f( void ) {
 	trap_Argv( 1, name, sizeof( name ) );
 	trap_Argv( 2, anim, sizeof( anim ) );
 	trap_Argv( 3, height, sizeof( height ) );
+	trap_Argv( 4, side, sizeof( side ) );
 
 	ent = G_Spawn();
 	ent->classname = "misc_character";
-	AngleVectors( tv( 0, player->player->ps.viewangles[YAW], 0 ), forward, NULL, NULL );
+	AngleVectors( tv( 0, player->player->ps.viewangles[YAW], 0 ), forward, right, NULL );
 	VectorMA( player->r.currentOrigin, 96, forward, ent->s.origin );
+	VectorMA( ent->s.origin, -atof( side ), right, ent->s.origin );
 	ent->s.origin[2] += atof( height );
 	VectorSet( ent->s.angles, 0, player->player->ps.viewangles[YAW] + 180, 0 );
 
