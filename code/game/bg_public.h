@@ -117,7 +117,7 @@ extern idlib_export_t ie;
 #endif
 
 
-#define MAX_DLIGHT_CONFIGSTRINGS 128
+#define MAX_DLIGHT_CONFIGSTRINGS 224	// what fits in MAX_CONFIGSTRINGS; converted maps have hundreds of lights
 
 //
 // config strings are a general means of communicating variable length strings

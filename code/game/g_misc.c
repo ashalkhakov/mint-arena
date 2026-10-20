@@ -520,6 +520,19 @@ dlight_finish_spawning
 ==============
 */
 void dlight_finish_spawning( gentity_t *ent ) {
+	static int	warnedLevel = -1;
+	char		last[MAX_STRING_CHARS];
+
+	// the slots fill in order: with the last one taken there is no room, and
+	// the light, baked into the lightmap too, does without its dynamic part
+	trap_GetConfigstring( CS_DLIGHTS + MAX_DLIGHT_CONFIGSTRINGS - 1, last, sizeof( last ) );
+	if ( last[0] ) {
+		if ( warnedLevel != level.startTime ) {
+			warnedLevel = level.startTime;
+			G_Printf( S_COLOR_YELLOW "WARNING: more than %d dlights, the rest are left out\n", MAX_DLIGHT_CONFIGSTRINGS - 1 );
+		}
+		return;
+	}
 	G_FindConfigstringIndex( va( "%i %s %i %i %i", ent->s.number, ent->dl_stylestring, ent->health, ent->soundLoop, ent->dl_atten ), CS_DLIGHTS, MAX_DLIGHT_CONFIGSTRINGS, qtrue );
 }
 
