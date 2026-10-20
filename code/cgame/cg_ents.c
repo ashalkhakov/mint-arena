@@ -480,6 +480,7 @@ static void CG_Item( centity_t *cent ) {
 	float			scale;
 	weaponInfo_t	*wi;
 	qboolean		megaHealth;
+	qboolean		customModel;
 
 	es = &cent->currentState;
 	if ( es->modelindex >= BG_NumItems() ) {
@@ -558,6 +559,12 @@ static void CG_Item( centity_t *cent ) {
 
 	ent.hModel = cg_items[es->modelindex].models[0];
 
+	// map items can use their own model (ET_ITEM frame holds its model index)
+	customModel = ( es->frame > 0 && es->frame < MAX_MODELS && cgs.gameModels[es->frame] );
+	if ( customModel ) {
+		ent.hModel = cgs.gameModels[es->frame];
+	}
+
 	VectorCopy( cent->lerpOrigin, ent.origin);
 	VectorCopy( cent->lerpOrigin, ent.oldorigin);
 
@@ -576,7 +583,7 @@ static void CG_Item( centity_t *cent ) {
 	}
 
 	// increase the size of the weapons when they are presented as items
-	if ( item->giType == IT_WEAPON ) {
+	if ( item->giType == IT_WEAPON && !customModel ) {
 		VectorScale( ent.axis[0], 1.5, ent.axis[0] );
 		VectorScale( ent.axis[1], 1.5, ent.axis[1] );
 		VectorScale( ent.axis[2], 1.5, ent.axis[2] );
@@ -598,7 +605,7 @@ static void CG_Item( centity_t *cent ) {
 	// add to refresh list
 	CG_AddRefEntityWithMinLight(&ent);
 
-	if ( item->giType == IT_WEAPON && wi && wi->barrelModel ) {
+	if ( item->giType == IT_WEAPON && wi && wi->barrelModel && !customModel ) {
 		refEntity_t	barrel;
 		vec3_t		angles;
 
@@ -629,7 +636,7 @@ static void CG_Item( centity_t *cent ) {
 
 		VectorClear( spinAngles );
 
-		if ( /*item->giType == IT_HEALTH ||*/ item->giType == IT_POWERUP )
+		if ( /*item->giType == IT_HEALTH ||*/ item->giType == IT_POWERUP && !customModel )
 		{
 			if ( ( ent.hModel = cg_items[es->modelindex].models[1] ) != 0 )
 			{

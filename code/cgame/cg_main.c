@@ -263,6 +263,9 @@ vmCvar_t	cg_railWidth;
 vmCvar_t	cg_railCoreWidth;
 vmCvar_t	cg_railSegmentLength;
 vmCvar_t	cg_atmosphericEffects;
+vmCvar_t	fx_debug;
+vmCvar_t	fx_countScale;
+vmCvar_t	fx_nearCull;
 vmCvar_t	cg_atmosphericEffectsPause;
 vmCvar_t	cg_teamDmLeadAnnouncements;
 vmCvar_t	cg_voipShowMeter;
@@ -497,6 +500,9 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_railCoreWidth, "cg_railCoreWidth", "6", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_railSegmentLength, "cg_railSegmentLength", "32", CVAR_ARCHIVE, RANGE_FLOAT( 1, 1000 ) },
 	{ &cg_atmosphericEffects, "cg_atmosphericEffects", "1", CVAR_ARCHIVE, RANGE_ALL },
+	{ &fx_debug, "fx_debug", "0", CVAR_CHEAT, RANGE_ALL },
+	{ &fx_countScale, "fx_countScale", "1", CVAR_ARCHIVE, RANGE_ALL },
+	{ &fx_nearCull, "fx_nearCull", "16", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_atmosphericEffectsPause, "cg_atmosphericEffectsPause", "0", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_teamDmLeadAnnouncements, "cg_teamDmLeadAnnouncements", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_voipShowMeter, "cg_voipShowMeter", "1", CVAR_ARCHIVE, RANGE_BOOL },
@@ -1642,6 +1648,12 @@ static void CG_RegisterGraphics( void ) {
 
 	cgs.media.bloodExplosionShader = trap_R_RegisterShader( "bloodExplosion" );
 
+	// data driven effects, missing files leave the stock effects alone
+	cgs.media.fxBulletHit = CG_FX_RegisterEffect( "dk/bullet_hit" );
+	cgs.media.fxExplosion = CG_FX_RegisterEffect( "dk/explosion" );
+	cgs.media.fxBlood = CG_FX_RegisterEffect( "dk/blood" );
+	cgs.media.fxRespawn = CG_FX_RegisterEffect( "dk/respawn" );
+
 	cgs.media.bulletFlashModel = trap_R_RegisterModel("models/weaphits/bullet.md3");
 	cgs.media.ringFlashModel = trap_R_RegisterModel("models/weaphits/ring02.md3");
 	cgs.media.dishFlashModel = trap_R_RegisterModel("models/weaphits/boom01.md3");
@@ -1929,17 +1941,17 @@ char *CG_GetMenuBuffer(const char *filename) {
 // ==============================
 //
 qboolean CG_Asset_Parse(int handle) {
-	token_t token;
+	pc_token_t token;
 	const char *tempStr;
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (Q_stricmp(token.string, "{") != 0) {
 		return qfalse;
 	}
     
 	while ( 1 ) {
-		if (!PC_ReadToken(handle, &token))
+		if (!PC_ReadTokenHandle(handle, &token))
 			return qfalse;
 
 		if (Q_stricmp(token.string, "}") == 0) {
@@ -2106,17 +2118,17 @@ qboolean CG_Asset_Parse(int handle) {
 }
 
 void CG_ParseMenu(const char *menuFile) {
-	token_t token;
+	pc_token_t token;
 	source_t *handle;
 
-	handle = PC_LoadSource(menuFile, NULL, NULL);
+	handle = PC_LoadSourceHandle( menuFile, NULL, NULL );
 	if (!handle)
-		handle = PC_LoadSource("ui/testhud.menu", NULL, NULL);
+		handle = PC_LoadSourceHandle( "ui/testhud.menu", NULL, NULL );
 	if (!handle)
 		return;
 
 	while ( 1 ) {
-		if (!PC_ReadToken( handle, &token )) {
+		if (!PC_ReadTokenHandle( handle, &token )) {
 			break;
 		}
 
@@ -2148,7 +2160,7 @@ void CG_ParseMenu(const char *menuFile) {
 			Menu_New(handle);
 		}
 	}
-	PC_FreeSource(handle);
+	PC_FreeSourceHandle( handle );
 }
 
 qboolean CG_Load_Menu(char **p) {
@@ -2786,6 +2798,9 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 	cg.loading = qtrue;		// force players to load instead of defer
 
 	CG_LoadingString( "sounds" );
+
+	// before the media, which registers effects
+	CG_FX_Init();
 
 	CG_RegisterSounds();
 

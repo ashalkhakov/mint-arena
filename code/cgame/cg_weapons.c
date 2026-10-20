@@ -2227,6 +2227,30 @@ void CG_MissileHitWall( int weapon, int playerNum, vec3_t origin, vec3_t dir, im
 		le->refEntity.shaderRGBA[3] = 0xff;
 	}
 
+	// effects on top of the stock ones
+	switch ( weapon ) {
+	case WP_ROCKET_LAUNCHER:
+	case WP_GRENADE_LAUNCHER:
+#ifdef MISSIONPACK
+	case WP_PROX_LAUNCHER:
+#endif
+	case WP_BFG:
+		CG_FX_PlayEffectID( cgs.media.fxExplosion, origin, dir );
+		break;
+	case WP_MACHINEGUN:
+	case WP_SHOTGUN:
+#ifdef MISSIONPACK
+	case WP_CHAINGUN:
+	case WP_NAILGUN:
+#endif
+		if ( soundType != IMPACTSOUND_FLESH ) {
+			CG_FX_PlayEffectID( cgs.media.fxBulletHit, origin, dir );
+		}
+		break;
+	default:
+		break;
+	}
+
 	//
 	// impact mark
 	//
@@ -2250,6 +2274,7 @@ CG_MissileHitPlayer
 */
 void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum ) {
 	CG_Bleed( origin, entityNum );
+	CG_FX_PlayEffectID( cgs.media.fxBlood, origin, dir );
 
 	// some weapons will make an explosion with the blood, while
 	// others will just make the blood

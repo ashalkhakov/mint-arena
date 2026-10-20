@@ -651,6 +651,8 @@ void FinishSpawningItem( gentity_t *ent ) {
 	ent->s.eType = ET_ITEM;
 	ent->s.modelindex = BG_ItemNumForItem( ent->item );		// store item number in modelindex
 	ent->s.modelindex2 = 0; // zero indicates this isn't a dropped item
+	// a "model" key replaces the item's look, the gameplay stays the item's
+	ent->s.frame = ( ent->model && ent->model[0] ) ? G_ModelIndex( ent->model ) : 0;
 
 	ent->s.contents = CONTENTS_TRIGGER;
 	ent->touch = Touch_Item;
@@ -664,6 +666,11 @@ void FinishSpawningItem( gentity_t *ent ) {
 		// drop to floor
 		VectorSet( dest, ent->s.origin[0], ent->s.origin[1], ent->s.origin[2] - 4096 );
 		G_Trace( &tr, ent->s.origin, ent->s.mins, ent->s.maxs, dest, ent->s.number, MASK_SOLID, TT_AABB );
+		if ( tr.startsolid ) {
+			// converted maps put items closer to walls and floors than the
+			// item box allows; drop the origin itself to the floor instead
+			G_Trace( &tr, ent->s.origin, NULL, NULL, dest, ent->s.number, MASK_SOLID, TT_AABB );
+		}
 		if ( tr.startsolid ) {
 			G_Printf ("FinishSpawningItem: %s startsolid at %s\n", ent->classname, vtos(ent->s.origin));
 			G_FreeEntity( ent );

@@ -39,6 +39,10 @@ endif()
 if(NOT USE_MISSIONPACK_MP_HUD)
    set(USE_MISSIONPACK_MP_HUD ON)
 endif()
+# menus from .menu scripts (the Team Arena UI) in the base game instead of q3_ui
+if(NOT USE_SCRIPTED_UI)
+   set(USE_SCRIPTED_UI OFF)
+endif()
 if(NOT BUILD_FINAL)
    set(BUILD_FINAL OFF)
 endif()
@@ -1129,6 +1133,7 @@ set(Q3CGOBJ
   cgame/cg_draw.c
   cgame/cg_drawtools.c
   cgame/cg_effects.c
+  cgame/cg_fx.c
   cgame/cg_ents.c
   cgame/cg_event.c
   cgame/cg_field.c
@@ -1197,7 +1202,15 @@ set(Q3CGOBJ
   ${idlib_files}
   qcommon/q_unicode.c)
 
-if(${USE_BASEGAME_MP_HUD})
+if(${USE_SCRIPTED_UI})
+  list(FILTER Q3CGOBJ EXCLUDE REGEX "^q3_ui/")
+  list(APPEND Q3CGOBJ
+    ui/ui_main.c
+    ui/ui_atoms.c
+    ui/ui_gameinfo.c
+    ui/ui_players.c
+    ui/ui_shared.c)
+elseif(${USE_BASEGAME_MP_HUD})
   list(APPEND Q3CGOBJ
     mpui/ui_shared.c)
 endif()

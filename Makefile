@@ -1090,6 +1090,7 @@ Q3CGOBJ = \
   $(B)/$(BASEGAME)/cgame/cg_draw.o \
   $(B)/$(BASEGAME)/cgame/cg_drawtools.o \
   $(B)/$(BASEGAME)/cgame/cg_effects.o \
+  $(B)/$(BASEGAME)/cgame/cg_fx.o \
   $(B)/$(BASEGAME)/cgame/cg_ents.o \
   $(B)/$(BASEGAME)/cgame/cg_event.o \
   $(B)/$(BASEGAME)/cgame/cg_field.o \
@@ -1192,6 +1193,7 @@ MPCGOBJ = \
   $(B)/$(MISSIONPACK)/cgame/cg_draw.o \
   $(B)/$(MISSIONPACK)/cgame/cg_drawtools.o \
   $(B)/$(MISSIONPACK)/cgame/cg_effects.o \
+  $(B)/$(MISSIONPACK)/cgame/cg_fx.o \
   $(B)/$(MISSIONPACK)/cgame/cg_ents.o \
   $(B)/$(MISSIONPACK)/cgame/cg_event.o \
   $(B)/$(MISSIONPACK)/cgame/cg_field.o \

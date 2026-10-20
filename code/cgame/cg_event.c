@@ -906,6 +906,11 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		DEBUGNAME("EV_ITEM_RESPAWN");
 		cent->miscTime = cg.time;	// scale up from this
 		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.respawnSound );
+		{
+			vec3_t up = { 0, 0, 1 };
+
+			CG_FX_PlayEffectID( cgs.media.fxRespawn, cent->lerpOrigin, up );
+		}
 		break;
 
 	case EV_GRENADE_BOUNCE:

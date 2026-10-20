@@ -33,6 +33,30 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../cgame/cg_local.h"
 #include "ui_shared.h"
 
+/*
+=================
+UI_SourceError
+
+A script error with the file and line it is at.
+=================
+*/
+static void QDECL UI_SourceError( int handle, char *format, ... ) {
+	int			line;
+	char		filename[128];
+	va_list		argptr;
+	static char	string[4096];
+
+	va_start( argptr, format );
+	Q_vsnprintf( string, sizeof( string ), format, argptr );
+	va_end( argptr );
+
+	filename[0] = '\0';
+	line = 0;
+	PC_SourceFileAndLine( handle, filename, &line );
+
+	Com_Printf( S_COLOR_RED "ERROR: %s, line %d: %s\n", filename, line, string );
+}
+
 #define SCROLL_TIME_START					500
 #define SCROLL_TIME_ADJUST				150
 #define SCROLL_TIME_ADJUSTOFFSET	40
@@ -289,18 +313,18 @@ PC_Float_Parse
 =================
 */
 qboolean PC_Float_Parse(int handle, float *f) {
-	token_t token;
+	pc_token_t token;
 	int negative = qfalse;
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (token.string[0] == '-') {
-		if (!PC_ReadToken(handle, &token))
+		if (!PC_ReadTokenHandle(handle, &token))
 			return qfalse;
 		negative = qtrue;
 	}
 	if (token.type != TT_NUMBER) {
-		PC_SourceError(handle, "expected float but found %s", token.string);
+		UI_SourceError(handle, "expected float but found %s", token.string);
 		return qfalse;
 	}
 	if (negative)
@@ -369,20 +393,20 @@ PC_Int_Parse
 =================
 */
 qboolean PC_Int_Parse(int handle, int *i) {
-	token_t token;
+	pc_token_t token;
 	int negative = qfalse;
 
 	if (!i)
 		return qfalse;
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (token.string[0] == '-') {
-		if (!PC_ReadToken(handle, &token))
+		if (!PC_ReadTokenHandle(handle, &token))
 			return qfalse;
 		negative = qtrue;
 	}
 	if (token.type != TT_NUMBER) {
-		PC_SourceError(handle, "expected integer but found %s", token.string);
+		UI_SourceError(handle, "expected integer but found %s", token.string);
 		return qfalse;
 	}
 	*i = token.intvalue;
@@ -449,9 +473,9 @@ PC_String_Parse
 =================
 */
 qboolean PC_String_Parse(int handle, const char **out) {
-	token_t token;
+	pc_token_t token;
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	
 	*(out) = String_Alloc(token.string);
@@ -465,20 +489,20 @@ PC_Script_Parse
 */
 qboolean PC_Script_Parse(int handle, const char **out) {
 	char script[1024];
-	token_t token;
+	pc_token_t token;
 
 	memset(script, 0, sizeof(script));
 	// scripts start with { and have ; separated command lists.. commands are command, arg.. 
 	// basically we want everything between the { } as it will be interpreted at run time
   
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (Q_stricmp(token.string, "{") != 0) {
 	    return qfalse;
 	}
 
 	while ( 1 ) {
-		if (!PC_ReadToken(handle, &token))
+		if (!PC_ReadTokenHandle(handle, &token))
 			return qfalse;
 
 		if (Q_stricmp(token.string, "}") == 0) {
@@ -841,6 +865,22 @@ void Script_SetAsset(itemDef_t *item, char **args) {
     if (item->type == ITEM_TYPE_MODEL) {
     }
   }
+}
+
+void Plaque_Select(itemDef_t *item);
+static void Plaque_Hilight(itemDef_t *item, qboolean on);
+
+// plaqueSelect <item>: select a Daikatana plaque without running its action
+void Script_PlaqueSelect(itemDef_t *item, char **args) {
+	const char *name;
+	itemDef_t *plaque;
+
+	if (String_Parse(args, &name)) {
+		plaque = Menu_FindItemByName((menuDef_t*)item->parent, name);
+		if (plaque) {
+			Plaque_Select(plaque);
+		}
+	}
 }
 
 void Script_SetBackground(itemDef_t *item, char **args) {
@@ -1216,6 +1256,7 @@ commandDef_t commandList[] =
   {"setplayerhead", &Script_SetPlayerHead},     // sets this background color to team color
   {"transition", &Script_Transition},           // group/name
   {"setcvar", &Script_SetCvar},           // group/name
+  {"plaqueSelect", &Script_PlaqueSelect},  // plaque name
   {"exec", &Script_Exec},           // group/name
   {"play", &Script_Play},           // group/name
   {"playlooped", &Script_playLooped},           // group/name
@@ -1597,6 +1638,9 @@ void Item_ListBox_MouseEnter(itemDef_t *item, float x, float y)
 void Item_MouseEnter(itemDef_t *item, float x, float y) {
 	rectDef_t r;
 	if (item) {
+		if (item->type == ITEM_TYPE_PLAQUE && !(item->window.flags & WINDOW_MOUSEOVER)) {
+			Plaque_Hilight(item, qtrue);
+		}
 		r = item->textRect;
 		r.y -= r.h;
 		// in the text rect?
@@ -1641,6 +1685,9 @@ void Item_MouseEnter(itemDef_t *item, float x, float y) {
 
 void Item_MouseLeave(itemDef_t *item) {
   if (item) {
+    if (item->type == ITEM_TYPE_PLAQUE) {
+      Plaque_Hilight(item, qfalse);
+    }
     if (item->window.flags & WINDOW_MOUSEOVERTEXT) {
       Item_RunScript(item, item->mouseExitText);
       item->window.flags &= ~WINDOW_MOUSEOVERTEXT;
@@ -2505,6 +2552,14 @@ qboolean Item_HandleKey(itemDef_t *item, int key, qboolean down) {
 
 void Item_Action(itemDef_t *item) {
   if (item) {
+    if (item->type == ITEM_TYPE_PLAQUE) {
+      plaqueDef_t *plaque = (plaqueDef_t*)item->typeData;
+
+      if (plaque && plaque->disabled) {
+        return;
+      }
+      Plaque_Select(item);
+    }
     Item_RunScript(item, item->action);
   }
 }
@@ -3086,6 +3141,12 @@ void Item_Text_Paint(itemDef_t *item) {
 		if (item->cvar == NULL) {
 			return;
 		}
+		else if (item->type == ITEM_TYPE_EDITFIELD || item->type == ITEM_TYPE_NUMERICFIELD) {
+			// a field without a label: it draws its value itself, after the
+			// (empty) label
+			Item_SetTextExtents(item, &width, &height, "");
+			return;
+		}
 		else {
 			DC->getCVarString(item->cvar, text, sizeof(text));
 			textPtr = text;
@@ -3653,6 +3714,263 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 
 
 
+/*
+===============================================================================
+
+DAIKATANA MENU PLAQUES
+
+===============================================================================
+*/
+
+#define PLAQUE_HILIGHT_TIME		175		// ms to tilt to the hilight frame
+#define PLAQUE_SELECT_TIME		350		// ms to flip from hilight to selected
+#define PLAQUE_FRAME_HILIGHT	1
+#define PLAQUE_FRAME_SELECTED	15
+#define PLAQUE_FOV_X			40		// Daikatana's menu view over 640x480
+
+static plaqueDef_t *Plaque_Def(itemDef_t *item) {
+	if (!item || item->type != ITEM_TYPE_PLAQUE) {
+		return NULL;
+	}
+	return (plaqueDef_t*)item->typeData;
+}
+
+// turn an animation around midway, keeping the frame it is at
+static void Plaque_Reverse(plaqueDef_t *plaque, plaqueStatus_t status, int length) {
+	plaque->time = length - plaque->time;
+	if (plaque->time < 0) {
+		plaque->time = 0;
+	}
+	plaque->status = status;
+}
+
+static void Plaque_Hilight(itemDef_t *item, qboolean on) {
+	plaqueDef_t *plaque = Plaque_Def(item);
+
+	if (!plaque || plaque->disabled || plaque->destStatus == PLAQUE_SELECTED) {
+		return;
+	}
+
+	if (on) {
+		plaque->destStatus = PLAQUE_HILIGHT;
+		if (plaque->status == PLAQUE_START) {
+			plaque->status = PLAQUE_HILIGHT_FORWARD;
+			plaque->time = 0;
+		} else if (plaque->status == PLAQUE_HILIGHT_BACKWARD) {
+			Plaque_Reverse(plaque, PLAQUE_HILIGHT_FORWARD, PLAQUE_HILIGHT_TIME);
+		}
+	} else {
+		plaque->destStatus = PLAQUE_START;
+		if (plaque->status == PLAQUE_HILIGHT) {
+			plaque->status = PLAQUE_HILIGHT_BACKWARD;
+			plaque->time = 0;
+		} else if (plaque->status == PLAQUE_HILIGHT_FORWARD) {
+			Plaque_Reverse(plaque, PLAQUE_HILIGHT_BACKWARD, PLAQUE_HILIGHT_TIME);
+		}
+	}
+}
+
+// flip back to the start, by way of the hilight
+static void Plaque_Deselect(itemDef_t *item) {
+	plaqueDef_t *plaque = Plaque_Def(item);
+
+	if (!plaque || plaque->destStatus != PLAQUE_SELECTED) {
+		return;
+	}
+
+	plaque->destStatus = PLAQUE_START;
+	if (plaque->status == PLAQUE_SELECTED) {
+		plaque->status = PLAQUE_SELECT_BACKWARD;
+		plaque->time = 0;
+	} else if (plaque->status == PLAQUE_SELECT_FORWARD) {
+		Plaque_Reverse(plaque, PLAQUE_SELECT_BACKWARD, PLAQUE_SELECT_TIME);
+	} else if (plaque->status == PLAQUE_HILIGHT || plaque->status == PLAQUE_HILIGHT_FORWARD) {
+		Plaque_Hilight(item, qfalse);
+	}
+
+	DC->startLocalSound(DC->registerSound("sounds/menus/600ms rotate descend_001.wav", qfalse), CHAN_LOCAL_SOUND);
+}
+
+// select a plaque, turning back the other selected plaques of its menu
+void Plaque_Select(itemDef_t *item) {
+	plaqueDef_t *plaque = Plaque_Def(item);
+	menuDef_t *menu;
+	int i;
+
+	if (!plaque || plaque->disabled || plaque->destStatus == PLAQUE_SELECTED) {
+		return;
+	}
+
+	menu = (menuDef_t*)item->parent;
+	for (i = 0; menu && i < menu->itemCount; i++) {
+		if (menu->items[i] != item) {
+			Plaque_Deselect(menu->items[i]);
+		}
+	}
+
+	plaque->destStatus = PLAQUE_SELECTED;
+	switch (plaque->status) {
+	case PLAQUE_START:
+		plaque->status = PLAQUE_HILIGHT_FORWARD;
+		plaque->time = 0;
+		break;
+	case PLAQUE_HILIGHT_BACKWARD:
+		Plaque_Reverse(plaque, PLAQUE_HILIGHT_FORWARD, PLAQUE_HILIGHT_TIME);
+		break;
+	case PLAQUE_HILIGHT:
+		plaque->status = PLAQUE_SELECT_FORWARD;
+		plaque->time = 0;
+		break;
+	case PLAQUE_SELECT_BACKWARD:
+		Plaque_Reverse(plaque, PLAQUE_SELECT_FORWARD, PLAQUE_SELECT_TIME);
+		break;
+	default:
+		break;
+	}
+
+	DC->startLocalSound(DC->registerSound("sounds/menus/600ms rotate ascend_001.wav", qfalse), CHAN_LOCAL_SOUND);
+}
+
+// Daikatana's CMenuMain::Animate
+static void Plaque_Animate(plaqueDef_t *plaque) {
+	int elapsed = DC->realTime - plaque->lastTime;
+
+	plaque->lastTime = DC->realTime;
+	if (elapsed < 0 || elapsed > 1000) {
+		elapsed = 0;
+	}
+	plaque->time += elapsed;
+
+	if (plaque->status == PLAQUE_HILIGHT_FORWARD && plaque->time >= PLAQUE_HILIGHT_TIME) {
+		plaque->status = PLAQUE_HILIGHT;
+		if (plaque->destStatus == PLAQUE_SELECTED) {
+			plaque->status = PLAQUE_SELECT_FORWARD;
+			plaque->time -= PLAQUE_HILIGHT_TIME;
+		}
+	}
+	if (plaque->status == PLAQUE_SELECT_FORWARD && plaque->time >= PLAQUE_SELECT_TIME) {
+		plaque->status = PLAQUE_SELECTED;
+	}
+	if (plaque->status == PLAQUE_SELECT_BACKWARD && plaque->time >= PLAQUE_SELECT_TIME) {
+		plaque->status = PLAQUE_HILIGHT;
+		if (plaque->destStatus == PLAQUE_START) {
+			plaque->status = PLAQUE_HILIGHT_BACKWARD;
+			plaque->time -= PLAQUE_SELECT_TIME;
+		}
+	}
+	if (plaque->status == PLAQUE_HILIGHT_BACKWARD && plaque->time >= PLAQUE_HILIGHT_TIME) {
+		plaque->status = PLAQUE_START;
+	}
+}
+
+// the frame for the status, between two whole frames while moving
+static float Plaque_Frame(const plaqueDef_t *plaque) {
+	float f;
+
+	switch (plaque->status) {
+	case PLAQUE_HILIGHT_FORWARD:
+		f = (float)plaque->time / PLAQUE_HILIGHT_TIME;
+		return Com_Clamp(0, 1, f) * PLAQUE_FRAME_HILIGHT;
+	case PLAQUE_HILIGHT_BACKWARD:
+		f = (float)plaque->time / PLAQUE_HILIGHT_TIME;
+		return (1.0f - Com_Clamp(0, 1, f)) * PLAQUE_FRAME_HILIGHT;
+	case PLAQUE_HILIGHT:
+		return PLAQUE_FRAME_HILIGHT;
+	case PLAQUE_SELECT_FORWARD:
+		f = (float)plaque->time / PLAQUE_SELECT_TIME;
+		return PLAQUE_FRAME_HILIGHT + Com_Clamp(0, 1, f) * (PLAQUE_FRAME_SELECTED - PLAQUE_FRAME_HILIGHT);
+	case PLAQUE_SELECT_BACKWARD:
+		f = (float)plaque->time / PLAQUE_SELECT_TIME;
+		return PLAQUE_FRAME_SELECTED - Com_Clamp(0, 1, f) * (PLAQUE_FRAME_SELECTED - PLAQUE_FRAME_HILIGHT);
+	case PLAQUE_SELECTED:
+		return PLAQUE_FRAME_SELECTED;
+	default:
+		return 0;
+	}
+}
+
+// the plaques of a menu share one scene, as they overlap a little; the first
+// one painted starts it and the last one renders it
+static qboolean Plaque_IsEdge(itemDef_t *item, qboolean first) {
+	menuDef_t *menu = (menuDef_t*)item->parent;
+	int i;
+
+	if (!menu) {
+		return qtrue;
+	}
+	for (i = 0; i < menu->itemCount; i++) {
+		itemDef_t *other = menu->items[first ? i : menu->itemCount - 1 - i];
+
+		if (other->type == ITEM_TYPE_PLAQUE && (other->window.flags & WINDOW_VISIBLE)) {
+			return other == item;
+		}
+	}
+	return qtrue;
+}
+
+void Item_Plaque_Paint(itemDef_t *item) {
+	plaqueDef_t *plaque = Plaque_Def(item);
+	refdef_t refdef;
+	refEntity_t ent;
+	float x, y, w, h, frame;
+	int i;
+
+	if (!plaque || !plaque->model) {
+		return;
+	}
+
+	Plaque_Animate(plaque);
+
+	// Daikatana's view over the whole 640x480 menu, whatever the item's rect
+	memset(&refdef, 0, sizeof(refdef));
+	refdef.rdflags = RDF_NOWORLDMODEL;
+	AxisClear(refdef.viewaxis);
+	x = 0;
+	y = 0;
+	w = 640;
+	h = 480;
+	DC->adjustFrom640(&x, &y, &w, &h);
+	refdef.x = x;
+	refdef.y = y;
+	refdef.width = w;
+	refdef.height = h;
+	refdef.fov_x = PLAQUE_FOV_X;
+	refdef.fov_y = atan2(tan(DEG2RAD(PLAQUE_FOV_X * 0.5f)) * 480, 640) * 360 / M_PI;
+	refdef.time = DC->realTime;
+
+	if (Plaque_IsEdge(item, qtrue)) {
+		DC->clearScene();
+	}
+
+	memset(&ent, 0, sizeof(ent));
+	ent.reType = RT_MODEL;
+	ent.hModel = plaque->model;
+	ent.customShader = plaque->skin;
+	VectorCopy(plaque->origin, ent.origin);
+	VectorCopy(plaque->origin, ent.oldorigin);
+	VectorCopy(plaque->origin, ent.lightingOrigin);
+	AnglesToAxis(plaque->angles, ent.axis);
+	for (i = 0; i < 3; i++) {
+		VectorScale(ent.axis[i], plaque->scale, ent.axis[i]);
+	}
+	ent.nonNormalizedAxes = qtrue;
+	ent.renderfx = RF_LIGHTING_ORIGIN | RF_NOSHADOW;
+
+	frame = Plaque_Frame(plaque);
+	ent.oldframe = (int)frame;
+	ent.frame = ent.oldframe + 1 <= PLAQUE_FRAME_SELECTED ? ent.oldframe + 1 : ent.oldframe;
+	ent.backlerp = 1.0f - (frame - ent.oldframe);
+
+	// Daikatana dims the plaques of menus that aren't available
+	ent.shaderRGBA[0] = ent.shaderRGBA[1] = ent.shaderRGBA[2] = plaque->disabled ? 64 : 255;
+	ent.shaderRGBA[3] = 255;
+
+	DC->addRefEntityToScene(&ent);
+	if (Plaque_IsEdge(item, qfalse)) {
+		DC->renderScene(&refdef);
+	}
+}
+
 void Item_Model_Paint(itemDef_t *item) {
 	float x, y, w, h;
 	refdef_t refdef;
@@ -4131,6 +4449,9 @@ void Item_Paint(itemDef_t *item) {
     case ITEM_TYPE_MODEL:
       Item_Model_Paint(item);
       break;
+    case ITEM_TYPE_PLAQUE:
+      Item_Plaque_Paint(item);
+      break;
     case ITEM_TYPE_YESNO:
       Item_YesNo_Paint(item);
       break;
@@ -4417,6 +4738,13 @@ void Item_ValidateTypeData(itemDef_t *item) {
 		item->typeData = UI_Alloc(sizeof(multiDef_t));
 	} else if (item->type == ITEM_TYPE_MODEL) {
 		item->typeData = UI_Alloc(sizeof(modelDef_t));
+	} else if (item->type == ITEM_TYPE_PLAQUE) {
+		plaqueDef_t *plaque;
+
+		item->typeData = UI_Alloc(sizeof(plaqueDef_t));
+		plaque = (plaqueDef_t*)item->typeData;
+		memset(plaque, 0, sizeof(plaqueDef_t));
+		plaque->scale = 1.0f;
 	}
 }
 
@@ -4595,6 +4923,78 @@ qboolean ItemParse_model_rotation( itemDef_t *item, int handle ) {
 }
 
 // model_angle <integer>
+// plaque_model <model>, plaque_skin <shader>, plaque_origin <x y z>,
+// plaque_angles <pitch yaw roll>, plaque_scale <scale>, plaque_disabled
+static plaqueDef_t *ItemParse_PlaqueDef( itemDef_t *item ) {
+	Item_ValidateTypeData(item);
+	if (item->type != ITEM_TYPE_PLAQUE) {
+		return NULL;
+	}
+	return (plaqueDef_t*)item->typeData;
+}
+
+qboolean ItemParse_plaque_model( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+	const char *temp;
+
+	if (!plaque || !PC_String_Parse(handle, &temp)) {
+		return qfalse;
+	}
+	plaque->model = DC->registerModel(temp);
+	return qtrue;
+}
+
+qboolean ItemParse_plaque_skin( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+	const char *temp;
+
+	if (!plaque || !PC_String_Parse(handle, &temp)) {
+		return qfalse;
+	}
+	plaque->skin = DC->registerShaderNoMip(temp);
+	return qtrue;
+}
+
+qboolean ItemParse_plaque_origin( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+	int i;
+
+	for (i = 0; plaque && i < 3; i++) {
+		if (!PC_Float_Parse(handle, &plaque->origin[i])) {
+			return qfalse;
+		}
+	}
+	return plaque != NULL;
+}
+
+qboolean ItemParse_plaque_angles( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+	int i;
+
+	for (i = 0; plaque && i < 3; i++) {
+		if (!PC_Float_Parse(handle, &plaque->angles[i])) {
+			return qfalse;
+		}
+	}
+	return plaque != NULL;
+}
+
+qboolean ItemParse_plaque_scale( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+
+	return plaque && PC_Float_Parse(handle, &plaque->scale);
+}
+
+qboolean ItemParse_plaque_disabled( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+
+	if (!plaque) {
+		return qfalse;
+	}
+	plaque->disabled = qtrue;
+	return qtrue;
+}
+
 qboolean ItemParse_model_angle( itemDef_t *item, int handle ) {
 	modelDef_t *modelPtr;
 	Item_ValidateTypeData(item);
@@ -5033,7 +5433,7 @@ qboolean ItemParse_cvarFloat( itemDef_t *item, int handle ) {
 }
 
 qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
-	token_t token;
+	pc_token_t token;
 	multiDef_t *multiPtr;
 	int pass;
 	
@@ -5045,7 +5445,7 @@ qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
 	multiPtr->strDef = qtrue;
 	multiPtr->videoMode = qfalse;
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (*token.string != '{') {
 		return qfalse;
@@ -5053,8 +5453,8 @@ qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
 
 	pass = 0;
 	while ( 1 ) {
-		if (!PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu item");
+		if (!PC_ReadTokenHandle(handle, &token)) {
+			UI_SourceError(handle, "end of file inside menu item");
 			return qfalse;
 		}
 
@@ -5083,7 +5483,7 @@ qboolean ItemParse_cvarStrList( itemDef_t *item, int handle ) {
 }
 
 qboolean ItemParse_cvarFloatList( itemDef_t *item, int handle ) {
-	token_t token;
+	pc_token_t token;
 	multiDef_t *multiPtr;
 	
 	Item_ValidateTypeData(item);
@@ -5094,15 +5494,15 @@ qboolean ItemParse_cvarFloatList( itemDef_t *item, int handle ) {
 	multiPtr->strDef = qfalse;
 	multiPtr->videoMode = qfalse;
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (*token.string != '{') {
 		return qfalse;
 	}
 
 	while ( 1 ) {
-		if (!PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu item");
+		if (!PC_ReadTokenHandle(handle, &token)) {
+			UI_SourceError(handle, "end of file inside menu item");
 			return qfalse;
 		}
 
@@ -5194,6 +5594,12 @@ keywordHash_t itemParseKeywords[] = {
 	{"asset_model", ItemParse_asset_model, NULL},
 	{"asset_shader", ItemParse_asset_shader, NULL},
 	{"model_origin", ItemParse_model_origin, NULL},
+	{"plaque_model", ItemParse_plaque_model, NULL},
+	{"plaque_skin", ItemParse_plaque_skin, NULL},
+	{"plaque_origin", ItemParse_plaque_origin, NULL},
+	{"plaque_angles", ItemParse_plaque_angles, NULL},
+	{"plaque_scale", ItemParse_plaque_scale, NULL},
+	{"plaque_disabled", ItemParse_plaque_disabled, NULL},
 	{"model_fovx", ItemParse_model_fovx, NULL},
 	{"model_fovy", ItemParse_model_fovy, NULL},
 	{"model_rotation", ItemParse_model_rotation, NULL},
@@ -5456,18 +5862,18 @@ Item_Parse
 ===============
 */
 qboolean Item_Parse(int handle, itemDef_t *item) {
-	token_t token;
+	pc_token_t token;
 	keywordHash_t *key;
 
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (*token.string != '{') {
 		return qfalse;
 	}
 	while ( 1 ) {
-		if (!PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu item");
+		if (!PC_ReadTokenHandle(handle, &token)) {
+			UI_SourceError(handle, "end of file inside menu item");
 			return qfalse;
 		}
 
@@ -5478,11 +5884,11 @@ qboolean Item_Parse(int handle, itemDef_t *item) {
 
 		key = KeywordHash_Find(itemParseKeywordHash, token.string);
 		if (!key) {
-			PC_SourceError(handle, "unknown menu item keyword %s", token.string);
+			UI_SourceError(handle, "unknown menu item keyword %s", token.string);
 			continue;
 		}
 		if ( !key->func(item, handle) ) {
-			PC_SourceError(handle, "couldn't parse menu item keyword %s", token.string);
+			UI_SourceError(handle, "couldn't parse menu item keyword %s", token.string);
 			return qfalse;
 		}
 	}
@@ -5800,9 +6206,9 @@ qboolean MenuParse_fadeCycle( itemDef_t *item, int handle ) {
 qboolean MenuParse_screenPlacement( itemDef_t *item, int handle ) {
 	menuDef_t *menu = (menuDef_t*)item;
 	screenPlacement_e hpos, vpos;
-	token_t token;
+	pc_token_t token;
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 
 	if (Q_stricmp(token.string, "PLACE_RIGHT") == 0) {
@@ -5814,11 +6220,11 @@ qboolean MenuParse_screenPlacement( itemDef_t *item, int handle ) {
 	} else if (Q_stricmp(token.string, "PLACE_STRETCH") == 0) {
 		hpos = PLACE_STRETCH;
 	} else {
-		PC_SourceError(handle, "unknown screenPlacement horizontal placement %s", token.string);
+		UI_SourceError(handle, "unknown screenPlacement horizontal placement %s", token.string);
 		return qfalse;
 	}
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 
 	if (Q_stricmp(token.string, "PLACE_TOP") == 0) {
@@ -5830,7 +6236,7 @@ qboolean MenuParse_screenPlacement( itemDef_t *item, int handle ) {
 	} else if (Q_stricmp(token.string, "PLACE_STRETCH") == 0) {
 		vpos = PLACE_STRETCH;
 	} else {
-		PC_SourceError(handle, "unknown screenPlacement vertical placement %s", token.string);
+		UI_SourceError(handle, "unknown screenPlacement vertical placement %s", token.string);
 		return qfalse;
 	}
 
@@ -5911,10 +6317,10 @@ Menu_Parse
 ===============
 */
 qboolean Menu_Parse(int handle, menuDef_t *menu) {
-	token_t token;
+	pc_token_t token;
 	keywordHash_t *key;
 
-	if (!PC_ReadToken(handle, &token))
+	if (!PC_ReadTokenHandle(handle, &token))
 		return qfalse;
 	if (*token.string != '{') {
 		return qfalse;
@@ -5922,9 +6328,9 @@ qboolean Menu_Parse(int handle, menuDef_t *menu) {
     
 	while ( 1 ) {
 
-		memset(&token, 0, sizeof(token_t));
-		if (!PC_ReadToken(handle, &token)) {
-			PC_SourceError(handle, "end of file inside menu");
+		memset(&token, 0, sizeof(pc_token_t));
+		if (!PC_ReadTokenHandle(handle, &token)) {
+			UI_SourceError(handle, "end of file inside menu");
 			return qfalse;
 		}
 
@@ -5934,11 +6340,11 @@ qboolean Menu_Parse(int handle, menuDef_t *menu) {
 
 		key = KeywordHash_Find(menuParseKeywordHash, token.string);
 		if (!key) {
-			PC_SourceError(handle, "unknown menu keyword %s", token.string);
+			UI_SourceError(handle, "unknown menu keyword %s", token.string);
 			continue;
 		}
 		if ( !key->func((itemDef_t*)menu, handle) ) {
-			PC_SourceError(handle, "couldn't parse menu keyword %s", token.string);
+			UI_SourceError(handle, "couldn't parse menu keyword %s", token.string);
 			return qfalse;
 		}
 	}
@@ -5950,7 +6356,7 @@ qboolean Menu_Parse(int handle, menuDef_t *menu) {
 Menu_New
 ===============
 */
-void Menu_New(source_t *handle) {
+void Menu_New(int handle) {
 	menuDef_t *menu = &DC->Menus[DC->menuCount];
 
 	if (DC->menuCount < MAX_MENUS) {

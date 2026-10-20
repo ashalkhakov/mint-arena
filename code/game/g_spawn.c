@@ -209,6 +209,7 @@ void SP_corona( gentity_t *ent );
 void SP_props_skyportal( gentity_t *ent );
 
 void SP_effect_rain( gentity_t *ent );
+void SP_effect_snow( gentity_t *ent );
 
 spawn_t	spawns[] = {
 	// info entities don't do anything at all, but provide positional
@@ -297,6 +298,7 @@ spawn_t	spawns[] = {
 	{"props_skyportal", SP_props_skyportal},
 
 	{"effect_rain", SP_effect_rain},
+	{"effect_snow", SP_effect_snow},
 
 	{NULL, 0}
 };

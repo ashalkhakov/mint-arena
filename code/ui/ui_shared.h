@@ -34,6 +34,8 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../idlib/q_shared.h"
 #include "../renderercommon/tr_types.h"
 #include "../client/keycodes.h"
+#include "../idlib/l_script.h"
+#include "../idlib/l_precomp.h"
 
 #include "../../ui/menudef.h"
 
@@ -243,6 +245,31 @@ typedef struct modelDef_s {
 	float fov_y;
 	int rotationSpeed;
 } modelDef_t;
+
+// Daikatana's menu plaques (dk_menu.cpp): a model in a view shared by all
+// plaques, tilting to frame 1 when hovered and flipping over to frame 15 when
+// selected; selecting one turns the selected one back
+typedef enum {
+	PLAQUE_START,
+	PLAQUE_HILIGHT_FORWARD,
+	PLAQUE_HILIGHT,
+	PLAQUE_SELECT_FORWARD,
+	PLAQUE_SELECTED,
+	PLAQUE_SELECT_BACKWARD,
+	PLAQUE_HILIGHT_BACKWARD
+} plaqueStatus_t;
+
+typedef struct plaqueDef_s {
+	vec3_t			origin;		// in Daikatana's menu view: eye at the origin looking along x
+	vec3_t			angles;
+	float			scale;
+	qhandle_t		model;
+	qhandle_t		skin;
+	qboolean		disabled;	// drawn dark and ignores the mouse
+	plaqueStatus_t	status, destStatus;
+	int				time;		// in the current status
+	int				lastTime;
+} plaqueDef_t;
 
 #define CVAR_ENABLE		0x00000001
 #define CVAR_DISABLE	0x00000002

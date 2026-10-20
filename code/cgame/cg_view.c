@@ -1145,6 +1145,9 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	// add buffered sounds
 	CG_PlayBufferedSounds();
 
+	// effects move once a frame, whatever the number of views
+	CG_FX_Update();
+
 #ifdef MISSIONPACK
 	// play buffered voice chats
 	CG_PlayBufferedVoiceChats();
@@ -1180,6 +1183,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 			CG_AddMarks();
 			CG_AddParticles ();
 			CG_AddLocalEntities();
+			CG_FX_AddToScene();
 			CG_AddAtmosphericEffects();
 		}
 		CG_AddViewWeapon( &cg.cur_lc->predictedPlayerState );

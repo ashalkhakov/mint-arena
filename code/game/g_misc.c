@@ -198,6 +198,11 @@ void SP_effect_rain( gentity_t *ent ) {
 	G_FreeEntity( ent );
 }
 
+// the cgame makes the snow from the entity string
+void SP_effect_snow( gentity_t *ent ) {
+	G_FreeEntity( ent );
+}
+
 void locateMaster( gentity_t *ent ) {
 	ent->target_ent = G_PickTarget( ent->target );
 	if ( ent->target_ent ) {

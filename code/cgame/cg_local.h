@@ -801,7 +801,6 @@ typedef struct {
 	vec3_t		skyPortalFogColor;
 	int			skyPortalFogDepthForOpaque;
 
-	int			numEffects;
 
 	float		skyAlpha;
 
@@ -1040,6 +1039,12 @@ typedef struct {
 	qhandle_t	bfgExplosionShader;
 	qhandle_t	bloodExplosionShader;
 
+	// effects/*.efx
+	int			fxBulletHit;
+	int			fxExplosion;
+	int			fxBlood;
+	int			fxRespawn;
+
 	// special effects models
 	qhandle_t	teleportEffectModel;
 	qhandle_t	teleportEffectShader;
@@ -1261,7 +1266,8 @@ typedef struct cg_gamemodel_s {
 #define MAX_STATIC_EFFECTS 1024
 
 typedef enum cg_effecttype_s {
-	EFFECT_RAIN = 0
+	EFFECT_RAIN = 0,
+	EFFECT_SNOW
 } cg_effecttype_t;
 
 typedef struct cg_effect_s {
@@ -1271,6 +1277,7 @@ typedef struct cg_effect_s {
 	vec3_t			mins, maxs;
 
 	vec3_t			velocity;
+	qboolean		straight;	// snow falls straight down
 
 	vec3_t			corners[4];
 	float			dist; // distance of the nearest corner to eye
@@ -1362,6 +1369,7 @@ typedef struct {
 	cg_gamemodel_t miscGameModels[MAX_STATIC_GAMEMODELS];
 
 	cg_effect_t effects[MAX_STATIC_EFFECTS];
+	int			numEffects;		// particle volumes from the entity string
 
 	// media
 	cgMedia_t		media;
@@ -1486,6 +1494,9 @@ extern	vmCvar_t		cg_railWidth;
 extern	vmCvar_t		cg_railCoreWidth;
 extern	vmCvar_t		cg_railSegmentLength;
 extern	vmCvar_t		cg_atmosphericEffects;
+extern	vmCvar_t		fx_debug;
+extern	vmCvar_t		fx_countScale;
+extern	vmCvar_t		fx_nearCull;
 extern	vmCvar_t		cg_atmosphericEffectsPause;
 extern	vmCvar_t		cg_teamDmLeadAnnouncements;
 extern	vmCvar_t		cg_voipShowMeter;
@@ -2016,6 +2027,18 @@ void CG_CheckGameSounds( void );
 void CG_EffectParse(const char *effectstr);
 void CG_InitParticles( void );
 void CG_AddAtmosphericEffects(void);
+
+//
+// cg_fx.c
+//
+void	CG_FX_Init( void );
+void	CG_FX_Stop( void );
+int		CG_FX_RegisterEffect( const char *name );
+void	CG_FX_PlayEffect( const char *name, const vec3_t origin, const vec3_t fwd );
+void	CG_FX_PlayEffectID( int id, const vec3_t origin, const vec3_t fwd );
+void	CG_FX_PlayEffectIDAxis( int id, const vec3_t origin, vec3_t axis[3] );
+void	CG_FX_Update( void );
+void	CG_FX_AddToScene( void );
 
 //
 // cg_polybus.c

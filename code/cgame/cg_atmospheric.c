@@ -168,6 +168,7 @@ typedef enum cg_particle_type_s {
     PARTICLE_SPLASH1,
     PARTICLE_SPLASH2,
     PARTICLE_SPLASH3,
+    PARTICLE_SNOW,
 
 	NUM_PARTICLETYPES
 } cg_particle_type_t;
@@ -188,7 +189,8 @@ typedef struct cg_particle_s
 
 	int						time;
 
-	vec3_t					org;
+	vec3_t					org;			//	where it spawned
+	vec3_t					pos;			//	where it is now, from org and the time since spawning
 	vec3_t					lastorg;
 	vec3_t					vel;
 	vec3_t					accel;
@@ -196,6 +198,7 @@ typedef struct cg_particle_s
 	float					colorvel;
 	float					alpha;
 	float					alphavel;
+	float					curAlpha;		//	alpha now
 
 	cg_particle_type_t		type;
 	int						dieTime;
@@ -258,13 +261,18 @@ void CG_InitParticles( void ) {
 	cg_atmFx.particleShader = trap_R_RegisterShader( "gfx/misc/particles" );
 
 	p = &cg_atmFx.particleTypes[PARTICLE_RAIN];
-	CG_InitParticleType( p, 225, 32, 255, 63, 2.0f );
+	// only the top rows of the cell hold the streak; Daikatana draws the
+	// whole cell and the drop shows as a thin line along one edge
+	CG_InitParticleType( p, 225, 32, 255, 38, 2.0f );
 	p = &cg_atmFx.particleTypes[PARTICLE_SPLASH1];
 	CG_InitParticleType( p, 96, 64, 127, 91, 4.0f );
 	p = &cg_atmFx.particleTypes[PARTICLE_SPLASH2];
 	CG_InitParticleType( p, 128, 64, 159, 91, 4.0f );
 	p = &cg_atmFx.particleTypes[PARTICLE_SPLASH3];
 	CG_InitParticleType( p, 160, 64, 191, 91, 4.0f );
+
+	p = &cg_atmFx.particleTypes[PARTICLE_SNOW];
+	CG_InitParticleType( p, 0, 0, 63, 63, 2.3f );
 
 	numParticleTypes = sizeof( cg_atmFx.particleTypes ) / sizeof( cg_atmFx.particleTypes[0] );
 
@@ -381,6 +389,80 @@ static qboolean CG_CullEffectParticles( cg_effect_t *effect ) {
 	return qtrue;
 }
 
+/*
+==================
+CG_GenerateSnowParticles
+
+Daikatana's effect_snow (cl_pv.cpp CL_SnowParticles): flakes drift down at
+about 55 units a second, sideways too unless the volume says straight down,
+and melt away on the volume's floor.
+==================
+*/
+static void CG_GenerateSnowParticles( cg_effect_t *effect ) {
+	int i, count;
+	cg_particle_t *p;
+	int width, depth, height;
+	float fallHeight;
+
+	width = ( int )( effect->maxs[0] - effect->mins[0] );
+	depth = ( int )( effect->maxs[1] - effect->mins[1] );
+	height = ( int )( effect->maxs[2] - effect->mins[2] );
+	if ( width <= 0 || depth <= 0 || height <= 0 ) {
+		return;
+	}
+
+	effect->maxActive = ( width * depth ) >> 12;
+	if ( effect->numActive >= effect->maxActive ) {
+		return;
+	}
+
+	// fill a nearly empty volume quickly
+	count = ( effect->numActive < effect->maxActive >> 2 ) ? effect->maxActive >> 1 : 1;
+	if ( count + effect->numActive > effect->maxActive ) {
+		count = effect->maxActive - effect->numActive;
+	}
+
+	for ( i = 0 ; i < count ; i++ ) {
+		if ( !cg_atmFx.freeParticles ) {
+			return;
+		}
+		p = cg_atmFx.freeParticles;
+		cg_atmFx.freeParticles = p->next;
+		p->next = cg_atmFx.activeParticles;
+		cg_atmFx.activeParticles = p;
+
+		p->org[0] = effect->mins[0] + ( rand() % width );
+		p->org[1] = effect->mins[1] + ( rand() % depth );
+		p->org[2] = effect->mins[2] + ( rand() % height );
+		VectorCopy( p->org, p->pos );
+
+		VectorSet( p->vel, 0, 0, -50 - ( rand() & 10 ) );
+		if ( !effect->straight ) {
+			p->vel[0] = crandom() * 20;
+			p->vel[1] = crandom() * 20;
+		}
+		VectorClear( p->accel );
+
+		fallHeight = p->org[2] - effect->mins[2];
+		p->time = cg.time;
+		p->dieTime = cg.time + ( int )( fallHeight / -p->vel[2] * 1000 );
+
+		p->alpha = 1.0f;
+		p->alphavel = 0;
+		p->curAlpha = 1.0f;
+		// Daikatana means 1 to 3.5 here, but integer division always gives 1
+		p->pscale = 1.0f + random() * 2.5f;
+		p->flags = 0;
+		p->func = NULL;
+
+		p->effect = effect;
+		effect->numActive++;
+
+		p->type = PARTICLE_SNOW;
+		VectorSet( p->color_rgb, 1, 1, 1 );
+	}
+}
+
 static void CG_GenerateEffectParticles( cg_effect_t *effect ) {
 	int i, count;
 	cg_particle_t *p;
@@ -392,6 +474,11 @@ static void CG_GenerateEffectParticles( cg_effect_t *effect ) {
 	height = ( int )( effect->maxs[2] - effect->mins[2] );
 
 	if ( width <= 0 || depth <= 0 || height <= 0 ) {
+		return;
+	}
+
+	if ( effect->type == EFFECT_SNOW ) {
+		CG_GenerateSnowParticles( effect );
 		return;
 	}
 
@@ -485,6 +572,7 @@ static void CG_GenerateEffectParticles( cg_effect_t *effect ) {
 
 		// not associated with a particle effect
 		p->effect = NULL;
+		p->time = cg.time;
 		//	no acceleration via gravity or velocity
 		VectorClear( p->accel );
 		VectorClear( p->vel );
@@ -569,9 +657,10 @@ static void CG_UpdateParticles( void ) {
 		org[1] = p->org[1] + p->vel[1]*time + ( p->accel[1] * time2 * 0.5 );
 		org[2] = p->org[2] + p->vel[2]*time + ( p->accel[2] * time2 * 0.5 );
 
-		// update particle state
-		VectorCopy(org, p->org);
-		p->alpha = alpha;
+		// motion and fade are functions of the time since spawning, so keep
+		// the spawn state and only record the current one
+		VectorCopy( org, p->pos );
+		p->curAlpha = alpha;
 		p->pscale = pscale;
     }
 
@@ -579,7 +668,7 @@ static void CG_UpdateParticles( void ) {
 }
 
 static void CG_DrawParticles( void ) {
-	polyVert_t		verts[3];
+	polyVert_t		verts[3], quad[3];
 	cg_particle_t	*p, *next;
 	float			scale, alpha;
 	vec3_t			newpt, endpt, normal, viewNormal, org, forward, up, right;
@@ -589,9 +678,9 @@ static void CG_DrawParticles( void ) {
     for ( p = cg_atmFx.activeParticles; p; p = next ) {
         next = p->next;
 
-		scale = ( p->org[0] - cg.refdef.vieworg[0] ) * cg.refdef.viewaxis[0][0] + 
-			    ( p->org[1] - cg.refdef.vieworg[1] ) * cg.refdef.viewaxis[0][1] +
-			    ( p->org[2] - cg.refdef.vieworg[2] ) * cg.refdef.viewaxis[0][2];
+		scale = ( p->pos[0] - cg.refdef.vieworg[0] ) * cg.refdef.viewaxis[0][0] + 
+			    ( p->pos[1] - cg.refdef.vieworg[1] ) * cg.refdef.viewaxis[0][1] +
+			    ( p->pos[2] - cg.refdef.vieworg[2] ) * cg.refdef.viewaxis[0][2];
 
 		if ( p->type == PARTICLE_RAIN ) {
 			// TODO: lots of rain particles will have the same velocity,
@@ -637,7 +726,10 @@ static void CG_DrawParticles( void ) {
 			if ( p->pscale ) {
 				scale = scale * p->pscale;
 			}
-			alpha = p->alpha * 1.0 / scale;
+			// Daikatana also divides alpha by the distance scale, which makes
+			// rain vanish a few steps away; the streak widens with distance
+			// instead, so keep its alpha
+			alpha = p->curAlpha;
 		} else {
 			VectorScale( cg.refdef.viewaxis[2], cg_atmFx.particleTypes[p->type].scale, up );
 			VectorScale( cg.refdef.viewaxis[1], cg_atmFx.particleTypes[p->type].scale, right );
@@ -650,7 +742,7 @@ static void CG_DrawParticles( void ) {
 			if( p->pscale ) {
 				scale = scale * p->pscale;
 			}
-			alpha = p->alpha;
+			alpha = p->curAlpha;
 		}
 
 		if( p->pscale > 1.0 ) {
@@ -663,9 +755,11 @@ static void CG_DrawParticles( void ) {
 			}
 		}
 
-		org[0] = p->org[0] - ( up[0] + right[0] ) * scale * 0.33;
-		org[1] = p->org[1] - ( up[1] + right[1] ) * scale * 0.33;
-		org[2] = p->org[2] - ( up[2] + right[2] ) * scale * 0.33;
+		// a quad centred on the particle; Daikatana draws only the first
+		// triangle, which cuts off half of every sprite
+		org[0] = p->pos[0] - ( up[0] + right[0] ) * scale * 0.5;
+		org[1] = p->pos[1] - ( up[1] + right[1] ) * scale * 0.5;
+		org[2] = p->pos[2] - ( up[2] + right[2] ) * scale * 0.5;
 
 		color[0] = ( byte )( Com_Clamp( 0.0f, 1.0f, p->color_rgb[0] ) * 255.0f );
 		color[1] = ( byte )( Com_Clamp( 0.0f, 1.0f, p->color_rgb[1] ) * 255.0f );
@@ -688,6 +782,13 @@ static void CG_DrawParticles( void ) {
 		Com_Memcpy( verts[2].modulate, color, sizeof(color) );
 
 		CG_AddPolyToPool( cg_atmFx.particleShader, verts );
+
+		quad[0] = verts[1];
+		quad[1] = verts[2];
+		quad[2] = verts[2];
+		quad[2].st[0] = cg_atmFx.particleTypes[p->type].s2;
+		VectorMA( verts[1].xyz, scale, right, quad[2].xyz );
+		CG_AddPolyToPool( cg_atmFx.particleShader, quad );
 	}
 }
 
@@ -1409,7 +1510,7 @@ void CG_AddAtmosphericEffects(void) {
 	float currweight;
 	int i;
 
-	for ( i = 0 ; i < cg.numEffects; i++ ) {
+	for ( i = 0 ; i < cgs.numEffects; i++ ) {
 		cg_effect_t *effect = &cgs.effects[i];
 
 		if ( CG_CullEffectParticles( effect ) ) {

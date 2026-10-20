@@ -220,26 +220,63 @@ void SP_skyportal( void ) {
 /*
 TODO: put the quaked string here
 */
-void SP_effect_rain( void ) {
+/*
+==================
+CG_SpawnEffectVolume
+
+Daikatana particle volumes (effect_rain, effect_snow): a brush model whose
+bounds hold the particles; "height" lowers the floor to that far below the top.
+==================
+*/
+static cg_effect_t *CG_SpawnEffectVolume( cg_effecttype_t type ) {
 	float height;
 	char *model;
 	qhandle_t modelHandle;
-	cg_effect_t* effect;
-	int flags;
-	vec3_t org;
+	cg_effect_t *effect;
 
-	CG_SpawnInt( "spawnflags", "0", &flags );
+	if ( cgs.numEffects >= MAX_STATIC_EFFECTS ) {
+		CG_Printf( S_COLOR_YELLOW "WARNING: too many particle volumes\n" );
+		return NULL;
+	}
 
 	CG_SpawnFloat( "height", "0", &height );
 	CG_SpawnString( "model", "", &model );
 
-	CG_SpawnVector( "origin", "0 0 0", org );
+	effect = &cgs.effects[cgs.numEffects++];
+	memset( effect, 0, sizeof( *effect ) );
+	effect->type = type;
 
-	effect = &cgs.effects[cg.numEffects++];
+	CG_SpawnVector( "origin", "0 0 0", effect->org );
 
-	effect->type = EFFECT_RAIN;
+	modelHandle = trap_R_RegisterModel( model );
+	trap_R_ModelBounds( modelHandle, effect->mins, effect->maxs, 0, 0, 0 );
+	if ( height > 0 ) {
+		effect->mins[2] = effect->maxs[2] - height;
+	}
 
-	VectorClear( effect->velocity );
+	// the floor's corners, for culling
+	VectorSet( effect->corners[0], effect->maxs[0], effect->maxs[1], 0.0f );
+	VectorSet( effect->corners[1], effect->maxs[0], effect->mins[1], 0.0f );
+	VectorSet( effect->corners[2], effect->mins[0], effect->mins[1], 0.0f );
+	VectorSet( effect->corners[3], effect->mins[0], effect->maxs[1], 0.0f );
+
+	return effect;
+}
+
+/*QUAKED effect_rain (0 .5 .8) ? NORTH SOUTH EAST WEST
+Daikatana rain volume. Spawnflags slant the rain towards a compass direction.
+"height" how far below the top of the brush the rain falls (default: the whole brush)
+*/
+void SP_effect_rain( void ) {
+	cg_effect_t *effect;
+	int flags;
+
+	effect = CG_SpawnEffectVolume( EFFECT_RAIN );
+	if ( !effect ) {
+		return;
+	}
+
+	CG_SpawnInt( "spawnflags", "0", &flags );
 	if ( flags & 1 ) { // RAIN_NORTH
 		effect->velocity[1] += 300;
 	}
@@ -252,18 +289,23 @@ void SP_effect_rain( void ) {
 	if ( flags & 8 ) { // RAIN_WEST
 		effect->velocity[0] -= 300;
 	}
+}
 
-	modelHandle = trap_R_RegisterModel( model );
+/*QUAKED effect_snow (0 .5 .8) ? STRAIGHT
+Daikatana snow volume. STRAIGHT: flakes fall without drifting.
+"height" how far below the top of the brush the snow falls (default: the whole brush)
+*/
+void SP_effect_snow( void ) {
+	cg_effect_t *effect;
+	int flags;
 
-	VectorCopy( org, effect->org );
+	effect = CG_SpawnEffectVolume( EFFECT_SNOW );
+	if ( !effect ) {
+		return;
+	}
 
-	trap_R_ModelBounds( modelHandle, effect->mins, effect->maxs, 0, 0, 0 );
-	effect->mins[2] = effect->maxs[2] - height;
-
-	VectorSet( effect->corners[0], effect->maxs[0], effect->maxs[1], 0.0f );
-	VectorSet( effect->corners[1], effect->maxs[0], effect->mins[1], 0.0f );
-	VectorSet( effect->corners[2], effect->mins[0], effect->mins[1], 0.0f );
-	VectorSet( effect->corners[3], effect->mins[0], effect->maxs[2], 0.0f );
+	CG_SpawnInt( "spawnflags", "0", &flags );
+	effect->straight = ( flags & 1 ) != 0;
 }
 
 typedef struct {
@@ -275,7 +317,8 @@ spawn_t spawns[] = {
 	{0, 0},
 	{"misc_gamemodel",               SP_misc_gamemodel},
 	{"props_skyportal",              SP_skyportal},
-	{"effect_rain", SP_effect_rain}
+	{"effect_rain", SP_effect_rain},
+	{"effect_snow", SP_effect_snow}
 };
 
 int numSpawns = ARRAY_LEN( spawns );
