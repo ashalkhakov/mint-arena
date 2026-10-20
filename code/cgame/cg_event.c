@@ -859,11 +859,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_GRENADE_BOUNCE:
 		DEBUGNAME("EV_GRENADE_BOUNCE");
-		if ( rand() & 1 ) {
-			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.hgrenb1aSound );
-		} else {
-			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.hgrenb2aSound );
-		}
+		CG_MissileBounce( cent );
 		break;
 
 #ifdef MISSIONPACK

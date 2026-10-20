@@ -118,7 +118,7 @@ static void G_StickMissile( gentity_t *ent, trace_t *trace ) {
 	VectorCopy( ent->s.angles, ent->s.apos.trBase );
 	VectorCopy( ent->s.angles, ent->r.currentAngles );
 	ent->s.groundEntityNum = trace->entityNum;
-	G_AddEvent( ent, EV_GRENADE_BOUNCE, 0 );
+	G_AddEvent( ent, EV_GRENADE_BOUNCE, DirToByte( trace->plane.normal ) );
 	G_LinkEntity( ent );
 }
 
@@ -127,11 +127,32 @@ static void G_StickMissile( gentity_t *ent, trace_t *trace ) {
 G_MissileImpact
 ================
 */
+static int G_DefDamage( const dict_t *projectile, const char *key, int *radius );
+
 void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 	gentity_t		*other;
 	qboolean		hitPlayer = qfalse;
+	const dict_t	*def;
+	int				damage, radius;
 
 	other = &g_entities[trace->entityNum];
+
+	// water stops one that goes off on it
+	if ( ( ent->missileFlags & MISSILE_DETONATE_ON_WATER ) && ( trace->contents & MASK_WATER ) ) {
+		G_AddEvent( ent, EV_MISSILE_MISS, DirToByte( trace->plane.normal ) );
+		ent->freeAfterEvent = qtrue;
+		ent->s.eType = ET_GENERAL;
+		SnapVectorTowards( trace->endpos, ent->s.pos.trBase );
+		G_SetOrigin( ent, trace->endpos );
+		// "def_water_damage": a blast all around in the water (the ion blaster's), else the splash
+		if ( ( def = BG_FindDef( ent->classname ) ) != NULL && ( damage = G_DefDamage( def, "def_water_damage", &radius ) ) > 0 ) {
+			G_RadiusDamage( trace->endpos, ent->parent, damage, radius, NULL, ent->splashMethodOfDeath );
+		} else if ( ent->splashDamage ) {
+			G_RadiusDamage( trace->endpos, ent->parent, ent->splashDamage, ent->splashRadius, NULL, ent->splashMethodOfDeath );
+		}
+		G_LinkEntity( ent );
+		return;
+	}
 
 	// check for sticking
 	if ( ( ent->missileFlags & MISSILE_STICK )
@@ -143,8 +164,8 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 	// check for bounce
 	if ( !( ent->missileFlags & ( other->takedamage ? MISSILE_DETONATE_ON_ACTOR : MISSILE_DETONATE_ON_WORLD ) )
 		&& ( !( ent->missileFlags & MISSILE_MAX_BOUNCES ) || ent->count-- > 0 ) ) {
+		G_AddEvent( ent, EV_GRENADE_BOUNCE, DirToByte( trace->plane.normal ) );
 		G_BounceMissile( ent, trace );
-		G_AddEvent( ent, EV_GRENADE_BOUNCE, 0 );
 		return;
 	}
 
@@ -292,7 +313,8 @@ fire_projectile
 A projectile of the def (Doom 3's keys): "velocity" (forward, right, up),
 "gravity" (non-zero falls), "bounce" (speed kept by a bounce), "fuse"
 (seconds), "detonate_on_fuse", "detonate_on_world", "detonate_on_actor",
-"max_bounces" (then it detonates), "stick" (stops where it hits instead), "def_damage" and "def_splash_damage"
+"max_bounces" (then it detonates), "stick" (stops where it hits instead),
+"detonate_on_water" (stops at water surfaces and goes off there), "def_damage" and "def_splash_damage"
 (damage defs with "damage" and "radius"), "mins" and "maxs".
 =================
 */
@@ -327,6 +349,9 @@ gentity_t *fire_projectile( gentity_t *self, const dict_t *def, int weapon, vec3
 	if ( DictGetBool( def, "stick", "0" ) ) {
 		bolt->missileFlags |= MISSILE_STICK;
 	}
+	if ( DictGetBool( def, "detonate_on_water", "0" ) ) {
+		bolt->missileFlags |= MISSILE_DETONATE_ON_WATER;
+	}
 	if ( DictFindKey( def, "max_bounces" ) ) {
 		bolt->missileFlags |= MISSILE_MAX_BOUNCES;
 		bolt->count = DictGetInt( def, "max_bounces", "0" );
@@ -341,6 +366,9 @@ gentity_t *fire_projectile( gentity_t *self, const dict_t *def, int weapon, vec3
 	bolt->methodOfDeath = MOD_FOR_WEAPON( weapon, qfalse );
 	bolt->splashMethodOfDeath = MOD_FOR_WEAPON( weapon, qtrue );
 	bolt->clipmask = MASK_SHOT;
+	if ( bolt->missileFlags & MISSILE_DETONATE_ON_WATER ) {
+		bolt->clipmask |= MASK_WATER;
+	}
 	bolt->target_ent = NULL;
 	DictGetVector( def, "mins", "0 0 0", bolt->s.mins );
 	DictGetVector( def, "maxs", "0 0 0", bolt->s.maxs );

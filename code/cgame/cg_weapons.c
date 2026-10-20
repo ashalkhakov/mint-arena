@@ -211,6 +211,14 @@ static void CG_DefSounds( const dict_t *def, const char *key, sfxHandle_t *sound
 	}
 }
 
+// one sound, the first a def's key lists
+static sfxHandle_t CG_DefSound( const dict_t *def, const char *key ) {
+	sfxHandle_t sounds[MAX_WEAPON_SOUNDS];
+
+	CG_DefSounds( def, key, sounds );
+	return sounds[0];
+}
+
 static sfxHandle_t CG_RandomSound( const sfxHandle_t *sounds ) {
 	int c;
 
@@ -416,7 +424,9 @@ The media of a weapon, from its entity def (see bg_defs.c):
 and from its projectile's def:
 	"model", "light_color", "light_radius", "snd_fly"
 	"fx_fly"			an effect every "fx_fly_interval" seconds (0.05)
-	"fx_detonate", "snd_explode"	where it detonates
+	"fx_detonate", "snd_explode"	where it detonates, "snd_explode_flesh" on a
+						body, "fx_detonate_water" and "snd_explode_water" in water
+	"fx_bounce", "snd_bounce"	where it bounces or sticks
 	"fx_impact", "fx_impact_flesh", "snd_impact"	where hitscan shots hit
 	"mtr_detonate", "decal_size"	a mark left there
 =================
@@ -487,10 +497,10 @@ void CG_RegisterWeapon( int weaponNum ) {
 
 	// firing
 	CG_DefSounds( def, "snd_fire", weaponInfo->flashSound );
-	CG_DefSounds( def, "snd_hum", &weaponInfo->readySound );
-	CG_DefSounds( def, "snd_firing", &weaponInfo->firingSound );
-	CG_DefSounds( def, "snd_raise", &weaponInfo->raiseSound );
-	CG_DefSounds( def, "snd_altfire", &weaponInfo->altFireSound );
+	weaponInfo->readySound = CG_DefSound( def, "snd_hum" );
+	weaponInfo->firingSound = CG_DefSound( def, "snd_firing" );
+	weaponInfo->raiseSound = CG_DefSound( def, "snd_raise" );
+	weaponInfo->altFireSound = CG_DefSound( def, "snd_altfire" );
 	DictGetVector( def, "flashColor", "0 0 0", weaponInfo->flashDlightColor );
 	weaponInfo->flashDlight = DictGetFloat( def, "flashRadius", "0" );
 	weaponInfo->muzzleEffect = CG_DefEffect( def, "fx_muzzle" );
@@ -500,7 +510,7 @@ void CG_RegisterWeapon( int weaponNum ) {
 		return;
 	}
 	weaponInfo->missileModel = CG_DefModel( projectile, "model" );
-	CG_DefSounds( projectile, "snd_fly", &weaponInfo->missileSound );
+	weaponInfo->missileSound = CG_DefSound( projectile, "snd_fly" );
 	DictGetVector( projectile, "light_color", "1 1 1", weaponInfo->missileDlightColor );
 	weaponInfo->missileDlight = DictGetFloat( projectile, "light_radius", "0" );
 	weaponInfo->flyEffect = CG_DefEffect( projectile, "fx_fly" );
@@ -513,6 +523,11 @@ void CG_RegisterWeapon( int weaponNum ) {
 	}
 	weaponInfo->detonateEffect = CG_DefEffect( projectile, "fx_detonate" );
 	CG_DefSounds( projectile, "snd_explode", weaponInfo->detonateSound );
+	CG_DefSounds( projectile, "snd_explode_flesh", weaponInfo->detonateFleshSound );
+	weaponInfo->waterEffect = CG_DefEffect( projectile, "fx_detonate_water" );
+	CG_DefSounds( projectile, "snd_explode_water", weaponInfo->waterSound );
+	weaponInfo->bounceEffect = CG_DefEffect( projectile, "fx_bounce" );
+	CG_DefSounds( projectile, "snd_bounce", weaponInfo->bounceSound );
 	weaponInfo->impactEffect = CG_DefEffect( projectile, "fx_impact" );
 	weaponInfo->impactFleshEffect = CG_DefEffect( projectile, "fx_impact_flesh" );
 	CG_DefSounds( projectile, "snd_impact", weaponInfo->impactSound );
@@ -1363,6 +1378,35 @@ void CG_FireWeapon( centity_t *cent ) {
 
 /*
 ================
+CG_MissileBounce
+
+Caused by an EV_GRENADE_BOUNCE event: the projectile's "fx_bounce" and
+"snd_bounce", or Quake 3's grenade bounce.
+================
+*/
+void CG_MissileBounce( centity_t *cent ) {
+	const weaponInfo_t	*wi;
+	sfxHandle_t			sfx;
+	vec3_t				dir;
+
+	CG_RegisterWeapon( cent->currentState.weapon );
+	wi = &cg_weapons[ BG_ValidWeapon( cent->currentState.weapon ) ? cent->currentState.weapon : 0 ];
+	if ( !wi->bounceEffect && !wi->bounceSound[0] ) {
+		trap_S_StartSound( NULL, cent->currentState.number, CHAN_AUTO, ( rand() & 1 ) ? cgs.media.hgrenb1aSound : cgs.media.hgrenb2aSound );
+		return;
+	}
+	if ( wi->bounceEffect ) {
+		ByteToDir( cent->currentState.eventParm, dir );
+		CG_FX_PlayEffectID( wi->bounceEffect, cent->lerpOrigin, dir );
+	}
+	sfx = CG_RandomSound( wi->bounceSound );
+	if ( sfx ) {
+		trap_S_StartSound( NULL, cent->currentState.number, CHAN_AUTO, sfx );
+	}
+}
+
+/*
+================
 CG_AltFireWeapon
 
 Caused by an EV_ALT_FIRE_WEAPON event
@@ -1391,6 +1435,14 @@ the projectile's "fx_detonate" (or a hitscan shot's "fx_impact"), its sound
 and its mark.
 =================
 */
+// water at the point, or just behind the surface it hit
+static qboolean CG_InWater( const vec3_t origin, const vec3_t dir ) {
+	vec3_t behind;
+
+	VectorMA( origin, -4, dir, behind );
+	return ( ( CG_PointContents( origin, 0 ) | CG_PointContents( behind, 0 ) ) & MASK_WATER ) != 0;
+}
+
 void CG_MissileHitWall( int weapon, int playerNum, vec3_t origin, vec3_t dir, impactSound_t soundType ) {
 	const weaponInfo_t	*wi;
 	qhandle_t		effect;
@@ -1407,12 +1459,22 @@ void CG_MissileHitWall( int weapon, int playerNum, vec3_t origin, vec3_t dir, im
 			effect = cgs.media.fxBulletHit;
 		}
 		sfx = CG_RandomSound( wi->impactSound );
+	} else if ( wi->waterEffect && CG_InWater( origin, dir ) ) {
+		// gone off on (or in) water
+		effect = wi->waterEffect;
+		sfx = CG_RandomSound( wi->waterSound );
+		if ( !sfx ) {
+			sfx = CG_RandomSound( wi->detonateSound );
+		}
 	} else {
 		effect = wi->detonateEffect;
 		if ( !effect && BG_Weapon( weapon )->projectile && DictFindKey( BG_Weapon( weapon )->projectile, "def_splash_damage" ) ) {
 			effect = cgs.media.fxExplosion;
 		}
-		sfx = CG_RandomSound( wi->detonateSound );
+		sfx = soundType == IMPACTSOUND_FLESH ? CG_RandomSound( wi->detonateFleshSound ) : 0;
+		if ( !sfx ) {
+			sfx = CG_RandomSound( wi->detonateSound );
+		}
 	}
 
 	if ( effect ) {

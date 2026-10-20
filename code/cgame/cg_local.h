@@ -514,6 +514,11 @@ typedef struct weaponInfo_s {
 	int				flyInterval;
 	qhandle_t		detonateEffect;		// "fx_detonate"
 	sfxHandle_t		detonateSound[MAX_WEAPON_SOUNDS];	// "snd_explode"
+	sfxHandle_t		detonateFleshSound[MAX_WEAPON_SOUNDS];	// "snd_explode_flesh", on a body
+	qhandle_t		waterEffect;		// "fx_detonate_water", going off in water
+	sfxHandle_t		waterSound[MAX_WEAPON_SOUNDS];	// "snd_explode_water"
+	qhandle_t		bounceEffect;		// "fx_bounce"
+	sfxHandle_t		bounceSound[MAX_WEAPON_SOUNDS];	// "snd_bounce"
 	qhandle_t		impactEffect;		// "fx_impact", where hitscan shots hit
 	qhandle_t		impactFleshEffect;	// "fx_impact_flesh"
 	sfxHandle_t		impactSound[MAX_WEAPON_SOUNDS];	// "snd_impact"
@@ -1873,6 +1878,7 @@ void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum )
 void CG_ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, int otherEntNum );
 void CG_HitscanFire( entityState_t *es );
 void CG_AltFireWeapon( centity_t *cent );
+void CG_MissileBounce( centity_t *cent );
 void CG_Bullet( vec3_t origin, int sourceEntityNum, vec3_t normal, qboolean flesh, int fleshEntityNum );
 
 void CG_RailTrail( playerInfo_t *pi, vec3_t start, vec3_t end );

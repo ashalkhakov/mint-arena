@@ -584,6 +584,7 @@ void G_ExplodeMissile( gentity_t *ent );
 #define MISSILE_DETONATE_ON_FUSE	4	// else it goes away
 #define MISSILE_MAX_BOUNCES			8	// detonates when it would bounce again after count bounces
 #define MISSILE_STICK				16	// stops where it hits instead of bouncing
+#define MISSILE_DETONATE_ON_WATER	32	// hits water surfaces and goes off there
 
 gentity_t *fire_projectile( gentity_t *self, const struct dict_s *def, int weapon, vec3_t start, vec3_t dir );
 
