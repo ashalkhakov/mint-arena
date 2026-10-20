@@ -2690,7 +2690,13 @@ void Menus_HandleOOBClick(menuDef_t *menu, int key, qboolean down) {
 			if (Menu_OverActiveItem(&DC->Menus[i], DC->cursorx, DC->cursory)) {
 				Menu_RunCloseScript(menu);
 				menu->window.flags &= ~(WINDOW_HASFOCUS | WINDOW_VISIBLE);
-				Menus_Activate(&DC->Menus[i]);
+				if (DC->Menus[i].window.flags & WINDOW_VISIBLE) {
+					// a menu that is open already, under a closed popup:
+					// it only takes the focus back, its onOpen ran before
+					DC->Menus[i].window.flags |= WINDOW_HASFOCUS;
+				} else {
+					Menus_Activate(&DC->Menus[i]);
+				}
 				Menu_HandleMouseMove(&DC->Menus[i], DC->cursorx, DC->cursory);
 				Menu_HandleKey(&DC->Menus[i], key, down);
 			}
@@ -4491,6 +4497,16 @@ itemDef_t *Menu_GetFocusedItem(menuDef_t *menu) {
   return NULL;
 }
 
+menuDef_t *Menu_GetVisibleFullScreen(void) {
+  int i;
+  for (i = DC->menuCount - 1; i >= 0; i--) {
+    if (DC->Menus[i].window.flags & WINDOW_VISIBLE && DC->Menus[i].fullScreen) {
+      return &DC->Menus[i];
+    }
+  }
+  return NULL;
+}
+
 menuDef_t *Menu_GetFocused(void) {
   int i;
   for (i = 0; i < DC->menuCount; i++) {
@@ -4565,13 +4581,17 @@ qboolean Menus_AnyFullScreenVisible(void) {
 menuDef_t *Menus_ActivateByName(const char *p) {
   int i;
   menuDef_t *m = NULL;
+  // take the focus from the others first: the menu's onOpen may open
+  // another menu, which has to keep the focus it gets
   for (i = 0; i < DC->menuCount; i++) {
     if (Q_stricmp(DC->Menus[i].window.name, p) == 0) {
-	    m = &DC->Menus[i];
-		Menus_Activate(m);
+      m = &DC->Menus[i];
     } else {
       DC->Menus[i].window.flags &= ~WINDOW_HASFOCUS;
     }
+  }
+  if (m) {
+    Menus_Activate(m);
   }
 	Display_CloseCinematics();
   return m;

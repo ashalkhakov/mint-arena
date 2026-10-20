@@ -2018,6 +2018,20 @@ static qboolean UI_GameType_HandleKey(int flags, float *special, int key, qboole
 	return qfalse;
 }
 
+/*
+===============
+UI_SelectFirstNetMap
+
+Selects the first map of the server game type in the map list of the open
+menu, and makes it the one the server starts with.
+===============
+*/
+static void UI_SelectFirstNetMap( void ) {
+	UI_MapCountByGameType(qfalse);
+	Menu_SetFeederSelection(NULL, FEEDER_ALLMAPS, 0, NULL);
+	UI_FeederSelection(FEEDER_ALLMAPS, 0);
+}
+
 static qboolean UI_NetGameType_HandleKey(int flags, float *special, int key) {
 	int select = UI_SelectForKey(key);
 	if (select != 0) {
@@ -2031,9 +2045,7 @@ static qboolean UI_NetGameType_HandleKey(int flags, float *special, int key) {
 
 		trap_Cvar_SetValue( "ui_netGameType", ui_netGameType.integer);
 		trap_Cvar_SetValue( "ui_actualnetGameType", uiInfo.gameTypes[ui_netGameType.integer].gtEnum);
-		trap_Cvar_SetValue( "ui_currentNetMap", 0);
-		UI_MapCountByGameType(qfalse);
-		Menu_SetFeederSelection(NULL, FEEDER_ALLMAPS, 0, NULL);
+		UI_SelectFirstNetMap();
 		return qtrue;
 	}
 	return qfalse;
@@ -2924,8 +2936,7 @@ static void UI_RunMenuScript(char **args) {
 			trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart\n" );
 		} else if (Q_stricmp(name, "loadArenas") == 0) {
 			UI_LoadArenasIntoMapList();
-			UI_MapCountByGameType(qfalse);
-			Menu_SetFeederSelection(NULL, FEEDER_ALLMAPS, 0, "createserver");
+			UI_SelectFirstNetMap();
 		} else if (Q_stricmp(name, "saveControls") == 0) {
 			Controls_SetConfig(qtrue);
 		} else if (Q_stricmp(name, "loadControls") == 0) {
@@ -4865,6 +4876,14 @@ void UI_KeyEvent( int key, qboolean down ) {
 
   if (Menu_Count() > 0) {
     menuDef_t *menu = Menu_GetFocused();
+		if (!menu) {
+			// a popup closed without handing the focus back: the full screen
+			// menu under it gets it, rather than the menus going away
+			menu = Menu_GetVisibleFullScreen();
+			if (menu) {
+				menu->window.flags |= WINDOW_HASFOCUS;
+			}
+		}
 		if (menu) {
 			if (key == K_ESCAPE && down && !Menus_AnyFullScreenVisible()) {
 				Menus_CloseAll();

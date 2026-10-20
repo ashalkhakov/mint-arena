@@ -458,6 +458,7 @@ void Menu_Init(menuDef_t *menu);
 void Item_Init(itemDef_t *item);
 void Menu_PostParse(menuDef_t *menu);
 menuDef_t *Menu_GetFocused( void );
+menuDef_t *Menu_GetVisibleFullScreen( void );
 void Menu_HandleKey(menuDef_t *menu, int key, qboolean down);
 void Menu_HandleMouseMove(menuDef_t *menu, float x, float y);
 void Menu_ScrollFeeder(menuDef_t *menu, int feeder, qboolean down);

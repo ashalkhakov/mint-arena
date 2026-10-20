@@ -253,7 +253,57 @@ static void UI_Load_f( void ) {
 	UI_Load();
 }
 
+/*
+=================
+UI_Click_f
+
+ui_click <x> <y> [keynum]: moves the menu cursor to x y (640x480) and
+presses a key there, mouse1 by default. Drives the menus from a script, for tests.
+=================
+*/
+static void UI_Click_f( void ) {
+	menuDef_t	*menu;
+	int			key, i;
+
+	if ( trap_Argc() < 3 ) {
+		Com_Printf( "usage: ui_click <x> <y> [keynum]\n" );
+		return;
+	}
+	key = K_MOUSE1;
+	if ( trap_Argc() > 3 ) {
+		key = atoi( CG_Argv( 3 ) );
+	}
+
+	Init_Display( &uiInfo.uiDC );
+	uiInfo.uiDC.cursorx = atoi( CG_Argv( 1 ) );
+	uiInfo.uiDC.cursory = atoi( CG_Argv( 2 ) );
+	Display_MouseMove( NULL, uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory );
+	menu = Menu_GetFocused();
+	if ( menu ) {
+		for ( i = 0; i < menu->itemCount; i++ ) {
+			if ( menu->items[i]->window.flags & WINDOW_HASFOCUS ) {
+				Com_Printf( "ui_click: item %s action {%s}\n", menu->items[i]->text ? menu->items[i]->text : menu->items[i]->window.name,
+					menu->items[i]->action ? menu->items[i]->action : "" );
+			}
+		}
+	}
+	UI_KeyEvent( key, qtrue );
+	UI_KeyEvent( key, qfalse );
+
+	menu = Menu_GetFocused();
+	Com_Printf( "ui_click %d %d: focused menu %s, open:", uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory,
+		menu ? menu->window.name : "none" );
+	for ( i = 0; i < Menu_Count(); i++ ) {
+		menuDef_t *m = &uiInfo.uiDC.Menus[i];
+		if ( m->window.flags & WINDOW_VISIBLE ) {
+			Com_Printf( " %s", m->window.name );
+		}
+	}
+	Com_Printf( "\n" );
+}
+
 consoleCommand_t	ui_commands[] = {
+	{ "ui_click", UI_Click_f, 0 },
 	{ "postgame", UI_CalcPostGameStats, CMD_INGAME },
 	{ "ui_cache", UI_Cache_f, 0 },
 	{ "ui_load", UI_Load_f, 0 },
