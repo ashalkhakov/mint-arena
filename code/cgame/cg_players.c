@@ -1896,10 +1896,28 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 	// --------- roll -------------
 
 
+	// swimming: the body along where it's going, the head looking
+	cent->swimming = qfalse;
+	playerNum = cent->currentState.playerNum;
+	if ( playerNum >= 0 && playerNum < MAX_CLIENTS && cgs.playerinfo[playerNum].modelDef ) {
+		vec3_t swimLegs, swimTorso, swimHead;
+
+		if ( BG_PlayerSwimAngles( &bg_models[cgs.playerinfo[playerNum].modelDef], cent->currentState.legsAnim,
+								  cent->currentState.pos.trDelta, cent->lerpAngles, swimLegs, swimTorso, swimHead ) ) {
+			cent->swimming = qtrue;
+			VectorCopy( swimLegs, legsAngles );
+			VectorCopy( swimTorso, torsoAngles );
+			VectorCopy( swimHead, headAngles );
+			cent->pe.legs.yawAngle = legsAngles[YAW];
+			cent->pe.torso.yawAngle = torsoAngles[YAW];
+			cent->pe.torso.pitchAngle = torsoAngles[PITCH];
+		}
+	}
+
 	// lean towards the direction of travel
 	VectorCopy( cent->currentState.pos.trDelta, velocity );
 	speed = VectorNormalize( velocity );
-	if ( speed && !cent->onLadder ) {
+	if ( speed && !cent->onLadder && !cent->swimming ) {
 		vec3_t	axis[3];
 		float	side;
 
@@ -2931,8 +2949,9 @@ void CG_Player( centity_t *cent ) {
 		CG_PlayerCharacter( cent, pi, &legs, (const vec3_t *)torso.axis, (const vec3_t *)head.axis,
 							&torso, &weapon, &flag );
 		CG_PlayerSprites( cent, &torso );
-		if ( !BG_PlayerClimbing( cent->currentState.legsAnim ) ) {
-			CG_AddPlayerWeapon( &weapon, NULL, cent, pi->team );		// put away on a ladder
+		if ( !BG_PlayerClimbing( cent->currentState.legsAnim )
+			 && !( ( cent->currentState.legsAnim & ~ANIM_TOGGLEBIT ) == LEGS_SWIM && !( cent->currentState.eFlags & EF_FIRING ) ) ) {
+			CG_AddPlayerWeapon( &weapon, NULL, cent, pi->team );		// put away on a ladder, and swimming till it fires
 		}
 		CG_PlayerPowerups( cent, &flag );
 		return;

@@ -520,6 +520,83 @@ PM_WaterMove
 
 ===================
 */
+#define SWIM_TREAD_RATE		0.35f	// strokes treading water, of swimming's
+#define SWIM_GLIDE			0.55f	// of the swim speed between pulls
+#define SWIM_SURGE			1.35f	// and more at the pull's height (about the swim speed on the whole)
+#define SWIM_TURN_RATE		150.0f	// degrees a second the body turns toward where the swimmer looks
+
+/*
+===================
+PM_Swimming
+
+Swimming, not wading: the head under, or waist deep off the bottom. Waist
+deep on it, the player wades (walks); ankle deep, nothing changes.
+===================
+*/
+static qboolean PM_Swimming( void ) {
+	return pm->waterlevel == 3 || ( pm->waterlevel == 2 && pm->ps->groundEntityNum == ENTITYNUM_NONE );
+}
+
+/*
+===================
+PM_SwimAdvance
+
+The stroke goes on, rate of a stroke's time.
+===================
+*/
+static void PM_SwimAdvance( float rate ) {
+	int stroke = BG_SwimStrokeMsec( pm->playerModel );
+
+	pm->ps->swimPhase = ( pm->ps->swimPhase + (int)( (float)SWIM_PHASE * pml.msec * rate / stroke ) ) & ( SWIM_PHASE - 1 );
+}
+
+/*
+===================
+PM_SwimTread
+
+Not swimming anywhere: treading water, the strokes slow and weak.
+===================
+*/
+static void PM_SwimTread( void ) {
+	PM_SwimAdvance( SWIM_TREAD_RATE );
+}
+
+/*
+===================
+PM_SwimStroke
+
+Swimming somewhere: the stroke goes on, and pulls; between pulls the
+swimmer glides. Where the swimmer goes turns toward where it means to at
+most SWIM_TURN_RATE, so it swims in arcs rather than strafing about.
+===================
+*/
+static void PM_SwimStroke( vec3_t wishdir, float *wishspeed ) {
+	vec3_t heading, axis;
+	float speed, angle, turn, c;
+
+	PM_SwimAdvance( 1.0f );
+	*wishspeed *= SWIM_GLIDE + SWIM_SURGE * BG_SwimStrokePull( pm->ps->swimPhase );
+
+	// the body's heading: where it's going, if it's going
+	VectorCopy( pm->ps->velocity, heading );
+	speed = VectorNormalize( heading );
+	if ( speed < 20 ) {
+		return;
+	}
+	c = DotProduct( heading, wishdir );
+	angle = RAD2DEG( acos( Com_Clamp( -1, 1, c ) ) );
+	turn = SWIM_TURN_RATE * pml.frametime;
+	if ( angle <= turn ) {
+		return;
+	}
+	// turned from the heading toward the wish by turn degrees
+	CrossProduct( heading, wishdir, axis );
+	if ( VectorNormalize( axis ) < 0.001f ) {
+		return;		// right back: the turn's anywhere, let the water stop it
+	}
+	RotatePointAroundVector( wishdir, axis, heading, turn );
+}
+
 static void PM_WaterMove( void ) {
 	int		i;
 	vec3_t	wishvel;
@@ -568,6 +645,14 @@ static void PM_WaterMove( void ) {
 
 	if ( wishspeed > pm->ps->speed * pm_swimScale ) {
 		wishspeed = pm->ps->speed * pm_swimScale;
+	}
+
+	// swimming as Turok swims: by strokes, each pull a surge and a glide after
+	// it, and a body that turns only so fast (PM_SwimStroke)
+	if ( scale ) {
+		PM_SwimStroke( wishdir, &wishspeed );
+	} else {
+		PM_SwimTread();
 	}
 
 	PM_Accelerate (wishdir, wishspeed, pm_wateraccelerate);
@@ -941,6 +1026,10 @@ static void PM_WalkMove( void ) {
 
 		waterScale = pm->waterlevel / 3.0;
 		waterScale = 1.0 - ( 1.0 - pm_swimScale ) * waterScale;
+		// waist deep it's wading: a walk at most
+		if ( pm->waterlevel >= 2 ) {
+			waterScale = MIN( waterScale, BG_ValidModel( pm->playerModel ) ? bg_models[pm->playerModel].walkScale : 0.5f );
+		}
 		if ( wishspeed > pm->ps->speed * waterScale ) {
 			wishspeed = pm->ps->speed * waterScale;
 		}
@@ -1520,6 +1609,12 @@ static void PM_Footsteps( void ) {
 		return;
 	}
 
+	// under, even on the bottom: swimming
+	if ( PM_Swimming() ) {
+		PM_ContinueLegsAnim( LEGS_SWIM );
+		return;
+	}
+
 	// if not trying to move
 	if ( !pm->cmd.forwardmove && !pm->cmd.rightmove ) {
 		if (  pm->xyspeed < 5 ) {
@@ -1556,7 +1651,8 @@ static void PM_Footsteps( void ) {
 		PM_ContinueLegsAnim( LEGS_BACK );
 	*/
 	} else {
-		if ( !( pm->cmd.buttons & BUTTON_WALKING ) ) {
+		// wading (waist deep, on the bottom) is walking, at walking's pace
+		if ( !( pm->cmd.buttons & BUTTON_WALKING ) && pm->waterlevel < 2 ) {
 			bobmove = 0.4f;	// faster speeds bob faster
 			if ( pm->ps->pm_flags & PMF_BACKWARDS_RUN ) {
 				PM_ContinueLegsAnim( LEGS_BACK );
@@ -2278,7 +2374,7 @@ void PmoveSingle (pmove_t *pmove) {
 	} else if ( pml.ladder ) {
 		// on a ladder, even one standing in water (Daikatana's are)
 		PM_LadderMove();
-	} else if ( pm->waterlevel > 1 ) {
+	} else if ( PM_Swimming() ) {
 		// swimming
 		PM_WaterMove();
 	} else if ( pml.walking ) {

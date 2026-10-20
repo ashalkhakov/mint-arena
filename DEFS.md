@@ -207,6 +207,19 @@ a `misc_character`'s, rewound for lag the same. pmove's animations (Quake 3's
 	"crouch_eye_height"			"10"				// and crouched (12)
 ```
 
+**Water, Turok's.** Ankle deep nothing changes; waist deep on the bottom the
+player wades, walking at most, with the walk animation; under, or off the
+bottom, it swims. Swimming goes by strokes: `swimPhase` (pmove's, sent as a
+player's `frame`) goes round a stroke a second (the swim animation's length;
+slower treading water), each pull a surge (`BG_SwimStrokePull`) and a glide
+after it, and where the swimmer goes turns toward where it looks at most
+150° a second, so it swims in arcs. The swim animation plays by the same
+phase, so the arms pull as it surges; the body lies along where it's going,
+its middle (`swim_center`) in the box, the head turned to look (so far as a
+neck turns). In first person the view lifts with each pull, bobs with the
+stroke and leans into turns. The weapon's put away in third person till it
+fires.
+
 **Speed.** A player model's `run_speed` is how fast it runs (else the
 server's `g_speed`), `walk_scale` how much of that walking (Quake 3 halves
 it). Its legs play as fast as the move needs: `anim_speed <anim>` says how
@@ -225,7 +238,10 @@ sent. Taking hold eases the turn and the move in over 0.35 s, letting go
 eases them out, and the hands reach for the ladder's face (Doom 3's reach IK,
 `idIK_Reach`: `ik_numArms`, `ik_shoulder<n>`, `ik_elbow<n>`, `ik_hand<n>`;
 `BG_ModelReachArm` reaches a hand for any point, for grabbing and buttons
-later). The weapon is put away and doesn't fire, and the view turns at most 70°
+later); the feet go onto the rungs the same way. The rungs are found by rays
+from the player through the ladder's box (which Daikatana's maps have in
+front of them, invisible: the converter makes those player clip) to what's
+drawn behind it. The weapon is put away and doesn't fire, and the view turns at most 70°
 from the ladder. Climbing is Daikatana's: 200 up or down (looking up or down
 while going forward, or jump and crouch), 75 across, even from water.
 

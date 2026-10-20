@@ -505,11 +505,17 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 		legsTime = s1->time;
 		torsoTime = s1->time2;
 	}
-	BG_PlayerAnimChannels( model, cent->characterChannels, s1->legsAnim, legsTime, s1->torsoAnim, torsoTime, s1->weapon );
+	BG_PlayerAnimChannels( model, cent->characterChannels, s1->legsAnim, legsTime, s1->torsoAnim, torsoTime, s1->weapon,
+						   cent == &cg.cur_lc->predictedPlayerEntity ? cg.cur_lc->predictedPlayerState.swimPhase : s1->frame,
+						   cg.time );
 	// on a ladder, the climb's frames by height, the model up to the rungs
 	BG_PlayerClimbPhase( model, &cent->characterChannels[ANIMCHANNEL_LEGS], s1->legsAnim, legs->origin[2], cg.time );
 	if ( cent->onLadder ) {
 		VectorAdd( legs->origin, cent->ladderOffset, legs->origin );
+	}
+	if ( cent->swimming ) {
+		// the swimming body centred in the box, however it's turned
+		BG_PlayerSwimOrigin( model, legs->origin, (const vec3_t *)legs->axis, legs->origin );
 	}
 
 	legs->hModel = pi->skeletalModel;

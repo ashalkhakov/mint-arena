@@ -424,7 +424,38 @@ CG_OffsetFirstPersonView
 
 ===============
 */
+/*
+===============
+CG_SwimView
+
+Swimming, Turok's: the view lifts with each stroke's pull and sinks as it
+glides, and leans into a turn (the body turns in water, pmove turns it only
+so fast).
+===============
+*/
+#define SWIM_VIEW_LIFT		2.0f	// degrees the head comes up on a pull
+#define SWIM_VIEW_BOB		1.5f	// units up and down a stroke
+#define SWIM_VIEW_ROLL		0.04f	// degrees of lean a degree a second of turning
+#define SWIM_VIEW_MAXROLL	10.0f
+
+static void CG_SwimView( vec3_t origin, vec3_t angles ) {
+	const playerState_t *ps = &cg.cur_lc->predictedPlayerState;
+	float phase, yaw, rate, roll;
+
+	phase = (float)( ps->swimPhase & ( SWIM_PHASE - 1 ) ) / SWIM_PHASE;
+	angles[PITCH] -= SWIM_VIEW_LIFT * BG_SwimStrokePull( ps->swimPhase );
+	origin[2] += SWIM_VIEW_BOB * sin( 2 * M_PI * phase );
+
+	yaw = ps->viewangles[YAW];
+	rate = cg.frametime > 0 ? AngleDelta( yaw, cg.cur_lc->swimYaw ) * 1000.0f / cg.frametime : 0;
+	cg.cur_lc->swimYaw = yaw;
+	roll = Com_Clamp( -SWIM_VIEW_MAXROLL, SWIM_VIEW_MAXROLL, -rate * SWIM_VIEW_ROLL );
+	cg.cur_lc->swimRoll += ( roll - cg.cur_lc->swimRoll ) * Com_Clamp( 0, 1, cg.frametime * 0.004f );
+	angles[ROLL] += cg.cur_lc->swimRoll;
+}
+
 static void CG_OffsetFirstPersonView( void ) {
+	qboolean		swimming;
 	float			*origin;
 	float			*angles;
 	float			bob;
@@ -478,7 +509,10 @@ static void CG_OffsetFirstPersonView( void ) {
 	angles[PITCH] += ratio * cg.fall_value;
 #endif
 
-	if ( !cg.cur_lc->renderingThirdPerson && cg_viewbob.integer ) {
+	swimming = ( cg.cur_lc->predictedPlayerState.legsAnim & ~ANIM_TOGGLEBIT ) == LEGS_SWIM;
+	if ( !cg.cur_lc->renderingThirdPerson && cg_viewbob.integer && swimming ) {
+		CG_SwimView( origin, angles );
+	} else if ( !cg.cur_lc->renderingThirdPerson && cg_viewbob.integer ) {
 		// add angles based on velocity
 		VectorCopy( cg.cur_lc->predictedPlayerState.velocity, predictedVelocity );
 

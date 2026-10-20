@@ -226,6 +226,7 @@ typedef struct centity_s {
 	vec3_t			ladderOffset;		// the model moved up to it, so far as it's taken hold
 	vec4_t			ladderPlane;		// its face, for the hands
 	float			ladderWeight;		// how far it's taken hold of it (BG_PlayerLadderWeight)
+	qboolean		swimming;			// along its heading, centred in its box (BG_PlayerSwimAngles)
 	int				playerAnims[2], playerAnimTimes[2];	// a predicted skeletal player's legs and torso, when they started
 	bgIKState_t		ik;						// a skeletal character's walk IK, frame to frame
 
@@ -621,6 +622,7 @@ typedef struct {
 	int			stepTime;
 
 	float		duckChange;				// for duck viewheight smoothing
+	float		swimYaw, swimRoll;		// swimming, the view leans into turns (CG_SwimView)
 	int			duckTime;
 
 	float		landChange;				// for landing hard

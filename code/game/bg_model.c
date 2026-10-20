@@ -405,6 +405,7 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->eyeHeight = DictGetFloat( def, "eye_height", va( "%d", DEFAULT_VIEWHEIGHT ) );
 	model->crouchEyeHeight = DictGetFloat( def, "crouch_eye_height", va( "%d", CROUCH_VIEWHEIGHT ) );
 	model->runSpeed = DictGetFloat( def, "run_speed", "0" );
+	DictGetVector( def, "swim_center", "0 0 0", model->swimCenter );
 	model->walkScale = DictGetFloat( def, "walk_scale", "0.5" );
 	for ( i = 0; i < model->numAnims; i++ ) {
 		model->anims[i].speed = DictGetFloat( def, va( "anim_speed %s", model->anims[i].name ), "0" );
@@ -763,7 +764,7 @@ static int BG_WeaponAnimVariant( const bgModel_t *model, int anim, const char *s
 }
 
 void BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
-							int torsoAnim, int torsoTime, int weapon ) {
+							int torsoAnim, int torsoTime, int weapon, int swimPhase, int time ) {
 	int legs = legsAnim & ~ANIM_TOGGLEBIT, torso = torsoAnim & ~ANIM_TOGGLEBIT;
 	const char *suffix = BG_ValidWeapon( weapon )
 		? DictGetStringReference( BG_Weapon( weapon )->def, "player_anim_suffix", "" ) : "";
@@ -787,6 +788,13 @@ void BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, i
 	}
 
 	channels[ANIMCHANNEL_LEGS].rate = BG_PlayerLegsRate( model, legs, channels[ANIMCHANNEL_LEGS].anim );
+	// swimming, the stroke is pmove's (swimPhase), so the arms pull as it surges
+	anim = channels[ANIMCHANNEL_LEGS].anim;
+	if ( legs == LEGS_SWIM && anim >= 0 && model->anims[anim].fps > 0 ) {
+		channels[ANIMCHANNEL_LEGS].frameTime = time - (int)( (float)swimPhase / SWIM_PHASE
+			* model->anims[anim].numFrames / model->anims[anim].fps * 1000.0f );
+		channels[ANIMCHANNEL_LEGS].rate = 1.0f;
+	}
 
 	anim = -1;
 	if ( torso >= 0 && torso < MAX_TOTALANIMATIONS && torso != legs ) {
@@ -998,4 +1006,108 @@ int BG_ModelHitboxes( const bgModel_t *model, const float *jointMats, int numJoi
 		num++;
 	}
 	return num;
+}
+
+/*
+================
+BG_SwimStrokeMsec
+
+How long a swimming stroke takes: the player model's swim animation once
+through (Daikatana's breaststroke, a second), else a second.
+================
+*/
+int BG_SwimStrokeMsec( int playerModel ) {
+	const bgModel_t *model;
+	const bgAnim_t *anim;
+
+	if ( BG_ValidModel( playerModel ) ) {
+		model = &bg_models[playerModel];
+		if ( model->playerAnims[LEGS_SWIM] >= 0 && model->playerAnims[LEGS_SWIM] < model->numAnims ) {
+			anim = &model->anims[model->playerAnims[LEGS_SWIM]];
+			if ( anim->fps > 0 && anim->numFrames > 1 ) {
+				return (int)( anim->numFrames / anim->fps * 1000.0f );
+			}
+		}
+	}
+	return 1000;
+}
+
+/*
+================
+BG_SwimStrokePull
+
+How hard the stroke pulls at swimPhase, 0 to 1: a swell while the arms
+sweep back, nothing while they come forward again (the glide).
+================
+*/
+float BG_SwimStrokePull( int swimPhase ) {
+	float f = (float)( swimPhase & ( SWIM_PHASE - 1 ) ) / SWIM_PHASE;
+
+	if ( f >= SWIM_PULL ) {
+		return 0;
+	}
+	return sin( M_PI * f / SWIM_PULL );
+}
+
+#define SWIM_HEAD_YAW		60		// how far the head turns from the body, swimming
+#define SWIM_HEAD_PITCH		45
+
+/*
+================
+BG_PlayerSwimAngles
+
+A swimmer's body lies along where it's going (pmove turns that toward where
+it looks only so fast), the head turned to look, so far as a neck turns;
+treading water, it faces the view, a little upright. qfalse when not
+swimming. The angles as BG_PlayerAimAngles gives them (absolute).
+================
+*/
+qboolean BG_PlayerSwimAngles( const bgModel_t *model, int legsAnim, const vec3_t velocity, const vec3_t viewAngles,
+							  vec3_t legs, vec3_t torso, vec3_t head ) {
+	vec3_t dir;
+	float speed, d;
+	int i;
+
+	if ( ( legsAnim & ~ANIM_TOGGLEBIT ) != LEGS_SWIM || model->playerAnims[LEGS_SWIM] < 0 ) {
+		return qfalse;
+	}
+	VectorCopy( velocity, dir );
+	speed = VectorNormalize( dir );
+	VectorClear( legs );
+	if ( speed > 20 ) {
+		vectoangles( dir, legs );
+		legs[ROLL] = 0;
+	} else {
+		legs[YAW] = viewAngles[YAW];
+		legs[PITCH] = -30;		// treading, head up
+	}
+	legs[PITCH] = AngleNormalize180( legs[PITCH] );
+	VectorCopy( legs, torso );
+	// the head looks, so far as it turns
+	VectorCopy( viewAngles, head );
+	for ( i = 0; i < 2; i++ ) {
+		d = AngleNormalize180( head[i] - legs[i] );
+		d = Com_Clamp( i == YAW ? -SWIM_HEAD_YAW : -SWIM_HEAD_PITCH, i == YAW ? SWIM_HEAD_YAW : SWIM_HEAD_PITCH, d );
+		head[i] = legs[i] + d;
+	}
+	head[ROLL] = 0;
+	return qtrue;
+}
+
+/*
+================
+BG_PlayerSwimOrigin
+
+Where a swimmer's model goes: its swimming body's middle ("swim_center")
+at the middle of the player's box, however it's turned.
+================
+*/
+void BG_PlayerSwimOrigin( const bgModel_t *model, const vec3_t origin, const vec3_t axis[3], vec3_t out ) {
+	int k;
+
+	VectorCopy( origin, out );
+	out[2] += 0.5f * ( model->mins[2] + model->maxs[2] );
+	for ( k = 0; k < 3; k++ ) {
+		VectorMA( out, -model->swimCenter[k], axis[k], out );
+	}
 }

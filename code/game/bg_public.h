@@ -351,6 +351,7 @@ typedef struct playerState_s {
 	int			groundEntityNum;// ENTITYNUM_NONE = in air
 
 	int			legsTimer;		// don't change low priority animations until this runs out
+	int			swimPhase;		// how far through its stroke a swimmer is, of SWIM_PHASE
 	int			legsAnim;		// mask off ANIM_TOGGLEBIT
 
 	int			torsoTimer;		// don't change low priority animations until this runs out
@@ -1332,6 +1333,7 @@ typedef struct {
 	// "walk_scale" of it walking; the legs' animations play at the speed
 	// their "anim_speed" says they go, so the feet keep to the ground
 	float				runSpeed, walkScale;
+	vec3_t				swimCenter;			// "swim_center": the swimming body's middle, put at the player's
 } bgModel_t;
 
 typedef struct {
@@ -1390,6 +1392,13 @@ void		BG_ModelRotateJoints( const bgModel_t *model, float *jointMats, int numJoi
 void		BG_ModelTranslateJoints( const bgModel_t *model, float *jointMats, int numJoints, int joint, const vec3_t offset );
 void		BG_LoadModelIK( bgModel_t *model );
 void		BG_PlayerBox( int playerModel, qboolean crouched, vec3_t mins, vec3_t maxs, int *viewheight );
+#define SWIM_PHASE		65536		// a stroke, in swimPhase
+#define SWIM_PULL		0.4f		// the stroke's pull, of it: the arms sweep back (Daikatana's frames 0-8 of 20)
+int			BG_SwimStrokeMsec( int playerModel );
+qboolean	BG_PlayerSwimAngles( const bgModel_t *model, int legsAnim, const vec3_t velocity, const vec3_t viewAngles,
+								 vec3_t legs, vec3_t torso, vec3_t head );
+void		BG_PlayerSwimOrigin( const bgModel_t *model, const vec3_t origin, const vec3_t axis[3], vec3_t out );
+float		BG_SwimStrokePull( int swimPhase );
 qboolean	BG_PlayerClimbing( int legsAnim );
 void		BG_PlayerClimbPhase( const bgModel_t *model, bgAnimChannel_t *legs, int legsAnim, float height, int time );
 qboolean	BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, float viewYaw, int passEntityNum,
@@ -1403,7 +1412,7 @@ void		BG_ModelWalkIK( const bgModel_t *model, float *jointMats, int numJoints, c
 							const vec3_t axis[3], float floorHeight, qboolean onGround, int passEntityNum, int time,
 							bgIKState_t *state );
 void		BG_PlayerAnimChannels( const bgModel_t *model, bgAnimChannel_t *channels, int legsAnim, int legsTime,
-								   int torsoAnim, int torsoTime, int weapon );
+								   int torsoAnim, int torsoTime, int weapon, int swimPhase, int time );
 void		BG_PlayerAimAngles( const vec3_t viewAngles, int movementDir, vec3_t legs, vec3_t torso, vec3_t head );
 void		BG_ModelAim( const bgModel_t *model, float *jointMats, int numJoints, const vec3_t torsoAxis[3],
 						 const vec3_t headAxis[3] );
