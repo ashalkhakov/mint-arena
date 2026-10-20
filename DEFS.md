@@ -249,7 +249,11 @@ and below, a rung, and a hand or foot near one goes onto it. The ladder's
 facing is pmove's from when the climber took hold (`ladderYaw`, sent as a
 climber's `frame`), so turning the view or touching a rail's side doesn't
 turn it off the ladder. Climbing goes rung to rung: a pull, then a slower
-stretch as the next hand reaches, by height between grips. The weapon is put away and doesn't fire, and the view turns at most 70°
+stretch as the next hand reaches, by height between grips. Ladders whose rungs
+are only drawn, by an alpha tested texture on a flat face (e1m1b's), have
+their rungs in `maps/<map>.ladders`, which dk-restoration's
+`tools/maps/ladder_rungs.py` writes from the texture: a line a face, its
+normal, mins, maxs and rung heights. The weapon is put away and doesn't fire, and the view turns at most 70°
 from the ladder. Climbing is Daikatana's way, a quarter as fast: 50 up or down (looking up or down
 while going forward, or jump and crouch), 20 across, even from water.
 

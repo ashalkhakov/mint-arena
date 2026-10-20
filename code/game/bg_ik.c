@@ -396,6 +396,108 @@ void BG_PlayerClimbPhase( const bgModel_t *model, bgAnimChannel_t *legs, int leg
 	legs->frameTime = time - (int)( phase * cycle );
 }
 
+/*
+===============================================================================
+
+Textured ladders: some of Daikatana's draw their rungs with an alpha tested
+texture on a flat face, which no trace can find. dk-restoration's
+tools/maps/ladder_rungs.py writes them, maps/<map>.ladders, a line a face:
+its normal, its mins and maxs, its rungs' heights.
+
+===============================================================================
+*/
+
+#define MAX_TEXTURED_LADDERS	256
+#define LADDER_TEXTURED_SLOP	8		// how far off a textured ladder's face a climber's point may be
+#define MAX_TEXTURED_RUNGS		64
+
+typedef struct {
+	vec3_t		normal, mins, maxs;
+	int			numRungs;
+	float		rungs[MAX_TEXTURED_RUNGS];
+} texturedLadder_t;
+
+static texturedLadder_t	bg_texturedLadders[MAX_TEXTURED_LADDERS];
+static int				bg_numTexturedLadders;
+static char				bg_texturedLaddersMap[MAX_QPATH];
+
+static void BG_LoadTexturedLadders( void ) {
+	char mapName[MAX_QPATH], *text, *p, *token;
+	texturedLadder_t *l;
+	long length;
+	int i;
+
+	trap_Cvar_VariableStringBuffer( "mapname", mapName, sizeof( mapName ) );
+	if ( !Q_stricmp( mapName, bg_texturedLaddersMap ) ) {
+		return;
+	}
+	Q_strncpyz( bg_texturedLaddersMap, mapName, sizeof( bg_texturedLaddersMap ) );
+	bg_numTexturedLadders = 0;
+	length = BG_FS_ReadFile( va( "maps/%s.ladders", mapName ), (void **)&text );
+	if ( length <= 0 || !text ) {
+		BG_FS_FreeFile( text );
+		return;
+	}
+	text[length] = 0;
+	for ( p = text; *p && bg_numTexturedLadders < MAX_TEXTURED_LADDERS; ) {
+		char *eol = strchr( p, '\n' );
+
+		if ( eol ) {
+			*eol = 0;
+		}
+		l = &bg_texturedLadders[bg_numTexturedLadders];
+		memset( l, 0, sizeof( *l ) );
+		for ( i = 0; i < 9; i++ ) {
+			token = COM_ParseExt( &p, qfalse );
+			( i < 3 ? l->normal : i < 6 ? l->mins : l->maxs )[i % 3] = atof( token );
+		}
+		while ( l->numRungs < MAX_TEXTURED_RUNGS && ( token = COM_ParseExt( &p, qfalse ) )[0] ) {
+			l->rungs[l->numRungs++] = atof( token );
+		}
+		if ( l->numRungs ) {
+			bg_numTexturedLadders++;
+		}
+		if ( !eol ) {
+			break;
+		}
+		p = eol + 1;
+	}
+	BG_FS_FreeFile( text );
+}
+
+/*
+================
+BG_TexturedLadderRungs
+
+The rungs, from low to high, of a textured ladder's face at point facing
+along normal (out of it, toward the climber); how many.
+================
+*/
+static int BG_TexturedLadderRungs( const vec3_t point, const vec3_t normal, float *rungs, int max ) {
+	const texturedLadder_t *l;
+	int i, k, n = 0;
+
+	BG_LoadTexturedLadders();
+	for ( i = 0; i < bg_numTexturedLadders && !n; i++ ) {
+		l = &bg_texturedLadders[i];
+		if ( DotProduct( l->normal, normal ) < 0.7f ) {
+			continue;
+		}
+		for ( k = 0; k < 3; k++ ) {
+			if ( point[k] < l->mins[k] - LADDER_TEXTURED_SLOP || point[k] > l->maxs[k] + LADDER_TEXTURED_SLOP ) {
+				break;
+			}
+		}
+		if ( k < 3 ) {
+			continue;
+		}
+		for ( k = 0; k < l->numRungs && n < max; k++ ) {
+			rungs[n++] = l->rungs[k];
+		}
+	}
+	return n;
+}
+
 #define LADDER_RAYS			80		// a unit apart, from the feet up
 #define LADDER_RUNG_DEPTH	0.6f	// a rung stands this far out of what's behind it, at least
 #define LADDER_RUNG_SPAN	4		// rays above and below a rung that miss it (rungs are thin)
@@ -492,6 +594,20 @@ qboolean BG_PlayerLadder( int playerModel, int legsAnim, const vec3_t origin, in
 				ladder->rungs[ladder->numRungs++] = origin[2] + model->mins[2] + 2 + 0.5f * ( first + i - 1 );
 			}
 			first = -1;
+		}
+	}
+
+	// none to be found: the rungs of a textured ladder's face there
+	if ( !ladder->numRungs ) {
+		float all[MAX_TEXTURED_RUNGS];
+		int count;
+
+		VectorMA( origin, -rungs, normal, start );
+		count = BG_TexturedLadderRungs( start, normal, all, MAX_TEXTURED_RUNGS );
+		for ( i = 0; i < count && ladder->numRungs < MAX_LADDER_RUNGS; i++ ) {
+			if ( all[i] >= origin[2] + model->mins[2] - 8 && all[i] <= origin[2] + model->maxs[2] + 8 ) {
+				ladder->rungs[ladder->numRungs++] = all[i];
+			}
 		}
 	}
 
