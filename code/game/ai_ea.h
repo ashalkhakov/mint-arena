@@ -44,6 +44,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 //action flags
 #define ACTION_ATTACK			0x00000001
 #define ACTION_USE			0x00000002
+#define ACTION_ACTIVATE		0x00000004	// +activate: take hold of a ladder, let go
 #define ACTION_RESPAWN			0x00000008
 #define ACTION_JUMP			0x00000010
 #define ACTION_MOVEUP			0x00000020
@@ -94,6 +95,7 @@ void EA_Respawn(int playerNum);
 void EA_Talk(int playerNum);
 void EA_Gesture(int playerNum);
 void EA_Use(int playerNum);
+void EA_Activate(int playerNum);
 
 //regular elementary actions
 void EA_SelectWeapon(int playerNum, int weapon);

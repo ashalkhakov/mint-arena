@@ -47,10 +47,13 @@ float	pm_ladderScale = 1.0f;
 #define LADDER_CLIMB_SPEED	50		// a quarter of Daikatana's 200 (pmove.cpp): its climb animation climbs ~37 a second
 #define LADDER_SIDE_SPEED	20		// and across, a quarter of its 75
 #define LADDER_VIEW_YAW		70		// how far the view turns from a ladder
-#define LADDER_HOLD_REACH	4		// a ladder this far ahead can be taken hold of
+#define LADDER_HOLD_REACH	4		// a ladder this far ahead is climbed into
+#define LADDER_USE_REACH	16		// and this far, +activate takes hold of
+#define LADDER_USE_ANGLE	30		// this far either side of the view too
 #define LADDER_DOWN_PITCH	30		// looking this far down, forward climbs down
 #define LADDER_OVER_RISE	32		// how far up over a ladder's top a ledge may be
 #define LADDER_FROM_ABOVE	40		// how far down from an edge a ladder's taken hold of
+#define LADDER_MOVE_MSEC	500		// onto a ladder from its top, or over it
 #define LADDER_ABOVE_STEPS	7		// out from the edge 8 more units a try, to clear a ladder's box
 
 float	pm_accelerate = 10.0f;
@@ -861,6 +864,30 @@ static qboolean PM_LadderAhead( const vec3_t origin, const vec3_t dir, float dis
 
 /*
 =============
+PM_LadderNear
+
+A ladder +activate can take hold of: within LADDER_USE_REACH of the box,
+along the view or LADDER_USE_ANGLE to either side.
+=============
+*/
+static qboolean PM_LadderNear( trace_t *tr ) {
+	static const float turns[3] = { 0, LADDER_USE_ANGLE, -LADDER_USE_ANGLE };
+	vec3_t dir;
+	float yaw;
+	int i;
+
+	for ( i = 0; i < 3; i++ ) {
+		yaw = DEG2RAD( pm->ps->viewangles[YAW] + turns[i] );
+		VectorSet( dir, cos( yaw ), sin( yaw ), 0 );
+		if ( PM_LadderAhead( pm->ps->origin, dir, LADDER_USE_REACH, tr ) ) {
+			return qtrue;
+		}
+	}
+	return qfalse;
+}
+
+/*
+=============
 PM_LadderHold
 
 Taking hold of the ladder whose face's normal is normal (out of it).
@@ -898,6 +925,55 @@ static qboolean PM_LadderFits( const vec3_t spot, qboolean *crouched ) {
 
 /*
 =============
+PM_LadderBeginMove
+
+Moving onto a ladder or over its top, along two legs over LADDER_MOVE_MSEC:
+first by first (out over the edge, or up past the top), then on to end. It
+goes through nothing (the way was traced); off says it ends off the ladder.
+=============
+*/
+static void PM_LadderBeginMove( const vec3_t first, const vec3_t end, qboolean off ) {
+	pm->ps->pm_flags |= PMF_LADDER | PMF_LADDER_MOVE;
+	if ( off ) {
+		pm->ps->pm_flags |= PMF_LADDER_OFF;
+	} else {
+		pm->ps->pm_flags &= ~PMF_LADDER_OFF;
+	}
+	VectorCopy( end, pm->ps->grapplePoint );
+	pm->ps->pm_time = LADDER_MOVE_MSEC;
+	VectorScale( first, 1.0f / ( LADDER_MOVE_MSEC * 0.5f * 0.001f ), pm->ps->velocity );		// the first half
+}
+
+/*
+=============
+PM_LadderMoving
+
+The move onto a ladder or over its top, while it lasts: the first half at
+its velocity, the second straight to its end; then held, or off it.
+=============
+*/
+static void PM_LadderMoving( void ) {
+	float seconds;
+
+	if ( pm->ps->pm_time <= 0 ) {
+		VectorCopy( pm->ps->grapplePoint, pm->ps->origin );
+		VectorClear( pm->ps->velocity );
+		pm->ps->pm_flags &= ~PMF_LADDER_MOVE;
+		if ( pm->ps->pm_flags & PMF_LADDER_OFF ) {
+			pm->ps->pm_flags &= ~( PMF_LADDER | PMF_LADDER_OFF );
+		}
+		return;
+	}
+	if ( pm->ps->pm_time <= LADDER_MOVE_MSEC / 2 ) {
+		seconds = pm->ps->pm_time * 0.001f;
+		VectorSubtract( pm->ps->grapplePoint, pm->ps->origin, pm->ps->velocity );
+		VectorScale( pm->ps->velocity, 1.0f / seconds, pm->ps->velocity );
+	}
+	VectorMA( pm->ps->origin, pml.frametime, pm->ps->velocity, pm->ps->origin );
+}
+
+/*
+=============
 PM_LadderClimbOver
 
 At a ladder's top: onto the ledge over it, crouched where the ceiling's low.
@@ -926,11 +1002,12 @@ static qboolean PM_LadderClimbOver( const vec3_t normal ) {
 		if ( tr.fraction == 1 ) {
 			continue;
 		}
-		VectorCopy( spot, pm->ps->origin );
-		VectorClear( pm->ps->velocity );
+		// up, then over onto it (PM_LadderMoving)
 		if ( crouched ) {
 			pm->ps->pm_flags |= PMF_DUCKED;
 		}
+		VectorSet( ground, 0, 0, h );
+		PM_LadderBeginMove( ground, spot, qtrue );
 		return qtrue;
 	}
 	return qfalse;
@@ -944,18 +1021,18 @@ Taking hold of a ladder from its top: over the edge the player faces, or
 any other, down onto the ladder on the edge's face, facing it.
 =============
 */
-static qboolean PM_LadderFromAbove( void ) {
+static qboolean PM_LadderFromAbove( qboolean take, int numDirs ) {
 	vec3_t dir, back, over, spot;
 	float yaw, reach;
 	trace_t tr;
 	int i;
 
-	for ( i = 0; i < 8 * LADDER_ABOVE_STEPS; i++ ) {
-		yaw = pm->ps->viewangles[YAW] + ( i % 8 ) * 45;
+	for ( i = 0; i < numDirs * LADDER_ABOVE_STEPS; i++ ) {
+		yaw = pm->ps->viewangles[YAW] + ( i % numDirs ) * ( 360 / numDirs );
 		VectorSet( dir, cos( DEG2RAD( yaw ) ), sin( DEG2RAD( yaw ) ), 0 );
 		reach = pm->ps->maxs[0] * fabs( dir[0] ) + pm->ps->maxs[1] * fabs( dir[1] );
 		// over the edge (and past the top of the ladder's box)...
-		VectorMA( pm->ps->origin, 2 * reach + 4 + ( i / 8 ) * 8, dir, over );
+		VectorMA( pm->ps->origin, 2 * reach + 4 + ( i / numDirs ) * 8, dir, over );
 		pm->trace( &tr, pm->ps->origin, pm->ps->mins, pm->ps->maxs, over, pm->ps->playerNum, MASK_PLAYERSOLID );
 		if ( tr.fraction < 1 ) {
 			continue;
@@ -969,11 +1046,16 @@ static qboolean PM_LadderFromAbove( void ) {
 		}
 		// ...the ladder back under the edge
 		VectorScale( dir, -1, back );
-		if ( !PM_LadderAhead( spot, back, 2 * reach + 8 + ( i / 8 ) * 8, &tr ) ) {
+		if ( !PM_LadderAhead( spot, back, 2 * reach + 8 + ( i / numDirs ) * 8, &tr ) ) {
 			continue;
 		}
-		VectorCopy( tr.endpos, pm->ps->origin );
+		if ( !take ) {
+			return qtrue;		// there is one (the prompt)
+		}
+		// out over the edge, then down onto it (PM_LadderMoving)
 		PM_LadderHold( tr.plane.normal );
+		VectorSubtract( over, pm->ps->origin, spot );
+		PM_LadderBeginMove( spot, tr.endpos, qfalse );
 		// facing it
 		yaw = SHORT2ANGLE( pm->ps->ladderYaw );
 		pm->ps->delta_angles[YAW] += ANGLE2SHORT( yaw - pm->ps->viewangles[YAW] );
@@ -988,11 +1070,11 @@ static qboolean PM_LadderFromAbove( void ) {
 =============
 CheckLadder
 
-Ladders are held, not walked into: +activate takes hold of the one ahead
-(or, at the top of one, lowers the player onto it) and lets go again;
-climbing up into one (jump, or forward looking up) takes hold too. Held,
-moving can't pull the player off: at its top the climber goes over onto
-the ledge, at its foot steps off.
+Ladders are held, never walked into: +activate takes hold of the one ahead
+(or, at the top of one, lowers the player onto it) and lets go again; the
+cgame shows when it can (PMF_LADDER_AHEAD, PMF_LADDER_BELOW). Held, the
+player can only climb, and moving can't pull it off: at the top it goes
+over onto the ledge, at the foot steps off.
 =============
 */
 void CheckLadder( void ) {
@@ -1012,6 +1094,14 @@ void CheckLadder( void ) {
 		return;
 	}
 	climbUp = pm->cmd.upmove > 0 || ( pm->cmd.forwardmove > 0 && pm->ps->viewangles[PITCH] < LADDER_DOWN_PITCH );
+
+	// moving onto it or over its top: nothing to decide till it's done
+	if ( pm->ps->pm_flags & PMF_LADDER_MOVE ) {
+		pml.ladder = qtrue;
+		VectorSet( pml.ladderNormal, -cos( DEG2RAD( SHORT2ANGLE( pm->ps->ladderYaw ) ) ),
+				   -sin( DEG2RAD( SHORT2ANGLE( pm->ps->ladderYaw ) ) ), 0 );
+		return;
+	}
 
 	if ( pm->ps->pm_flags & PMF_LADDER ) {
 		VectorSet( normal, -cos( DEG2RAD( SHORT2ANGLE( pm->ps->ladderYaw ) ) ),
@@ -1042,15 +1132,24 @@ void CheckLadder( void ) {
 		return;
 	}
 
-	// taking hold: the one ahead, or from its top
+	// taking hold: the one ahead (+activate reaches further, and a little to
+	// the sides), or from its top
+	pm->ps->pm_flags &= ~( PMF_LADDER_AHEAD | PMF_LADDER_BELOW );
 	flatforward[0] = pml.forward[0];
 	flatforward[1] = pml.forward[1];
 	flatforward[2] = 0;
 	VectorNormalize( flatforward );
-	if ( PM_LadderAhead( pm->ps->origin, flatforward, LADDER_HOLD_REACH, &trace ) && ( activate || climbUp ) ) {
-		PM_LadderHold( trace.plane.normal );
+	if ( PM_LadderNear( &trace ) ) {
+		if ( activate ) {
+			VectorCopy( trace.endpos, pm->ps->origin );		// up against it
+			PM_LadderHold( trace.plane.normal );
+		} else {
+			pm->ps->pm_flags |= PMF_LADDER_AHEAD;
+		}
 	} else if ( activate ) {
-		PM_LadderFromAbove();
+		PM_LadderFromAbove( qtrue, 8 );
+	} else if ( pml.groundPlane && PM_LadderFromAbove( qfalse, 1 ) ) {
+		pm->ps->pm_flags |= PMF_LADDER_BELOW;
 	}
 	if ( pm->ps->pm_flags & PMF_LADDER ) {
 		pml.ladder = qtrue;
@@ -2663,6 +2762,9 @@ void PmoveSingle (pmove_t *pmove) {
 		PM_FlyMove();
 	} else if (pm->ps->pm_flags & PMF_TIME_WATERJUMP) {
 		PM_WaterJumpMove();
+	} else if ( pm->ps->pm_flags & PMF_LADDER_MOVE ) {
+		// onto a ladder or over its top
+		PM_LadderMoving();
 	} else if ( pml.ladder ) {
 		// on a ladder, even one standing in water (Daikatana's are)
 		PM_LadderMove();

@@ -807,6 +807,57 @@ void BotReportStatus(bot_state_t *bs) {
 
 /*
 ==================
+Svcmd_BotGoto_f
+
+botgoto <bot> <x> <y> <z>: orders a bot to a spot (as a camp order), to
+test its routes, e.g. over a ladder.
+==================
+*/
+void Svcmd_BotGoto_f(void) {
+	char name[MAX_TOKEN_CHARS], arg[MAX_TOKEN_CHARS];
+	bot_state_t *bs;
+	vec3_t origin;
+	int playernum, areanum, i;
+
+	if (trap_Argc() < 5) {
+		BotAI_Print(PRT_MESSAGE, "Usage: botgoto <bot> <x> <y> <z>\n");
+		return;
+	}
+	trap_Argv(1, name, sizeof(name));
+	playernum = PlayerFromName(name);
+	if (playernum < 0 || !botstates[playernum] || !botstates[playernum]->inuse) {
+		BotAI_Print(PRT_MESSAGE, "%s is not a bot\n", name);
+		return;
+	}
+	for (i = 0; i < 3; i++) {
+		trap_Argv(2 + i, arg, sizeof(arg));
+		origin[i] = atof(arg);
+	}
+	areanum = BotPointAreaNum(origin);
+	if (!areanum) {
+		BotAI_Print(PRT_MESSAGE, "(%s) is in no area\n", vtos(origin));
+		return;
+	}
+	bs = botstates[playernum];
+	memset(&bs->teamgoal, 0, sizeof(bs->teamgoal));
+	bs->teamgoal.entitynum = -1;
+	bs->teamgoal.areanum = areanum;
+	VectorCopy(origin, bs->teamgoal.origin);
+	VectorSet(bs->teamgoal.mins, -8, -8, -8);
+	VectorSet(bs->teamgoal.maxs, 8, 8, 8);
+	bs->decisionmaker = playernum;
+	bs->teammate = playernum;
+	bs->ordered = qtrue;
+	bs->order_time = FloatTime();
+	bs->teammessage_time = 0;
+	bs->ltgtype = LTG_CAMPORDER;
+	bs->teamgoal_time = FloatTime() + 120;
+	bs->arrive_time = 0;
+	BotAI_Print(PRT_MESSAGE, "%s: going to area %d (%s)\n", name, areanum, vtos(origin));
+}
+
+/*
+==================
 Svcmd_BotTeamplayReport_f
 ==================
 */
@@ -1343,6 +1394,7 @@ void BotInputToUserCommand(bot_input_t *bi, usercmd_t *ucmd, int delta_angles[3]
 	if (bi->actionflags & ACTION_TALK) ucmd->buttons |= BUTTON_TALK;
 	if (bi->actionflags & ACTION_GESTURE) ucmd->buttons |= BUTTON_GESTURE;
 	if (bi->actionflags & ACTION_USE) ucmd->buttons |= BUTTON_USE_HOLDABLE;
+	if (bi->actionflags & ACTION_ACTIVATE) ucmd->buttons |= BUTTON_ACTIVATE;
 	if (bi->actionflags & ACTION_WALK) ucmd->buttons |= BUTTON_WALKING;
 	if (bi->actionflags & ACTION_AFFIRMATIVE) ucmd->buttons |= BUTTON_AFFIRMATIVE;
 	if (bi->actionflags & ACTION_NEGATIVE) ucmd->buttons |= BUTTON_NEGATIVE;

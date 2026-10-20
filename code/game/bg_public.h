@@ -517,6 +517,10 @@ typedef enum {
 #define PMF_INVULEXPAND		16384	// invulnerability sphere set to full size
 #define PMF_LADDER			32768	// holding a ladder (ladderYaw its facing)
 #define PMF_ACTIVATE_HELD	65536	// +activate is down: it acts once a press
+#define PMF_LADDER_AHEAD	131072	// +activate would take hold of a ladder ahead (the cgame's prompt)
+#define PMF_LADDER_BELOW	262144	// or of one down over the edge ahead
+#define PMF_LADDER_MOVE		524288	// moving onto a ladder or over its top (pm_time; to grapplePoint)
+#define PMF_LADDER_OFF		1048576	// that move ends off the ladder (over its top)
 
 #define	PMF_ALL_TIMES	(PMF_TIME_WATERJUMP|PMF_TIME_LAND|PMF_TIME_KNOCKBACK)
 

@@ -219,6 +219,13 @@ void EA_Use(int playerNum)
 	bi->actionflags |= ACTION_USE;
 } //end of the function EA_Use
 //===========================================================================
+// +activate: take hold of a ladder, let go
+//===========================================================================
+void EA_Activate(int playerNum)
+{
+	botinputs[playerNum].actionflags |= ACTION_ACTIVATE;
+} //end of the function EA_Activate
+//===========================================================================
 //
 // Parameter:			-
 // Returns:				-

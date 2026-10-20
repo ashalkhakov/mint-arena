@@ -2315,6 +2315,39 @@ static void CG_DrawVote(void) {
 
 /*
 =================
+CG_DrawLadderPrompt
+
+What +activate does with a ladder now, as Resident Evil 2's remake shows it:
+take hold of the one ahead, climb down the one below, or let go.
+=================
+*/
+static void CG_DrawLadderPrompt( void ) {
+	const playerState_t *ps = &cg.cur_lc->predictedPlayerState;
+	char keys[64];
+	const char *what;
+
+	if ( ps->pm_type != PM_NORMAL || ps->stats[STAT_HEALTH] <= 0 || ( ps->pm_flags & PMF_LADDER_MOVE ) ) {
+		return;
+	}
+	if ( ps->pm_flags & PMF_LADDER ) {
+		what = "Let go";
+	} else if ( ps->pm_flags & PMF_LADDER_AHEAD ) {
+		what = "Climb";
+	} else if ( ps->pm_flags & PMF_LADDER_BELOW ) {
+		what = "Climb down";
+	} else {
+		return;
+	}
+	CG_KeysStringForBinding( Com_LocalPlayerCvarName( cg.cur_localPlayerNum, "+use" ), keys, sizeof( keys ) );
+	if ( !keys[0] || !Q_stricmp( keys, "???" ) ) {
+		CG_KeysStringForBinding( Com_LocalPlayerCvarName( cg.cur_localPlayerNum, "+activate" ), keys, sizeof( keys ) );
+	}
+	CG_DrawString( SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.66f, va( "[%s] %s", keys, what ),
+				   UI_CENTER | UI_DROPSHADOW | UI_SMALLFONT, NULL );
+}
+
+/*
+=================
 CG_DrawTeamVote
 =================
 */
@@ -2908,6 +2941,7 @@ static void CG_Draw2D(stereoFrame_t stereoFrame, qboolean *voiceMenuOpen)
 
 	CG_DrawVote();
 	CG_DrawTeamVote();
+	CG_DrawLadderPrompt();
 
 	CG_DrawLagometer();
 

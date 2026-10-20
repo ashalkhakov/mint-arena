@@ -2081,6 +2081,11 @@ bot_moveresult_t BotTravel_Ladder(bot_movestate_t *ms, aas_reachability_t *reach
 		//elemantary action
 		EA_Move(ms->playernum, origin, 0);
 		EA_MoveForward(ms->playernum);
+		//ladders are taken hold of with +activate (pmove's CheckLadder):
+		//a press is what counts, so released again after each, till held
+		if ( !( g_entities[ms->entitynum].player->ps.pm_flags & ( PMF_LADDER | PMF_ACTIVATE_HELD ) ) ) {
+			EA_Activate(ms->playernum);
+		}
 		//set movement view flag so the AI can see the view is focussed
 		result.flags |= MOVERESULT_MOVEMENTVIEW;
 	} //end if
