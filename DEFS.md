@@ -230,6 +230,14 @@ fast an animation goes over the ground at its own pace, and running,
 walking and crouching play theirs at the player's speed over it, so the feet
 keep to the ground.
 
+**Ladders are held** (`PMF_LADDER`): `+activate` (or `+use`, bound to E)
+takes hold of the ladder ahead, or at the top of one lowers the player onto
+it, facing it; climbing up into one (jump, or forward looking up) takes hold
+too, as bots climb. Held, forward or jump climbs, back or crouch (or forward
+looking well down) climbs down, and moving can't pull the player off: at the
+top it goes over onto the ledge (crouched under a low ceiling), at the foot
+it steps off, and `+activate` lets go.
+
 **Ladders.** On a ladder pmove plays `LEGS_CLIMB` (or `LEGS_CLIMBDOWN` going
 down); a skeletal model maps them like the rest (Daikatana's `ladderup`,
 `ladderdn`). Their frames go by height, not time: a cycle for every

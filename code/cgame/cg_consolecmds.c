@@ -1633,6 +1633,10 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "-altattack", IN_Button1Up, 0 },
 	{ "+reload", IN_Button11Down, 0 },		// BUTTON_RELOAD
 	{ "-reload", IN_Button11Up, 0 },
+	{ "+activate", IN_Button12Down, 0 },	// BUTTON_ACTIVATE: take hold of a ladder, let go
+	{ "-activate", IN_Button12Up, 0 },
+	{ "+use", IN_Button12Down, 0 },			// Daikatana's name for it
+	{ "-use", IN_Button12Up, 0 },
 	{ "+back",IN_BackDown, 0 },
 	{ "-back",IN_BackUp, 0 },
 	{ "+button0", IN_Button0Down, 0 },

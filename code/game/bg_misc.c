@@ -619,7 +619,7 @@ vmNetField_t	bg_playerStateFields[] =
 { PSF(events[0]), 8 },
 { PSF(legsAnim), 8 },
 { PSF(events[1]), 8 },
-{ PSF(pm_flags), 16 },
+{ PSF(pm_flags), 18 },
 { PSF(groundEntityNum), GENTITYNUM_BITS },
 { PSF(weaponBurst), 8 },
 { PSF(weaponstate), 4 },

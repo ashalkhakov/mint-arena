@@ -439,6 +439,7 @@ usercmd_t->button bits definitions
 #define	BUTTON_PATROL		(1<<9)
 #define	BUTTON_FOLLOWME		(1<<10)
 #define	BUTTON_RELOAD		(1<<11)		// "+reload": Doom 3's reload (its _impulse13)
+#define	BUTTON_ACTIVATE		(1<<12)		// "+activate" ("+use"): take hold of a ladder, let go
 
 #define	BUTTON_TALK			(1<<13)		// displays talk balloon and disables actions
 
@@ -514,6 +515,8 @@ typedef enum {
 #define PMF_FOLLOW			4096	// spectate following another player
 #define PMF_SCOREBOARD		8192	// spectate as a scoreboard
 #define PMF_INVULEXPAND		16384	// invulnerability sphere set to full size
+#define PMF_LADDER			32768	// holding a ladder (ladderYaw its facing)
+#define PMF_ACTIVATE_HELD	65536	// +activate is down: it acts once a press
 
 #define	PMF_ALL_TIMES	(PMF_TIME_WATERJUMP|PMF_TIME_LAND|PMF_TIME_KNOCKBACK)
 
