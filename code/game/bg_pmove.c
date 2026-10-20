@@ -44,8 +44,8 @@ float	pm_duckScale = 0.25f;
 float	pm_swimScale = 0.50f;
 float	pm_ladderScale = 1.0f;
 
-#define LADDER_CLIMB_SPEED	200		// Daikatana's (pmove.cpp)
-#define LADDER_SIDE_SPEED	75
+#define LADDER_CLIMB_SPEED	50		// a quarter of Daikatana's 200 (pmove.cpp): its climb animation climbs ~37 a second
+#define LADDER_SIDE_SPEED	20		// and across, a quarter of its 75
 #define LADDER_VIEW_YAW		70		// how far the view turns from a ladder
 
 float	pm_accelerate = 10.0f;

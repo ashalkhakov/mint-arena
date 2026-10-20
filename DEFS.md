@@ -245,8 +245,8 @@ later); the feet go onto the rungs the same way. The rungs are found by rays
 from the player through the ladder's box (which Daikatana's maps have in
 front of them, invisible: the converter makes those player clip) to what's
 drawn behind it. The weapon is put away and doesn't fire, and the view turns at most 70°
-from the ladder. Climbing is Daikatana's: 200 up or down (looking up or down
-while going forward, or jump and crouch), 75 across, even from water.
+from the ladder. Climbing is Daikatana's way, a quarter as fast: 50 up or down (looking up or down
+while going forward, or jump and crouch), 20 across, even from water.
 
 The player's box is its model's (`BG_PlayerBox`): `mins`/`maxs` standing,
 `crouch_height` its top crouched, Quake 3's without a def. The game sizes it
