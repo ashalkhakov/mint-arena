@@ -86,7 +86,7 @@ int numareacacheupdates;
 int numportalcacheupdates;
 #endif //ROUTING_DEBUG
 
-int routingcachesize;
+#define routingcachesize aasworld.routingcachesize	// each AAS world's own
 int max_routingcachesize;
 
 //===========================================================================

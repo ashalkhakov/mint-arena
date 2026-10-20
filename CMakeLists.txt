@@ -1137,6 +1137,7 @@ set(Q3CGOBJ
   cgame/cg_drawtools.c
   cgame/cg_effects.c
   cgame/cg_fx.c
+  cgame/cg_aas.c
   cgame/cg_character.c
   cgame/cg_ents.c
   cgame/cg_event.c

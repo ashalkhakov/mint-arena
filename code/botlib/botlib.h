@@ -144,6 +144,8 @@ typedef struct aas_export_s
 	int			(*AAS_Initialized)(void);
 	void		(*AAS_PresenceTypeBoundingBox)(int presencetype, vec3_t mins, vec3_t maxs);
 	float		(*AAS_Time)(void);
+	void		(*AAS_SetCurrentWorld)(int world);	// AASWORLD_* (be_aas.h)
+	int			(*AAS_CurrentWorld)(void);
 	//-----------------------------------
 	// be_aas_debug.c
 	//-----------------------------------

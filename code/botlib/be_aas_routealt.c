@@ -51,16 +51,10 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define ENABLE_ALTROUTING
 //#define ALTROUTE_DEBUG
 
-typedef struct midrangearea_s
-{
-	int valid;
-	unsigned short starttime;
-	unsigned short goaltime;
-} midrangearea_t;
-
-midrangearea_t *midrangeareas;
-int *clusterareas;
-int numclusterareas;
+// each AAS world's own
+#define midrangeareas		aasworld.midrangeareas
+#define clusterareas		aasworld.clusterareas
+#define numclusterareas		aasworld.numclusterareas
 
 //===========================================================================
 //

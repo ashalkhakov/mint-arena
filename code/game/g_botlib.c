@@ -286,6 +286,16 @@ void trap_AAS_FloodAreas( vec3_t origin ) {
 }
 
 
+// the AAS world (creature size, AASWORLD_*) the AAS calls work on; set it
+// back to AASWORLD_STANDARD for the bots
+void trap_AAS_SetCurrentWorld( int world ) {
+	botlib_export->aas.AAS_SetCurrentWorld( world );
+}
+
+int trap_AAS_CurrentWorld( void ) {
+	return botlib_export->aas.AAS_CurrentWorld();
+}
+
 int trap_AAS_PointAreaNum(vec3_t point) {
 	return botlib_export->aas.AAS_PointAreaNum( point );
 }

@@ -67,7 +67,7 @@ typedef struct aas_tracestack_s
 	int nodenum;		//node found after splitting with planenum
 } aas_tracestack_t;
 
-int numaaslinks;
+#define numaaslinks aasworld.numaaslinks	// each AAS world's own
 
 //===========================================================================
 //
@@ -77,10 +77,21 @@ int numaaslinks;
 //===========================================================================
 void AAS_PresenceTypeBoundingBox(int presencetype, vec3_t mins, vec3_t maxs)
 {
-	int index;
+	int index, i;
 	//bounding box size for each presence type
 	vec3_t boxmins[3] = {{0, 0, 0}, {-15, -15, -24}, {-15, -15, -24}};
 	vec3_t boxmaxs[3] = {{0, 0, 0}, { 15,  15,  32}, { 15,  15,   8}};
+
+	//the AAS file's own, its world's creature size
+	for (i = 0; i < aasworld.numbboxes; i++)
+	{
+		if (aasworld.bboxes[i].presencetype == presencetype)
+		{
+			VectorCopy(aasworld.bboxes[i].mins, mins);
+			VectorCopy(aasworld.bboxes[i].maxs, maxs);
+			return;
+		} //end if
+	} //end for
 
 	if (presencetype == PRESENCE_NORMAL) index = 1;
 	else if (presencetype == PRESENCE_CROUCH) index = 2;

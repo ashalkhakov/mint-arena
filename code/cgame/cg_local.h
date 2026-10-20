@@ -1431,6 +1431,9 @@ extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
 extern	vmCvar_t		cg_drawHitboxes;
 extern	vmCvar_t		cg_drawSkeleton;
+extern	vmCvar_t		cg_drawAAS;
+extern	vmCvar_t		cg_drawAASRange;
+extern	vmCvar_t		cg_drawAASShow;
 extern	vmCvar_t		cg_drawSnapshot;
 extern	vmCvar_t		cg_draw3dIcons;
 extern	vmCvar_t		cg_drawIcons;
@@ -1867,6 +1870,11 @@ void CG_Character( centity_t *cent );
 void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *legs, const vec3_t torsoAxis[3],
 						 const vec3_t headAxis[3], refEntity_t *torso, refEntity_t *weapon, refEntity_t *flag );
 void CG_DebugLine( const vec3_t start, const vec3_t end, const vec4_t color );
+
+//
+// cg_aas.c
+//
+void CG_DrawAAS( void );
 void CG_AddRefEntityWithMinLight( const refEntity_t *entity );
 void CG_SetEntitySoundPosition( centity_t *cent );
 void CG_AddPacketEntities( void );

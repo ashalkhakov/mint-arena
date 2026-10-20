@@ -41,6 +41,14 @@ Suite 120, Rockville, Maryland 20850 USA.
 
 #define MAX_EPAIRKEY 128
 
+// AAS worlds, after RTCW's: one per creature size, each its own .aas
+// (maps/<map>.aas, <map>_large.aas, <map>_xxl.aas); the AAS functions work
+// on the current one (AAS_SetCurrentWorld), the standard one by default
+#define AASWORLD_STANDARD		0		// the player's size: bots
+#define AASWORLD_LARGE			1
+#define AASWORLD_XXL			2
+#define MAX_AAS_WORLDS			3
+
 #ifndef MAX_STRINGFIELD
 #define MAX_STRINGFIELD				80
 #endif

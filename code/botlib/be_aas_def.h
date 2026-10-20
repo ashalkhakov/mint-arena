@@ -182,6 +182,14 @@ typedef struct aas_reachabilityareas_s
 	int firstarea, numareas;
 } aas_reachabilityareas_t;
 
+//alternative routing's mid range areas (be_aas_routealt.c)
+typedef struct midrangearea_s
+{
+	int valid;
+	unsigned short starttime;
+	unsigned short goaltime;
+} midrangearea_t;
+
 typedef struct aas_s
 {
 	int loaded;									//true when an AAS file is loaded
@@ -272,6 +280,14 @@ typedef struct aas_s
 	//areas the reachabilities go through
 	int *reachabilityareaindex;
 	aas_reachabilityareas_t *reachabilityareas;
+	//its link heap's free links (be_aas_sample.c)
+	int numaaslinks;
+	//its routing cache's size (be_aas_route.c)
+	int routingcachesize;
+	//alternative routing (be_aas_routealt.c)
+	midrangearea_t *midrangeareas;
+	int *clusterareas;
+	int numclusterareas;
 } aas_t;
 
 #define AASINTERN

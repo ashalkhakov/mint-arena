@@ -51,16 +51,35 @@ Suite 120, Rockville, Maryland 20850 USA.
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
+static int AAS_UpdateWorldEntity(int entnum, bot_entitystate_t *state);
+
 int AAS_UpdateEntity(int entnum, bot_entitystate_t *state)
 {
-	qboolean relink;
-	aas_entity_t *ent;
+	int w, current, errnum;
 
-	if (!aasworld.loaded)
+	if (!aasworlds[AASWORLD_STANDARD].loaded)
 	{
 		botimport.Print(PRT_MESSAGE, "AAS_UpdateEntity: not loaded\n");
 		return BLERR_NOAASFILE;
 	} //end if
+	//into every world
+	current = AAS_CurrentWorld();
+	errnum = BLERR_NOERROR;
+	for (w = 0; w < MAX_AAS_WORLDS; w++)
+	{
+		AAS_SetCurrentWorld(w);
+		if (!aasworld.loaded) continue;
+		if (w == AASWORLD_STANDARD) errnum = AAS_UpdateWorldEntity(entnum, state);
+		else AAS_UpdateWorldEntity(entnum, state);
+	} //end for
+	AAS_SetCurrentWorld(current);
+	return errnum;
+} //end of the function AAS_UpdateEntity
+
+static int AAS_UpdateWorldEntity(int entnum, bot_entitystate_t *state)
+{
+	qboolean relink;
+	aas_entity_t *ent;
 
 	ent = &aasworld.entities[entnum];
 
@@ -91,14 +110,18 @@ int AAS_UpdateEntity(int entnum, bot_entitystate_t *state)
 			AAS_UnlinkFromAreas(ent->areas);
 			//relink the entity to the AAS areas (use the larges bbox)
 			ent->areas = AAS_LinkEntityClientBBox(state->absmins, state->absmaxs, entnum, PRESENCE_NORMAL);
-			//unlink the entity from the BSP leaves
-			AAS_UnlinkFromBSPLeaves(ent->leaves);
-			//link the entity to the world BSP tree
-			ent->leaves = AAS_BSPLinkEntity(state->absmins, state->absmaxs, entnum, 0);
+			//the BSP's shared: linked to its leaves in the standard world
+			if (AAS_CurrentWorld() == AASWORLD_STANDARD)
+			{
+				//unlink the entity from the BSP leaves
+				AAS_UnlinkFromBSPLeaves(ent->leaves);
+				//link the entity to the world BSP tree
+				ent->leaves = AAS_BSPLinkEntity(state->absmins, state->absmaxs, entnum, 0);
+			} //end if
 		} //end if
 	} //end if
 	return BLERR_NOERROR;
-} //end of the function AAS_UpdateEntity
+} //end of the function AAS_UpdateWorldEntity
 //===========================================================================
 //
 // Parameter:				-

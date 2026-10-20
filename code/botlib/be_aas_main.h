@@ -39,7 +39,14 @@ Suite 120, Rockville, Maryland 20850 USA.
 
 #ifdef AASINTERN
 
-extern aas_t aasworld;
+// the AAS worlds, one per creature size; aasworld is the current one
+extern aas_t aasworlds[MAX_AAS_WORLDS];
+extern aas_t *aasworldp;
+#define aasworld (*aasworldp)
+
+//the AAS world the functions work on
+void AAS_SetCurrentWorld(int world);
+int AAS_CurrentWorld(void);
 
 //AAS error message
 void QDECL AAS_Error(char *fmt, ...) __attribute__ ((format (printf, 1, 2)));

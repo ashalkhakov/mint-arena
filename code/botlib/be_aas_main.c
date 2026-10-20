@@ -48,7 +48,11 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "be_interface.h"
 #include "be_aas_def.h"
 
-aas_t aasworld;
+aas_t aasworlds[MAX_AAS_WORLDS];
+aas_t *aasworldp = aasworlds;
+
+// the worlds' files: maps/<map><suffix>.aas
+static const char *aasWorldSuffixes[MAX_AAS_WORLDS] = { "", "_large", "_xxl" };
 
 libvar_t *saveroutingcache;
 
@@ -68,6 +72,23 @@ void QDECL AAS_Error(char *fmt, ...)
 	va_end(arglist);
 	botimport.Print(PRT_FATAL, "%s", str);
 } //end of the function AAS_Error
+//===========================================================================
+// the AAS world the functions work on (AASWORLD_*)
+//===========================================================================
+void AAS_SetCurrentWorld(int world)
+{
+	if (world < 0 || world >= MAX_AAS_WORLDS)
+	{
+		AAS_Error("AAS_SetCurrentWorld: no world %d\n", world);
+		return;
+	} //end if
+	aasworldp = &aasworlds[world];
+} //end of the function AAS_SetCurrentWorld
+
+int AAS_CurrentWorld(void)
+{
+	return aasworldp - aasworlds;
+} //end of the function AAS_CurrentWorld
 //===========================================================================
 //
 // Parameter:				-
@@ -149,7 +170,23 @@ void AAS_ContinueInit(float time)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
+static int AAS_StartWorldFrame(float time);
+
 int AAS_StartFrame(float time)
+{
+	int w;
+
+	for (w = MAX_AAS_WORLDS - 1; w >= 0; w--)
+	{
+		AAS_SetCurrentWorld(w);
+		if (!aasworld.loaded && w != AASWORLD_STANDARD) continue;
+		AAS_StartWorldFrame(time);
+	} //end for
+	//the standard world's current, as the bots expect
+	return BLERR_NOERROR;
+} //end of the function AAS_StartFrame
+
+static int AAS_StartWorldFrame(float time)
 {
 	aasworld.time = time;
 	//unlink all entities that were not updated last frame
@@ -182,7 +219,7 @@ int AAS_StartFrame(float time)
 		} //end if
 	} //end if
 	//
-	if (saveroutingcache->value)
+	if (saveroutingcache->value && AAS_CurrentWorld() == AASWORLD_STANDARD)
 	{
 		AAS_WriteRouteCache();
 		LibVarSet("saveroutingcache", "0");
@@ -190,7 +227,7 @@ int AAS_StartFrame(float time)
 	//
 	aasworld.numframes++;
 	return BLERR_NOERROR;
-} //end of the function AAS_StartFrame
+} //end of the function AAS_StartWorldFrame
 //===========================================================================
 //
 // Parameter:				-
@@ -233,11 +270,11 @@ int AAS_LoadFiles(const char *mapname)
 	// the AAS link heap and BSP link heap are reset after respectively the
 	// AAS file and BSP file are loaded
 	AAS_ResetEntityLinks();
-	// load bsp info
-	AAS_LoadBSPFile();
+	// load bsp info, once for all the worlds
+	if (AAS_CurrentWorld() == AASWORLD_STANDARD) AAS_LoadBSPFile();
 
 	//load the aas file
-	Com_sprintf(aasfile, sizeof(aasfile), "maps/%s.aas", mapname);
+	Com_sprintf(aasfile, sizeof(aasfile), "maps/%s%s.aas", mapname, aasWorldSuffixes[AAS_CurrentWorld()]);
 	errnum = AAS_LoadAASFile(aasfile);
 	if (errnum != BLERR_NOERROR)
 		return errnum;
@@ -253,16 +290,56 @@ int AAS_LoadFiles(const char *mapname)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
+static int AAS_LoadWorld(const char *mapname);
+
 int AAS_LoadMap(const char *mapname)
 {
-	int	errnum;
+	int errnum, w;
 
 	//if no mapname is provided then the string indexes are updated
 	if (!mapname)
 	{
 		return 0;
 	} //end if
-	//
+	//the standard world (bots) must be there, the others may not
+	AAS_InitSettings();
+	for (w = MAX_AAS_WORLDS - 1; w > AASWORLD_STANDARD; w--)
+	{
+		char aasfile[MAX_QPATH];
+		fileHandle_t fp;
+
+		AAS_SetCurrentWorld(w);
+		//the last map's, if it had this world
+		if (aasworld.loaded)
+		{
+			AAS_ShutdownAlternativeRouting();
+			AAS_FreeRoutingCaches();
+			AAS_DumpAASData();
+		} //end if
+		aasworld.loaded = qfalse;
+		aasworld.initialized = qfalse;
+		//a map needn't have the bigger sizes' worlds
+		Com_sprintf(aasfile, sizeof(aasfile), "maps/%s%s.aas", mapname, aasWorldSuffixes[w]);
+		if (botimport.FS_FOpenFile(aasfile, &fp, FS_READ) <= 0)
+		{
+			if (fp) botimport.FS_FCloseFile(fp);
+			continue;
+		} //end if
+		botimport.FS_FCloseFile(fp);
+		if (AAS_LoadWorld(mapname) == BLERR_NOERROR)
+		{
+			botimport.Print(PRT_MESSAGE, "loaded maps/%s%s.aas\n", mapname, aasWorldSuffixes[w]);
+		} //end if
+	} //end for
+	AAS_SetCurrentWorld(AASWORLD_STANDARD);
+	errnum = AAS_LoadWorld(mapname);
+	return errnum;
+} //end of the function AAS_LoadMap
+
+static int AAS_LoadWorld(const char *mapname)
+{
+	int	errnum;
+
 	aasworld.initialized = qfalse;
 	//NOTE: free the routing caches before loading a new map because
 	// to free the caches the old number of areas, number of clusters
@@ -275,8 +352,6 @@ int AAS_LoadMap(const char *mapname)
 		aasworld.loaded = qfalse;
 		return errnum;
 	} //end if
-	//
-	AAS_InitSettings();
 	//initialize the AAS link heap for the new map
 	AAS_InitAASLinkHeap();
 	//initialize the AAS linked entities for the new map
@@ -287,7 +362,7 @@ int AAS_LoadMap(const char *mapname)
 	AAS_InitAlternativeRouting();
 	//everything went ok
 	return 0;
-} //end of the function AAS_LoadMap
+} //end of the function AAS_LoadWorld
 //===========================================================================
 // called when the library is first loaded
 //
@@ -295,7 +370,21 @@ int AAS_LoadMap(const char *mapname)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
+static int AAS_SetupWorld(void);
+
 int AAS_Setup(void)
+{
+	int w;
+
+	for (w = MAX_AAS_WORLDS - 1; w >= 0; w--)
+	{
+		AAS_SetCurrentWorld(w);
+		AAS_SetupWorld();
+	} //end for
+	return BLERR_NOERROR;
+} //end of the function AAS_Setup
+
+static int AAS_SetupWorld(void)
 {
 	aasworld.maxclients = (int) LibVarValue("maxclients", "128");
 	aasworld.maxentities = (int) LibVarValue("maxentities", "1024");
@@ -312,18 +401,33 @@ int AAS_Setup(void)
 	//LibVarSet("forcereachability", "1");		//force reachability calculation
 	aasworld.numframes = 0;
 	return BLERR_NOERROR;
-} //end of the function AAS_Setup
+} //end of the function AAS_SetupWorld
 //===========================================================================
 //
 // Parameter:				-
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
+static void AAS_ShutdownWorld(void);
+
 void AAS_Shutdown(void)
 {
-	AAS_ShutdownAlternativeRouting();
-	//
+	int w;
+
+	for (w = MAX_AAS_WORLDS - 1; w >= 0; w--)
+	{
+		AAS_SetCurrentWorld(w);
+		AAS_ShutdownWorld();
+	} //end for
+	//the BSP's shared by the worlds
 	AAS_DumpBSPData();
+	//print shutdown
+	botimport.Print(PRT_DEVELOPER, "AAS shutdown.\n");
+} //end of the function AAS_Shutdown
+
+static void AAS_ShutdownWorld(void)
+{
+	AAS_ShutdownAlternativeRouting();
 	//free routing caches
 	AAS_FreeRoutingCaches();
 	//free aas link heap
@@ -340,6 +444,4 @@ void AAS_Shutdown(void)
 	aasworld.initialized = qfalse;
 	//NOTE: as soon as a new .bsp file is loaded the .bsp file memory is
 	// freed and reallocated, so there's no need to free that memory here
-	//print shutdown
-	botimport.Print(PRT_DEVELOPER, "AAS shutdown.\n");
-} //end of the function AAS_Shutdown
+} //end of the function AAS_ShutdownWorld

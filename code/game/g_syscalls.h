@@ -100,6 +100,8 @@ int		trap_AAS_BBoxAreas(vec3_t absmins, vec3_t absmaxs, int *areas, int maxareas
 int		trap_AAS_AreaInfo( int areanum, void /* struct aas_areainfo_s */ *info );
 
 int		trap_AAS_Loaded(void);
+void	trap_AAS_SetCurrentWorld( int world );
+int		trap_AAS_CurrentWorld( void );
 int		trap_AAS_Initialized(void);
 void	trap_AAS_PresenceTypeBoundingBox(int presencetype, vec3_t mins, vec3_t maxs);
 float	trap_AAS_Time(void);
