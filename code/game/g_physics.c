@@ -442,6 +442,60 @@ static void RB_ContactFriction( rigidBody_t *body, float deltaTime ) {
 
 /*
 ================
+RB_CornersInSolid
+
+How many corners of the body's trace model are inside something solid at
+the pose: exact point tests, without the contact epsilon of a contents
+test of the whole trace model.
+================
+*/
+static int RB_CornersInSolid( const rigidBody_t *body, const vec3_t position, const vec3_t orientation[3] ) {
+	const traceModel_t *trm = ClipModelGetTraceModel( &body->self->clipModel );
+	vec3_t point;
+	int i, num = 0;
+
+	for ( i = 0; i < trm->numVerts; i++ ) {
+		MatrixRotateVector( trm->verts[i], orientation, point );
+		VectorAdd( point, position, point );
+		if ( G_PointContents( point, body->self->s.number ) & body->clipMask & ~CONTENTS_BODY ) {
+			num++;
+		}
+	}
+	return num;
+}
+
+/*
+================
+RB_KeepOutOfSolid
+
+Doom 3's rotational collision misses a body that touches a surface, inside
+the contact epsilon, turning a little further into it, and once a corner is
+in, the surface no longer stops it: a statue rocking against a column goes
+through it. When a step puts a corner into something solid that the body
+wasn't in, keep the move without the turn, or failing that stay put, and
+take the momentum the step would have spent going in.
+================
+*/
+static void RB_KeepOutOfSolid( rigidBody_t *body, rigidBodyPState_t *next ) {
+	if ( !RB_CornersInSolid( body, next->i.position, (const vec3_t *)next->i.orientation ) ) {
+		return;
+	}
+	if ( RB_CornersInSolid( body, body->current.i.position, (const vec3_t *)body->current.i.orientation ) ) {
+		return;		// already in, let it move out
+	}
+
+	VectorClear( next->i.angularMomentum );
+	if ( !RB_CornersInSolid( body, next->i.position, (const vec3_t *)body->current.i.orientation ) ) {
+		AxisCopy( (const vec3_t *)body->current.i.orientation, next->i.orientation );
+		return;
+	}
+	VectorCopy( body->current.i.position, next->i.position );
+	AxisCopy( (const vec3_t *)body->current.i.orientation, next->i.orientation );
+	VectorClear( next->i.linearMomentum );
+}
+
+/*
+================
 RB_EvaluateContacts
 ================
 */
@@ -679,6 +733,7 @@ static qboolean RB_Evaluate( rigidBody_t *body, int timeStepMSec ) {
 	// check for collisions from the current to the next state
 	memset( &collision, 0, sizeof( collision ) );
 	collided = RB_CheckForCollisions( body, &next, &collision );
+	RB_KeepOutOfSolid( body, &next );
 
 	// set the new state
 	body->current = next;
@@ -1734,10 +1789,11 @@ void Svcmd_PropList_f( void ) {
 			continue;
 		}
 		RB_LinearVelocity( body, v );
-		G_Printf( "prop %d %s at %s angles %s speed %.1f contacts %d %s\n", body->self->s.number,
+		G_Printf( "prop %d %s at %s angles %s speed %.1f contacts %d %s%s\n", body->self->s.number,
 					body->shape < PROP_NUM_SHAPES ? bg_propShapeNames[body->shape] : "model",
 					vtos( body->current.i.position ), vtos( body->self->r.currentAngles ), VectorLength( v ),
-					body->numContacts, RB_IsAtRest( body ) ? "resting" : "active" );
+					body->numContacts, RB_IsAtRest( body ) ? "resting" : "active",
+					RB_CornersInSolid( body, body->current.i.position, (const vec3_t *)body->current.i.orientation ) ? ", in solid" : "" );
 		num++;
 	}
 	G_Printf( "%d props\n", num );
@@ -1936,3 +1992,4 @@ void G_PhysicsDebugDraw( void ) {
 		}
 	}
 }
+
