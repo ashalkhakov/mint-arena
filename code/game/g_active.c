@@ -553,6 +553,10 @@ void PlayerEvents( gentity_t *ent, int oldEventSequence ) {
 			FireWeapon( ent );
 			break;
 
+		case EV_ALT_FIRE_WEAPON:
+			AltFireWeapon( ent );
+			break;
+
 		case EV_USE_ITEM0:
 		case EV_USE_ITEM1:
 		case EV_USE_ITEM2:

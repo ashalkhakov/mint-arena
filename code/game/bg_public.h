@@ -381,6 +381,7 @@ typedef struct playerState_s {
 	//int			playerNum;		// ranges from 0 to MAX_CLIENTS-1
 	int			weapon;			// copied to entityState_t->weapon
 	int			weaponstate;
+	int			weaponBurst;	// shots left of a burst
 
 	//vec3_t		viewangles;		// for fixed views
 	//int			viewheight;
@@ -423,6 +424,7 @@ usercmd_t->button bits definitions
 */
 
 #define	BUTTON_ATTACK		(1<<0)
+#define	BUTTON_ATTACK2		(1<<1)		// the weapon's "altfire"
 
 #define	BUTTON_USE_HOLDABLE	(1<<2)
 #define	BUTTON_GESTURE		(1<<3)
@@ -666,6 +668,12 @@ typedef enum {
 } holdable_t;
 
 
+// what a weapon's alt fire button does
+typedef enum {
+	ALTFIRE_NONE,
+	ALTFIRE_DETONATE		// sets off the player's projectiles of the weapon
+} altFire_t;
+
 // weapons are entity defs (bg_defs.c), numbered from 1 when the defs are
 // loaded; 0 is none. NOTE: may not have more than MAX_WEAPONS
 typedef int weapon_t;
@@ -681,6 +689,10 @@ typedef struct bgWeapon_s {
 	int				maxAmmo;		// "maxAmmo"
 	int				raiseTime;		// "raiseTime" seconds, in msec
 	int				lowerTime;		// "lowerTime" seconds, in msec
+	int				burstCount;		// "burstCount": shots a pull of the trigger fires
+	int				burstTime;		// "burstRate" seconds between them, in msec
+	int				altFire;		// "altfire": ALTFIRE_*
+	int				altFireTime;	// "altFireRate" seconds, in msec
 	qboolean		melee;			// "melee": fires only at something in reach
 	int				numProjectiles;	// "numProjectiles"
 	float			spread;			// "spread" degrees
@@ -822,7 +834,9 @@ typedef enum {
 	EV_TAUNT_GUARDBASE,
 	EV_TAUNT_PATROL,
 
-	EV_EXPLOSION
+	EV_EXPLOSION,
+
+	EV_ALT_FIRE_WEAPON
 } entity_event_t;
 
 
@@ -1389,6 +1403,8 @@ extern const char *bg_propShapeNames[PROP_NUM_SHAPES];
 propShape_t	BG_PropShapeForName( const char *name );
 void		BG_PropTraceModel( propShape_t shape, const vec3_t mins, const vec3_t maxs, traceModel_t *trm );
 qboolean	BG_PropModelTraceModel( const char *modelName, float scale, int frame, traceModel_t *trm );
+#define		MAX_PROP_PARTS		8	// convex pieces of a compound prop
+int			BG_PropModelTraceModels( const char *modelName, float scale, int frame, int maxParts, traceModel_t *trms );
 
 long		BG_FS_ReadFile( const char *qpath, void **buffer );
 void		BG_FS_FreeFile( void *buffer );

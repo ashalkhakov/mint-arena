@@ -523,6 +523,7 @@ typedef struct weaponInfo_s {
 	sfxHandle_t		readySound;			// "snd_hum", looped
 	sfxHandle_t		firingSound;		// "snd_firing", looped while firing
 	sfxHandle_t		raiseSound;			// "snd_raise"
+	sfxHandle_t		altFireSound;		// "snd_altfire"
 
 	sfxWeapTiming_t animationSounds[MAX_ANIM_SOUNDS];
 } weaponInfo_t;
@@ -1841,6 +1842,7 @@ void CG_PainEvent( centity_t *cent, int health );
 // cg_ents.c
 //
 qboolean CG_PropTraceModel( const entityState_t *s1, traceModel_t *trm );
+int CG_PropTraceModels( const entityState_t *s1, traceModel_t *trms );
 void CG_AddRefEntityWithMinLight( const refEntity_t *entity );
 void CG_SetEntitySoundPosition( centity_t *cent );
 void CG_AddPacketEntities( void );
@@ -1870,6 +1872,7 @@ void CG_MissileHitWall( int weapon, int playerNum, vec3_t origin, vec3_t dir, im
 void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum );
 void CG_ShotgunPattern( vec3_t origin, vec3_t origin2, int seed, int otherEntNum );
 void CG_HitscanFire( entityState_t *es );
+void CG_AltFireWeapon( centity_t *cent );
 void CG_Bullet( vec3_t origin, int sourceEntityNum, vec3_t normal, qboolean flesh, int fleshEntityNum );
 
 void CG_RailTrail( playerInfo_t *pi, vec3_t start, vec3_t end );

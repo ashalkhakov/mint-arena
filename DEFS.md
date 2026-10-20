@@ -78,6 +78,9 @@ entityDef weapon_ionblaster {
 | `startAmmo` N | ammo when players start with it |
 | `raiseTime`, `lowerTime` S | switching (0.25, 0.2) |
 | `melee` 1 | a melee weapon (the torso animations, awards) |
+| `burstCount` N, `burstRate` S | a pull of the trigger fires N shots S seconds apart; `fireRate` is then the whole burst's |
+| `altfire` `detonate`, `altFireRate` S | the alt attack button (`+altattack`) sets off the player's projectiles of the weapon |
+| `bot_rating` N | how much bots like it (slot × 100); 0, never |
 | `def_projectile` | what it fires |
 | `numProjectiles` N, `spread` D | that many a shot, at most D degrees off aim |
 | `obituary`, `obituary2` | kill message: "victim obituary attacker obituary2" |
@@ -88,8 +91,10 @@ What it looks like: `model_view` (first person), with `anim_raise`,
 the model's frames (`"shoota"` for `shoota01`..., optionally followed by
 frames a second) and `anim_fps` (10); `model_world` (on the player's
 tag_weapon), `model_flash`, `icon`, `snd_fire` (several, picked at random),
-`snd_raise`, `snd_hum`, `snd_firing`, `flashColor` and `flashRadius` (a
-light), `fx_muzzle` (an effect, see below).
+`snd_raise`, `snd_hum`, `snd_firing`, `snd_altfire`, `flashColor` and
+`flashRadius` (a light), `fx_muzzle` (an effect, see below), `anim_altfire`.
+A first person model is drawn at the eye, facing the view, with Daikatana's
+small bob, as its models are made for that.
 
 The weapons players start with are the `weapon` key of the `player` def
 (Doom 3's), a list of weapon defs.
@@ -97,7 +102,8 @@ The weapons players start with are the `weapon` key of the `player` def
 ## Projectiles
 
 The keys are Doom 3's: `velocity` (forward, left, up), `gravity` (non-zero
-falls), `bounce` (the speed kept), `max_bounces`, `fuse` (seconds),
+falls), `bounce` (the speed kept), `max_bounces`, `stick` (stops where it hits, facing out of
+the surface), `fuse` (seconds),
 `detonate_on_fuse`, `detonate_on_world` (else it bounces), `detonate_on_actor`,
 `mins`/`maxs`, `def_damage` and `def_splash_damage` (defs with `damage` and
 `radius`). `"hitscan" "1"` traces the shots at once, to `range` (8192); the

@@ -102,6 +102,28 @@ void G_ExplodeMissile( gentity_t *ent ) {
 
 /*
 ================
+G_StickMissile
+
+Stops it where it hit, facing out of the surface, until it detonates
+(Daikatana's C4).
+================
+*/
+static void G_StickMissile( gentity_t *ent, trace_t *trace ) {
+	SnapVectorTowards( trace->endpos, ent->s.pos.trBase );
+	G_SetOrigin( ent, trace->endpos );
+	VectorClear( ent->s.pos.trDelta );
+	vectoangles( trace->plane.normal, ent->s.angles );
+	ent->s.angles[PITCH] += 90;
+	ent->s.apos.trType = TR_STATIONARY;
+	VectorCopy( ent->s.angles, ent->s.apos.trBase );
+	VectorCopy( ent->s.angles, ent->r.currentAngles );
+	ent->s.groundEntityNum = trace->entityNum;
+	G_AddEvent( ent, EV_GRENADE_BOUNCE, 0 );
+	G_LinkEntity( ent );
+}
+
+/*
+================
 G_MissileImpact
 ================
 */
@@ -110,6 +132,13 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 	qboolean		hitPlayer = qfalse;
 
 	other = &g_entities[trace->entityNum];
+
+	// check for sticking
+	if ( ( ent->missileFlags & MISSILE_STICK )
+		&& !( ent->missileFlags & ( other->takedamage ? MISSILE_DETONATE_ON_ACTOR : MISSILE_DETONATE_ON_WORLD ) ) ) {
+		G_StickMissile( ent, trace );
+		return;
+	}
 
 	// check for bounce
 	if ( !( ent->missileFlags & ( other->takedamage ? MISSILE_DETONATE_ON_ACTOR : MISSILE_DETONATE_ON_WORLD ) )
@@ -182,6 +211,12 @@ void G_RunMissile( gentity_t *ent ) {
 	vec3_t		origin;
 	trace_t		tr;
 	int			passent;
+
+	// stuck to something, it only waits
+	if ( ent->s.pos.trType == TR_STATIONARY && ( ent->missileFlags & MISSILE_STICK ) ) {
+		G_RunThink( ent );
+		return;
+	}
 
 	// get current position
 	BG_EvaluateTrajectory( &ent->s.pos, level.time, origin );
@@ -257,7 +292,7 @@ fire_projectile
 A projectile of the def (Doom 3's keys): "velocity" (forward, right, up),
 "gravity" (non-zero falls), "bounce" (speed kept by a bounce), "fuse"
 (seconds), "detonate_on_fuse", "detonate_on_world", "detonate_on_actor",
-"max_bounces" (then it detonates), "def_damage" and "def_splash_damage"
+"max_bounces" (then it detonates), "stick" (stops where it hits instead), "def_damage" and "def_splash_damage"
 (damage defs with "damage" and "radius"), "mins" and "maxs".
 =================
 */
@@ -289,6 +324,9 @@ gentity_t *fire_projectile( gentity_t *self, const dict_t *def, int weapon, vec3
 		bolt->missileFlags |= MISSILE_DETONATE_ON_ACTOR;
 	}
 	bolt->physicsBounce = DictGetFloat( def, "bounce", "0" );
+	if ( DictGetBool( def, "stick", "0" ) ) {
+		bolt->missileFlags |= MISSILE_STICK;
+	}
 	if ( DictFindKey( def, "max_bounces" ) ) {
 		bolt->missileFlags |= MISSILE_MAX_BOUNCES;
 		bolt->count = DictGetInt( def, "max_bounces", "0" );

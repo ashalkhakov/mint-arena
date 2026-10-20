@@ -39,6 +39,8 @@ Server console commands, for testing without a player:
 - `model`, `modelscale`: an MD3 to draw, colliding as a convex hull of its
   mesh (below), or as the shape when the model has no hull.
 - `static 1`: never moves, solid scenery.
+- `hull_parts N`: how many convex pieces a static model prop may collide as
+  (8; 1 for one hull around all of it).
 - `health`, `breaksound`: breaks after that much damage, firing its targets.
 
 A model prop placed into the floor is lifted out of it; one stuck any other
@@ -53,6 +55,17 @@ polytope is bigger the diagonal plane whose removal adds the least volume
 goes. A hull that comes out with slivers falls back to 18 directions, then
 to a box. Game and cgame build it from the same file, cached per model and
 scale, so prediction collides with what the game simulates.
+
+A static model prop collides as up to 8 convex pieces instead, so concave
+scenery (a tree: its crown, its trunk) isn't wrapped as a whole, as
+Half-Life gives models sets of hit boxes. The mesh is cut in two with a
+plane again and again: each time the piece whose best cut (7 tried along
+each axis) shrinks its bounding box the most is cut, while that saves at
+least 30% of it. The triangles are clipped at the planes, so the pieces meet
+without gaps, and each is wrapped as above. The game links one clip model a
+piece; the cgame (told how many in `origin2[1]`) makes the same pieces to
+predict against. Moving props still simulate as one hull. `proplist` says
+how many pieces a prop has, and debug view 1 draws them.
 
 Daikatana's decos are model props: the converter (bsp-sekai) writes a solid
 `deco_e*` as a `func_physics` with its model, scale and mass, `static` for

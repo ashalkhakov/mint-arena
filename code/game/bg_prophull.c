@@ -623,3 +623,352 @@ qboolean BG_PropModelTraceModel( const char *modelName, float scale, int frame, 
 	*trm = cache->trm;
 	return qtrue;
 }
+
+/*
+===============================================================================
+
+COMPOUND HULLS
+
+A concave model, a tree say, is badly wrapped by one convex hull: the hull
+of the crown reaches down to the ground around the trunk. So, as Half-Life
+does with its sets of hit boxes, the model collides as several convex pieces
+instead. The mesh is cut in two with a plane, again and again: each time the
+piece whose best cut shrinks its bounding volume the most is cut, while that
+saves a good share of it and there are pieces to spare. The triangles are
+clipped at the planes so the pieces meet without gaps. Each piece is then
+wrapped as a single model is.
+
+===============================================================================
+*/
+
+#define PART_CANDIDATE_CUTS		7		// cuts tried along each axis
+#define PART_MIN_SAVING			0.3f	// a cut must save this share of the piece's box
+#define PART_MIN_SHARE			0.02f	// pieces with less of the whole box aren't cut
+
+typedef struct {
+	vec3_t	*tris;			// three points a triangle
+	int		numTris;
+	vec3_t	bounds[2];
+} hullPiece_t;
+
+/*
+================
+Hull_ModelTriangles
+
+The triangles of a frame of every surface of an MD3, scaled.
+================
+*/
+static int Hull_ModelTriangles( const char *modelName, float scale, int frame, vec3_t **trisOut ) {
+	void *buffer;
+	long length;
+	const md3Header_t *header;
+	const md3Surface_t *surf;
+	vec3_t *tris;
+	int numTris = 0, i, j, k, f;
+
+	*trisOut = NULL;
+	length = BG_FS_ReadFile( modelName, &buffer );
+	if ( length < (long)sizeof( md3Header_t ) || !buffer ) {
+		BG_FS_FreeFile( buffer );
+		return 0;
+	}
+	header = (const md3Header_t *)buffer;
+	if ( LittleLong( header->ident ) != MD3_IDENT || LittleLong( header->version ) != MD3_VERSION ) {
+		BG_FS_FreeFile( buffer );
+		return 0;
+	}
+
+	surf = (const md3Surface_t *)( (const byte *)buffer + LittleLong( header->ofsSurfaces ) );
+	for ( i = 0; i < LittleLong( header->numSurfaces ); i++ ) {
+		numTris += LittleLong( surf->numTriangles );
+		surf = (const md3Surface_t *)( (const byte *)surf + LittleLong( surf->ofsEnd ) );
+	}
+	if ( !numTris ) {
+		BG_FS_FreeFile( buffer );
+		return 0;
+	}
+	tris = trap_HeapMalloc( numTris * 3 * sizeof( vec3_t ) );
+
+	f = ( frame < 0 || frame >= LittleLong( header->numFrames ) ) ? 0 : frame;
+	numTris = 0;
+	surf = (const md3Surface_t *)( (const byte *)buffer + LittleLong( header->ofsSurfaces ) );
+	for ( i = 0; i < LittleLong( header->numSurfaces ); i++ ) {
+		const md3XyzNormal_t *xyz = (const md3XyzNormal_t *)( (const byte *)surf + LittleLong( surf->ofsXyzNormals ) )
+									+ f * LittleLong( surf->numVerts );
+		const md3Triangle_t *tri = (const md3Triangle_t *)( (const byte *)surf + LittleLong( surf->ofsTriangles ) );
+		int numVerts = LittleLong( surf->numVerts );
+
+		for ( j = 0; j < LittleLong( surf->numTriangles ); j++, tri++ ) {
+			for ( k = 0; k < 3; k++ ) {
+				int v = LittleLong( tri->indexes[k] );
+
+				if ( v < 0 || v >= numVerts ) {
+					v = 0;
+				}
+				tris[numTris * 3 + k][0] = LittleShort( xyz[v].xyz[0] ) * MD3_XYZ_SCALE * scale;
+				tris[numTris * 3 + k][1] = LittleShort( xyz[v].xyz[1] ) * MD3_XYZ_SCALE * scale;
+				tris[numTris * 3 + k][2] = LittleShort( xyz[v].xyz[2] ) * MD3_XYZ_SCALE * scale;
+			}
+			numTris++;
+		}
+		surf = (const md3Surface_t *)( (const byte *)surf + LittleLong( surf->ofsEnd ) );
+	}
+
+	BG_FS_FreeFile( buffer );
+	*trisOut = tris;
+	return numTris;
+}
+
+static float Hull_BoxVolume( const vec3_t bounds[2] ) {
+	vec3_t size;
+	int i;
+
+	for ( i = 0; i < 3; i++ ) {
+		// flat pieces still have some volume
+		size[i] = bounds[1][i] - bounds[0][i];
+		if ( size[i] < HULL_MIN_SIZE ) {
+			size[i] = HULL_MIN_SIZE;
+		}
+	}
+	return size[0] * size[1] * size[2];
+}
+
+/*
+================
+Hull_ClipTriangle
+
+The parts of a triangle below (side 0) or above (side 1) dist on the axis,
+as up to two triangles. Returns their count.
+================
+*/
+static int Hull_ClipTriangle( const vec3_t tri[3], int axis, float dist, int side, vec3_t out[6] ) {
+	vec3_t poly[4];
+	float d[3], frac;
+	int i, n = 0, numTris;
+
+	for ( i = 0; i < 3; i++ ) {
+		d[i] = side ? tri[i][axis] - dist : dist - tri[i][axis];
+	}
+	for ( i = 0; i < 3; i++ ) {
+		const float *a = tri[i], *b = tri[( i + 1 ) % 3];
+		float da = d[i], db = d[( i + 1 ) % 3];
+
+		if ( da >= 0 ) {
+			VectorCopy( a, poly[n] );
+			n++;
+		}
+		if ( ( da >= 0 ) != ( db >= 0 ) && n < 4 ) {
+			frac = da / ( da - db );
+			poly[n][0] = a[0] + frac * ( b[0] - a[0] );
+			poly[n][1] = a[1] + frac * ( b[1] - a[1] );
+			poly[n][2] = a[2] + frac * ( b[2] - a[2] );
+			n++;
+		}
+	}
+	if ( n < 3 ) {
+		return 0;
+	}
+	numTris = 0;
+	for ( i = 1; i + 1 < n; i++ ) {
+		VectorCopy( poly[0], out[numTris * 3 + 0] );
+		VectorCopy( poly[i], out[numTris * 3 + 1] );
+		VectorCopy( poly[i + 1], out[numTris * 3 + 2] );
+		numTris++;
+	}
+	return numTris;
+}
+
+static void Hull_PieceBounds( hullPiece_t *piece ) {
+	int i;
+
+	ClearBounds( piece->bounds[0], piece->bounds[1] );
+	for ( i = 0; i < piece->numTris * 3; i++ ) {
+		AddPointToBounds( piece->tris[i], piece->bounds[0], piece->bounds[1] );
+	}
+}
+
+/*
+================
+Hull_SplitPiece
+
+Cuts the piece where it saves the most bounding volume, or keeps it whole.
+================
+*/
+static qboolean Hull_SplitPiece( const hullPiece_t *piece, hullPiece_t *below, hullPiece_t *above, float *saving ) {
+	vec3_t sideBounds[2][2], clipped[6];
+	float volume, best, dist, bestDist = 0, v;
+	int axis, cut, side, i, n, j, bestAxis = -1;
+
+	*saving = 0;
+	volume = Hull_BoxVolume( (const vec3_t *)piece->bounds );
+	best = volume;
+	for ( axis = 0; axis < 3; axis++ ) {
+		for ( cut = 1; cut <= PART_CANDIDATE_CUTS; cut++ ) {
+			dist = piece->bounds[0][axis] + ( piece->bounds[1][axis] - piece->bounds[0][axis] ) * cut / ( PART_CANDIDATE_CUTS + 1 );
+			for ( side = 0; side < 2; side++ ) {
+				ClearBounds( sideBounds[side][0], sideBounds[side][1] );
+			}
+			for ( i = 0; i < piece->numTris; i++ ) {
+				for ( side = 0; side < 2; side++ ) {
+					n = Hull_ClipTriangle( (const vec3_t *)&piece->tris[i * 3], axis, dist, side, clipped );
+					for ( j = 0; j < n * 3; j++ ) {
+						AddPointToBounds( clipped[j], sideBounds[side][0], sideBounds[side][1] );
+					}
+				}
+			}
+			if ( sideBounds[0][0][0] > sideBounds[0][1][0] || sideBounds[1][0][0] > sideBounds[1][1][0] ) {
+				continue;	// all on one side
+			}
+			v = Hull_BoxVolume( (const vec3_t *)sideBounds[0] ) + Hull_BoxVolume( (const vec3_t *)sideBounds[1] );
+			if ( v < best ) {
+				best = v;
+				bestAxis = axis;
+				bestDist = dist;
+			}
+		}
+	}
+	if ( bestAxis < 0 ) {
+		return qfalse;
+	}
+	*saving = volume - best;
+	if ( !below ) {
+		return qtrue;	// just asking
+	}
+
+	// cut it
+	below->tris = trap_HeapMalloc( piece->numTris * 6 * sizeof( vec3_t ) );
+	above->tris = trap_HeapMalloc( piece->numTris * 6 * sizeof( vec3_t ) );
+	below->numTris = above->numTris = 0;
+	for ( i = 0; i < piece->numTris; i++ ) {
+		n = Hull_ClipTriangle( (const vec3_t *)&piece->tris[i * 3], bestAxis, bestDist, 0, clipped );
+		memcpy( below->tris[below->numTris * 3], clipped, n * 3 * sizeof( vec3_t ) );
+		below->numTris += n;
+		n = Hull_ClipTriangle( (const vec3_t *)&piece->tris[i * 3], bestAxis, bestDist, 1, clipped );
+		memcpy( above->tris[above->numTris * 3], clipped, n * 3 * sizeof( vec3_t ) );
+		above->numTris += n;
+	}
+	Hull_PieceBounds( below );
+	Hull_PieceBounds( above );
+	return qtrue;
+}
+
+/*
+================
+BG_PropModelTraceModels
+
+Up to maxParts convex trace models that together wrap the model's mesh in
+the frame at the scale (see above), made once per model, scale, frame and
+maxParts. Returns how many, 0 for a model that can't be read.
+================
+*/
+#define MAX_PARTS_CACHE		64
+
+typedef struct {
+	char			model[MAX_QPATH];
+	float			scale;
+	int				frame;
+	int				maxParts;
+	int				numParts;
+	traceModel_t	*trms;
+} partsCache_t;
+
+static partsCache_t	partsCache[MAX_PARTS_CACHE];
+static int			numPartsCache;
+
+int BG_PropModelTraceModels( const char *modelName, float scale, int frame, int maxParts, traceModel_t *trms ) {
+	partsCache_t *cache;
+	hullPiece_t pieces[MAX_PROP_PARTS], below, above;
+	hullPlane_t planes[HULL_MAX_PLANES];
+	hull_t *hull;
+	float saving, bestSaving, total;
+	int i, numPieces, best;
+
+	if ( scale <= 0.0f ) {
+		scale = 1.0f;
+	}
+	maxParts = Com_Clamp( 1, MAX_PROP_PARTS, maxParts );
+	if ( maxParts == 1 ) {
+		return BG_PropModelTraceModel( modelName, scale, frame, trms ) ? 1 : 0;
+	}
+
+	for ( i = 0; i < numPartsCache; i++ ) {
+		cache = &partsCache[i];
+		if ( cache->scale == scale && cache->frame == frame && cache->maxParts == maxParts
+			&& !Q_stricmp( cache->model, modelName ) ) {
+			memcpy( trms, cache->trms, cache->numParts * sizeof( trms[0] ) );
+			return cache->numParts;
+		}
+	}
+	if ( numPartsCache == MAX_PARTS_CACHE ) {
+		// out of room: one hull, uncached
+		return BG_PropModelTraceModel( modelName, scale, frame, trms ) ? 1 : 0;
+	}
+	cache = &partsCache[numPartsCache++];
+	Q_strncpyz( cache->model, modelName, sizeof( cache->model ) );
+	cache->scale = scale;
+	cache->frame = frame;
+	cache->maxParts = maxParts;
+	cache->numParts = 0;
+	cache->trms = NULL;
+
+	numPieces = 0;
+	pieces[0].numTris = Hull_ModelTriangles( modelName, scale, frame, &pieces[0].tris );
+	if ( !pieces[0].numTris ) {
+		// a model without triangles: one hull, if that works
+		if ( BG_PropModelTraceModel( modelName, scale, frame, trms ) ) {
+			cache->trms = trap_HeapMalloc( sizeof( traceModel_t ) );
+			cache->trms[0] = trms[0];
+			cache->numParts = 1;
+		}
+		return cache->numParts;
+	}
+	Hull_PieceBounds( &pieces[0] );
+	numPieces = 1;
+	total = Hull_BoxVolume( (const vec3_t *)pieces[0].bounds );
+
+	// cut the piece that saves the most until it isn't worth it
+	while ( numPieces < maxParts ) {
+		best = -1;
+		bestSaving = 0;
+		for ( i = 0; i < numPieces; i++ ) {
+			if ( Hull_BoxVolume( (const vec3_t *)pieces[i].bounds ) < total * PART_MIN_SHARE ) {
+				continue;
+			}
+			if ( !Hull_SplitPiece( &pieces[i], NULL, NULL, &saving ) ) {
+				continue;
+			}
+			if ( saving < Hull_BoxVolume( (const vec3_t *)pieces[i].bounds ) * PART_MIN_SAVING ) {
+				continue;
+			}
+			if ( saving > bestSaving ) {
+				bestSaving = saving;
+				best = i;
+			}
+		}
+		if ( best < 0 ) {
+			break;
+		}
+		Hull_SplitPiece( &pieces[best], &below, &above, &saving );
+		trap_HeapFree( pieces[best].tris );
+		pieces[best] = below;
+		pieces[numPieces++] = above;
+	}
+
+	// wrap each
+	cache->trms = trap_HeapMalloc( numPieces * sizeof( traceModel_t ) );
+	hull = trap_HeapMalloc( sizeof( *hull ) );
+	for ( i = 0; i < numPieces; i++ ) {
+		if ( pieces[i].numTris && Hull_FromPoints( (const vec3_t *)pieces[i].tris, pieces[i].numTris * 3, hull, planes ) ) {
+			Hull_TraceModel( hull, planes, &cache->trms[cache->numParts++] );
+		}
+		trap_HeapFree( pieces[i].tris );
+	}
+	trap_HeapFree( hull );
+
+	if ( !cache->numParts ) {
+		Com_Printf( S_COLOR_YELLOW "WARNING: no collision hull for %s\n", modelName );
+		return 0;
+	}
+	memcpy( trms, cache->trms, cache->numParts * sizeof( trms[0] ) );
+	return cache->numParts;
+}

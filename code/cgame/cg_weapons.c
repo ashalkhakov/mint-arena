@@ -308,6 +308,7 @@ static qboolean CG_WeaponAnimations( weaponInfo_t *wi, const dict_t *def, const 
 		{ WP_ANIM_FIRE, "anim_fire", qfalse },
 		{ WP_ANIM_RELOAD, "anim_reload", qfalse },
 		{ WP_ANIM_EMPTY, "anim_empty", qfalse },
+		{ WP_ANIM_EXTRA1, "anim_altfire", qfalse },
 	};
 	animation_t *anim;
 	const char *value;
@@ -409,7 +410,7 @@ The media of a weapon, from its entity def (see bg_defs.c):
 	"model_flash"		a flash on the weapon's tag_flash
 	"icon"				(or the item's)
 	"snd_fire"			sounds to choose from at random
-	"snd_hum", "snd_firing", "snd_raise"
+	"snd_hum", "snd_firing", "snd_raise", "snd_altfire"
 	"flashColor", "flashRadius"	a light where it's fired
 	"fx_muzzle"			an effect (effects/*.efx) where it's fired
 and from its projectile's def:
@@ -489,6 +490,7 @@ void CG_RegisterWeapon( int weaponNum ) {
 	CG_DefSounds( def, "snd_hum", &weaponInfo->readySound );
 	CG_DefSounds( def, "snd_firing", &weaponInfo->firingSound );
 	CG_DefSounds( def, "snd_raise", &weaponInfo->raiseSound );
+	CG_DefSounds( def, "snd_altfire", &weaponInfo->altFireSound );
 	DictGetVector( def, "flashColor", "0 0 0", weaponInfo->flashDlightColor );
 	weaponInfo->flashDlight = DictGetFloat( def, "flashRadius", "0" );
 	weaponInfo->muzzleEffect = CG_DefEffect( def, "fx_muzzle" );
@@ -606,6 +608,48 @@ static int CG_MapTorsoToWeaponFrame( playerInfo_t *pi, int frame ) {
 	return 0;
 }
 
+
+/*
+==============
+CG_CalculateViewModelPosition
+
+A first person model (a weapon def's "model_view") is drawn at the eye,
+facing the view, as Daikatana draws them (CL_AddWeaponBob): only a small
+circle of bob while running, which settles when standing.
+==============
+*/
+#define VIEWMODEL_BOB_RADIUS	0.35f
+#define VIEWMODEL_BOB_RATE		0.032f		// radians per unit of speed
+#define VIEWMODEL_BOB_SETTLE	7.5f		// radians a second
+
+static void CG_CalculateViewModelPosition( const playerState_t *ps, vec3_t origin, vec3_t angles ) {
+	static float bobTime;
+	float frametime, speed, x, y;
+
+	VectorCopy( cg.refdef.vieworg, origin );
+	VectorCopy( cg.refdefViewAngles, angles );
+
+	frametime = cg.frametime * 0.001f;
+	speed = cg.xyspeed;
+	if ( speed > 375 ) {
+		speed = 375;
+	}
+	if ( speed > 3 && ps->groundEntityNum != ENTITYNUM_NONE ) {
+		bobTime += speed * VIEWMODEL_BOB_RATE * frametime;
+		if ( bobTime > 2 * M_PI ) {
+			bobTime -= 2 * M_PI;
+		}
+	} else if ( bobTime >= M_PI ) {
+		bobTime = MAX( M_PI, bobTime - VIEWMODEL_BOB_SETTLE * frametime );
+	} else {
+		bobTime = MIN( M_PI, bobTime + VIEWMODEL_BOB_SETTLE * frametime );
+	}
+
+	x = cos( bobTime ) * VIEWMODEL_BOB_RADIUS;
+	y = fabs( x );
+	VectorMA( origin, x, cg.refdef.viewaxis[1], origin );
+	VectorMA( origin, -y, cg.refdef.viewaxis[2], origin );
+}
 
 /*
 ==============
@@ -778,10 +822,10 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 	}
 
 	if ( ps && weapon->animated ) {
-		// if it's a viewmodel and a gauntlet, it doesn't need the hand tag, actually
+		// a first person model goes where the hand is, keeping its own
+		// animation's frames and lerp
 		VectorCopy(parent->origin, gun.origin);
 		AxisCopy( parent->axis, gun.axis );
-		gun.backlerp = parent->backlerp;
 	} else {
 		trap_R_LerpTag(&lerped, parent->hModel, parent->oldframe, parent->frame,
 			1.0 - parent->backlerp, "tag_weapon");
@@ -914,7 +958,12 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	memset (&hand, 0, sizeof(hand));
 
 	// set up gun position
-	CG_CalculateWeaponPosition( hand.origin, angles );
+	if ( weapon->animated ) {
+		// a first person model made for its place in front of the eye
+		CG_CalculateViewModelPosition( ps, hand.origin, angles );
+	} else {
+		CG_CalculateWeaponPosition( hand.origin, angles );
+	}
 
 	VectorMA( hand.origin, (cg_gun_x.value+fovOffset[0]), cg.refdef.viewaxis[0], hand.origin );
 	VectorMA( hand.origin, (cg_gun_y.value+fovOffset[1]), cg.refdef.viewaxis[1], hand.origin );
@@ -1308,6 +1357,27 @@ void CG_FireWeapon( centity_t *cent ) {
 	if ( weap->muzzleEffect && CG_CalcMuzzlePoint( ent->number, muzzle ) ) {
 		AngleVectors( cent->lerpAngles, forward, NULL, NULL );
 		CG_FX_PlayEffectID( weap->muzzleEffect, muzzle, forward );
+	}
+}
+
+
+/*
+================
+CG_AltFireWeapon
+
+Caused by an EV_ALT_FIRE_WEAPON event
+================
+*/
+void CG_AltFireWeapon( centity_t *cent ) {
+	entityState_t	*ent;
+
+	ent = &cent->currentState;
+	if ( !BG_ValidWeapon( ent->weapon ) ) {
+		return;
+	}
+	CG_RegisterWeapon( ent->weapon );
+	if ( cg_weapons[ent->weapon].altFireSound ) {
+		trap_S_StartSound( NULL, ent->number, CHAN_WEAPON, cg_weapons[ent->weapon].altFireSound );
 	}
 }
 

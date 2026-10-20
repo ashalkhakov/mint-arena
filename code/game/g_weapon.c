@@ -327,6 +327,29 @@ void FireWeapon( gentity_t *ent ) {
 }
 
 
+/*
+===============
+AltFireWeapon
+
+The weapon's "altfire": "detonate" sets off the player's projectiles of it.
+===============
+*/
+void AltFireWeapon( gentity_t *ent ) {
+	gentity_t	*m;
+	int			i;
+
+	if ( BG_Weapon( ent->s.weapon )->altFire != ALTFIRE_DETONATE ) {
+		return;
+	}
+	for ( i = MAX_CLIENTS, m = &g_entities[MAX_CLIENTS]; i < level.num_entities; i++, m++ ) {
+		if ( m->inuse && m->s.eType == ET_MISSILE && m->r.ownerNum == ent->s.number
+			&& m->s.weapon == ent->s.weapon ) {
+			G_ExplodeMissile( m );
+		}
+	}
+}
+
+
 #ifdef MISSIONPACK
 
 /*

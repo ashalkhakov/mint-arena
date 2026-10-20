@@ -127,7 +127,12 @@ G_UnlinkEntity
 ===============
 */
 void G_UnlinkEntity( gentity_t *ent ) {
+	int i;
+
     ClipModelUnlink( &ent->clipModel );
+	for ( i = 0; i < ent->numPartClipModels; i++ ) {
+		ClipModelUnlink( &ent->partClipModels[i] );
+	}
     ClipModelSetOwner( &ent->clipModel, NULL );
 
     trap_UnlinkEntity( ent );

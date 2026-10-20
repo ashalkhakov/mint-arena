@@ -100,6 +100,46 @@ void CG_BuildSolidList( void ) {
 
 /*
 ====================
+CG_ClipMoveToModel
+
+Clips the move against one entity's model, qtrue when it's all solid.
+====================
+*/
+static qboolean CG_ClipMoveToModel( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
+									clipHandle_t cmodel, int mask, const vec3_t origin, const vec3_t angles,
+									traceType_t traceType, int entityNum ) {
+	trace_t trace;
+
+	if ( traceType == TT_BISPHERE ) {
+		trap_CM_TransformedBiSphereTrace( &trace, start, end,
+				mins[ 0 ], maxs[ 0 ], cmodel, mask, origin );
+	} else if ( traceType == TT_CAPSULE ) {
+		trap_CM_TransformedCapsuleTrace ( &trace, start, end,
+				mins, maxs, cmodel,  mask, origin, angles );
+	} else /* if ( traceType == TT_AABB ) */ {
+		trap_CM_TransformedBoxTrace ( &trace, start, end,
+				mins, maxs, cmodel,  mask, origin, angles );
+	}
+
+	if (trace.allsolid || trace.fraction < tr->fraction) {
+		trace.entityNum = entityNum;
+		if( tr->lateralFraction < trace.lateralFraction )
+		{
+			float oldLateralFraction = tr->lateralFraction;
+			*tr = trace;
+			tr->lateralFraction = oldLateralFraction;
+		} else {
+			*tr = trace;
+		}
+	} else if (trace.startsolid) {
+		tr->startsolid = qtrue;
+		tr->entityNum = entityNum;
+	}
+	return tr->allsolid;
+}
+
+/*
+====================
 CG_ClipMoveToEntities
 
 ====================
@@ -109,7 +149,6 @@ static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins,
 		int mask, trace_t *tr, traceType_t traceType )
 {
 	int			i;
-	trace_t		trace;
 	entityState_t	*ent;
 	clipHandle_t 	cmodel;
 	vec3_t		origin, angles;
@@ -138,15 +177,20 @@ static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins,
 			VectorCopy( vec3_origin, angles );
 			VectorCopy( cent->lerpOrigin, origin );
 		} else if ( ent->eType == ET_PHYSICS_PROP ) {
-			// the same rotated trace model the game collides with
-			traceModel_t trm;
+			// the same rotated trace models the game collides with
+			traceModel_t trms[MAX_PROP_PARTS];
+			int numParts, p;
 
-			if ( !CG_PropTraceModel( ent, &trm ) ) {
-				continue;
-			}
-			cmodel = trap_CM_TempTraceModel( &trm, ent->contents );
+			numParts = CG_PropTraceModels( ent, trms );
 			VectorCopy( cent->lerpAngles, angles );
 			BG_EvaluateTrajectory( &cent->currentState.pos, cg.physicsTime, origin );
+			for ( p = 0; p < numParts; p++ ) {
+				cmodel = trap_CM_TempTraceModel( &trms[p], ent->contents );
+				if ( CG_ClipMoveToModel( tr, start, mins, maxs, end, cmodel, mask, origin, angles, traceType, ent->number ) ) {
+					return;
+				}
+			}
+			continue;
 		} else /* if ( ent->collisionType == CT_AABB ) */ {
 			cmodel = trap_CM_TempBoxModel( ent->mins, ent->maxs, ent->contents );
 			VectorCopy( vec3_origin, angles );
@@ -154,32 +198,7 @@ static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins,
 		}
 
 
-		if ( traceType == TT_BISPHERE ) {
-			trap_CM_TransformedBiSphereTrace( &trace, start, end,
-					mins[ 0 ], maxs[ 0 ], cmodel, mask, origin );
-		} else if ( traceType == TT_CAPSULE ) {
-			trap_CM_TransformedCapsuleTrace ( &trace, start, end,
-					mins, maxs, cmodel,  mask, origin, angles );
-		} else /* if ( traceType == TT_AABB ) */ {
-			trap_CM_TransformedBoxTrace ( &trace, start, end,
-					mins, maxs, cmodel,  mask, origin, angles );
-		}
-
-		if (trace.allsolid || trace.fraction < tr->fraction) {
-			trace.entityNum = ent->number;
-			if( tr->lateralFraction < trace.lateralFraction )
-			{
-				float oldLateralFraction = tr->lateralFraction;
-				*tr = trace;
-				tr->lateralFraction = oldLateralFraction;
-			} else {
-				*tr = trace;
-			}
-		} else if (trace.startsolid) {
-			tr->startsolid = qtrue;
-			tr->entityNum = ent->number;
-		}
-		if ( tr->allsolid ) {
+		if ( CG_ClipMoveToModel( tr, start, mins, maxs, end, cmodel, mask, origin, angles, traceType, ent->number ) ) {
 			return;
 		}
 	}

@@ -619,6 +619,7 @@ vmNetField_t	bg_playerStateFields[] =
 { PSF(events[1]), 8 },
 { PSF(pm_flags), 16 },
 { PSF(groundEntityNum), GENTITYNUM_BITS },
+{ PSF(weaponBurst), 8 },
 { PSF(weaponstate), 4 },
 { PSF(eFlags), 32 },
 { PSA(stats), -16 },
@@ -1241,7 +1242,11 @@ char *eventnames[] = {
 	"EV_TAUNT_FOLLOWME",
 	"EV_TAUNT_GETFLAG",
 	"EV_TAUNT_GUARDBASE",
-	"EV_TAUNT_PATROL"
+	"EV_TAUNT_PATROL",
+
+	"EV_EXPLOSION",
+
+	"EV_ALT_FIRE_WEAPON"
 
 };
 

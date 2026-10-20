@@ -95,6 +95,7 @@ extern vmCvar_t	g_itemPhysics;		// items are rigid bodies
 void		G_InitPhysics( void );
 void		G_RunPhysicsProp( gentity_t *ent );
 void		G_PhysicsLinkProp( gentity_t *ent );
+void		G_PhysicsSetParts( gentity_t *ent, const char *model, float scale, int frame, int maxParts );
 void		G_PhysicsFreeBody( gentity_t *ent );
 void		G_PhysicsApplyImpulse( gentity_t *ent, const vec3_t point, const vec3_t impulse );
 void		G_PhysicsDamage( gentity_t *targ, gentity_t *inflictor, const vec3_t dir, const vec3_t point, int knockback, int dflags );

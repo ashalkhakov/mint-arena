@@ -207,6 +207,8 @@ struct gentity_s {
 
     // physics
     clipModel_t     clipModel;
+	clipModel_t		*partClipModels;	// a compound prop's pieces, collided with instead of clipModel
+	int				numPartClipModels;
 	struct rigidBody_s	*body;			// physics props, see g_physics.c
 	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
 };
@@ -575,11 +577,13 @@ void TossPlayerCubes( gentity_t *self );
 // g_missile.c
 //
 void G_RunMissile( gentity_t *ent );
+void G_ExplodeMissile( gentity_t *ent );
 
 #define MISSILE_DETONATE_ON_WORLD	1	// else it bounces off, or stops with no bounce
 #define MISSILE_DETONATE_ON_ACTOR	2	// else it bounces off players and the like
 #define MISSILE_DETONATE_ON_FUSE	4	// else it goes away
 #define MISSILE_MAX_BOUNCES			8	// detonates when it would bounce again after count bounces
+#define MISSILE_STICK				16	// stops where it hits instead of bouncing
 
 gentity_t *fire_projectile( gentity_t *self, const struct dict_s *def, int weapon, vec3_t start, vec3_t dir );
 
@@ -659,6 +663,7 @@ qboolean G_FilterPacket (char *from);
 // g_weapon.c
 //
 void FireWeapon( gentity_t *ent );
+void AltFireWeapon( gentity_t *ent );
 #ifdef MISSIONPACK
 void G_StartKamikaze( gentity_t *ent );
 #endif

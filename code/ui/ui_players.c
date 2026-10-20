@@ -60,14 +60,43 @@ UI_PlayerInfo_SetWeapon
 ===============
 */
 static void UI_PlayerInfo_SetWeapon( uiPlayerInfo_t *pi, weapon_t weaponNum ) {
-	// weapons are entity defs, which only the game and the cgame load, so
-	// the player models here hold none
-	pi->currentWeapon = WP_NONE;
-	pi->realWeapon = WP_NONE;
+	const dict_t	*def;
+	const char		*list, *model;
+	char			name[MAX_QPATH];
+
+	pi->currentWeapon = weaponNum;
+	pi->realWeapon = weaponNum;
 	pi->weaponModel = 0;
 	pi->barrelModel = 0;
 	pi->flashModel = 0;
 	MAKERGB( pi->flashDlightColor, 1, 1, 1 );
+
+	// weapons are entity defs, loaded here too when no game has loaded them
+	if ( bg_numWeapons <= 1 ) {
+		BG_InitItems();
+	}
+
+	// none asked for: the first the "player" def starts with
+	if ( !BG_ValidWeapon( weaponNum ) ) {
+		def = BG_FindDef( "player" );
+		if ( !def || !DictGetString( def, "weapon", "", &list ) ) {
+			return;
+		}
+		if ( sscanf( list, "%63[^ ,]", name ) != 1 ) {
+			return;
+		}
+		weaponNum = BG_WeaponForName( name );
+		if ( !BG_ValidWeapon( weaponNum ) ) {
+			return;
+		}
+		pi->weapon = pi->currentWeapon = pi->realWeapon = weaponNum;
+	}
+
+	def = BG_Weapon( weaponNum )->def;
+	if ( DictGetString( def, "model_world", "", &model ) && model[0] ) {
+		pi->weaponModel = trap_R_RegisterModel( model );
+	}
+	DictGetVector( def, "flashColor", "1 1 1", pi->flashDlightColor );
 }
 
 

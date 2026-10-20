@@ -921,7 +921,16 @@ Called when the entity is freed, wakes up whatever rested on it.
 */
 void G_PhysicsFreeBody( gentity_t *ent ) {
 	rigidBody_t *body = ent->body;
+	int i;
 
+	if ( ent->partClipModels ) {
+		for ( i = 0; i < ent->numPartClipModels; i++ ) {
+			ClipModelFree( &ent->partClipModels[i] );
+		}
+		trap_HeapFree( ent->partClipModels );
+		ent->partClipModels = NULL;
+		ent->numPartClipModels = 0;
+	}
 	if ( !body ) {
 		return;
 	}
@@ -929,6 +938,35 @@ void G_PhysicsFreeBody( gentity_t *ent ) {
 	body->inUse = qfalse;
 	body->self = NULL;
 	ent->body = NULL;
+}
+
+/*
+================
+G_PhysicsSetParts
+
+Makes a prop collide as up to maxParts convex pieces of its model
+(BG_PropModelTraceModels), for concave scenery such as trees. Only for
+props that don't move: the body still simulates with its one hull.
+================
+*/
+void G_PhysicsSetParts( gentity_t *ent, const char *model, float scale, int frame, int maxParts ) {
+	traceModel_t trms[MAX_PROP_PARTS];
+	int i, numParts;
+
+	if ( maxParts <= 1 || !ent->body ) {
+		return;
+	}
+	numParts = BG_PropModelTraceModels( model, scale, frame, maxParts, trms );
+	if ( numParts <= 1 ) {
+		return;
+	}
+	ent->partClipModels = trap_HeapMalloc( numParts * sizeof( clipModel_t ) );
+	for ( i = 0; i < numParts; i++ ) {
+		ClipModelInitFromTraceModel( &ent->partClipModels[i], &trms[i] );
+	}
+	ent->numPartClipModels = numParts;
+	ent->s.origin2[1] = maxParts;	// the cgame makes the same pieces
+	G_PhysicsLinkProp( ent );
 }
 
 /*
@@ -946,12 +984,29 @@ void G_PhysicsLinkProp( gentity_t *ent ) {
 	VectorCopy( body->current.i.position, ent->r.currentOrigin );
 	Mat3ToAngles( (const vec3_t *)body->current.i.orientation, ent->r.currentAngles );
 
-	ClipModelLink2( cm, &g_clip, (sharedEntity_t *)ent, ent->s.number, body->current.i.position,
-					(const vec3_t *)body->current.i.orientation, -1 );
+	if ( ent->numPartClipModels ) {
+		// a compound prop collides as its pieces
+		int i;
 
-	// the clip model bounds include the rotation and the epsilon expansion
-	VectorCopy( cm->absBounds[0], ent->r.absmin );
-	VectorCopy( cm->absBounds[1], ent->r.absmax );
+		ClipModelUnlink( cm );
+		ClearBounds( ent->r.absmin, ent->r.absmax );
+		for ( i = 0; i < ent->numPartClipModels; i++ ) {
+			clipModel_t *part = &ent->partClipModels[i];
+
+			part->contents = cm->contents;
+			ClipModelLink2( part, &g_clip, (sharedEntity_t *)ent, ent->s.number, body->current.i.position,
+							(const vec3_t *)body->current.i.orientation, -1 );
+			AddPointToBounds( part->absBounds[0], ent->r.absmin, ent->r.absmax );
+			AddPointToBounds( part->absBounds[1], ent->r.absmin, ent->r.absmax );
+		}
+	} else {
+		ClipModelLink2( cm, &g_clip, (sharedEntity_t *)ent, ent->s.number, body->current.i.position,
+						(const vec3_t *)body->current.i.orientation, -1 );
+
+		// the clip model bounds include the rotation and the epsilon expansion
+		VectorCopy( cm->absBounds[0], ent->r.absmin );
+		VectorCopy( cm->absBounds[1], ent->r.absmax );
+	}
 
 	trap_LinkEntity( ent );
 }
@@ -1474,6 +1529,8 @@ A rigid body that falls, tumbles and gets pushed around.
 "friction"		contact friction 0 to 1 (default g_propFriction)
 "angles"		starting orientation
 "static"		1 for one that never moves, solid scenery
+"hull_parts"	how many convex pieces a static one's model may collide as
+				(default 8, 1 for one hull around all of it)
 "health"		breaks when it has taken that much damage (default 0, unbreakable)
 "breaksound"	played when it breaks
 */
@@ -1483,7 +1540,7 @@ void SP_func_physics( gentity_t *ent ) {
 	vec3_t mins, maxs, origin, angles, centerOfMass, inertia[3];
 	traceModel_t trm;
 	propShape_t shape;
-	int isStatic, health, frame;
+	int isStatic, health, frame, parts;
 	gentity_t *prop;
 
 	G_SpawnString( "model", "", &model );
@@ -1542,6 +1599,11 @@ void SP_func_physics( gentity_t *ent ) {
 		prop->body->isStatic = qtrue;
 		prop->body->noImpact = qtrue;
 		G_PhysicsUpdateEntityState( prop );
+	}
+	// scenery that doesn't move collides as convex pieces of its model
+	if ( prop->body->isStatic && model[0] ) {
+		G_SpawnInt( "hull_parts", va( "%d", MAX_PROP_PARTS ), &parts );
+		G_PhysicsSetParts( prop, model, scale, frame, parts );
 	}
 	G_SpawnInt( "health", "0", &health );
 	if ( health > 0 ) {
@@ -1886,8 +1948,9 @@ void Svcmd_PropList_f( void ) {
 			continue;
 		}
 		RB_LinearVelocity( body, v );
-		G_Printf( "prop %d %s at %s angles %s speed %.1f contacts %d %s%s\n", body->self->s.number,
+		G_Printf( "prop %d %s%s at %s angles %s speed %.1f contacts %d %s%s\n", body->self->s.number,
 					body->shape < PROP_NUM_SHAPES ? bg_propShapeNames[body->shape] : "model",
+					body->self->numPartClipModels ? va( " in %d pieces", body->self->numPartClipModels ) : "",
 					vtos( body->current.i.position ), vtos( body->self->r.currentAngles ), VectorLength( v ),
 					body->numContacts, RB_IsAtRest( body ) ? "resting" : "active",
 					RB_CornersInSolid( body, body->current.i.position, (const vec3_t *)body->current.i.orientation ) ? ", in solid" : "" );
@@ -1941,18 +2004,32 @@ static const vec4_t colorAxisX = { 1.0f, 0.0f, 0.0f, 1.0f };
 static const vec4_t colorAxisY = { 0.0f, 1.0f, 0.0f, 1.0f };
 static const vec4_t colorAxisZ = { 0.0f, 0.0f, 1.0f, 1.0f };
 
-static void G_DrawPropHull( const rigidBody_t *body, const float *color ) {
+static void G_DrawTraceModel( const rigidBody_t *body, const clipModel_t *cm, const float *color ) {
 	const traceModel_t *trm;
 	vec3_t a, b, tmp;
 	int i;
 
-	trm = ClipModelGetCachedTraceModel( body->self->clipModel.traceModelIndex );
+	trm = ClipModelGetCachedTraceModel( cm->traceModelIndex );
 	for ( i = 1; i <= trm->numEdges; i++ ) {
 		M3_MulVec( (const vec3_t *)body->current.i.orientation, trm->verts[trm->edges[i].v[0]], tmp );
 		VectorAdd( tmp, body->current.i.position, a );
 		M3_MulVec( (const vec3_t *)body->current.i.orientation, trm->verts[trm->edges[i].v[1]], tmp );
 		VectorAdd( tmp, body->current.i.position, b );
 		trap_Debug_Line( color, a, b, 0, qfalse );
+	}
+}
+
+// the hull, or the pieces of a compound prop
+static void G_DrawPropHull( const rigidBody_t *body, const float *color ) {
+	const gentity_t *ent = body->self;
+	int i;
+
+	if ( !ent->numPartClipModels ) {
+		G_DrawTraceModel( body, &ent->clipModel, color );
+		return;
+	}
+	for ( i = 0; i < ent->numPartClipModels; i++ ) {
+		G_DrawTraceModel( body, &ent->partClipModels[i], color );
 	}
 }
 

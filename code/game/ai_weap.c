@@ -358,48 +358,103 @@ int BotLoadWeaponWeights(int weaponstate, char *filename)
 // Returns:					-
 // Changes Globals:		-
 //===========================================================================
+// The weapons are entity defs now (bg_defs.c), so what bots know of one
+// comes from its def and its projectile's, not from botfiles/weapons.c.
+//===========================================================================
+extern bot_state_t *botstates[MAX_CLIENTS];
+
+static int BotDefDamage( const dict_t *projectile, const char *key, float *radius )
+{
+	const dict_t *damage;
+	const char *name;
+
+	if ( radius ) *radius = 0;
+	if ( !projectile || !DictGetString( projectile, key, "", &name ) || !name[0] ) return 0;
+	damage = BG_FindDef( name );
+	if ( !damage ) return 0;
+	if ( radius ) *radius = DictGetFloat( damage, "radius", "0" );
+	return DictGetInt( damage, "damage", "0" );
+}
+
 void BotGetWeaponInfo(int weaponstate, int weapon, weaponinfo_t *weaponinfo)
 {
+	const bgWeapon_t *w;
+	vec3_t velocity;
+	float radius;
+
 	(void)weaponstate;
-	if (!BotValidWeaponNumber(weapon)) return;
-	if (!weaponconfig.valid) return;
-	Com_Memcpy(weaponinfo, &weaponconfig.weaponinfo[weapon], sizeof(weaponinfo_t));
+	memset( weaponinfo, 0, sizeof( *weaponinfo ) );
+	if ( !BG_ValidWeapon( weapon ) ) return;
+	w = BG_Weapon( weapon );
+
+	weaponinfo->valid = qtrue;
+	weaponinfo->number = weapon;
+	Q_strncpyz( weaponinfo->name, w->name, sizeof( weaponinfo->name ) );
+	weaponinfo->numprojectiles = w->numProjectiles;
+	weaponinfo->hspread = weaponinfo->vspread = w->spread;
+	weaponinfo->ammoamount = w->ammoRequired;
+	weaponinfo->ammoindex = weapon;
+	weaponinfo->activate = w->raiseTime * 0.001f;
+	weaponinfo->reload = w->fireTime * 0.001f;
+	if ( !w->projectile ) return;
+
+	// hitscan shots have no speed, so bots don't lead them
+	if ( !w->hitscan ) {
+		DictGetVector( w->projectile, "velocity", "900 0 0", velocity );
+		weaponinfo->speed = velocity[0];
+		weaponinfo->proj.gravity = DictGetFloat( w->projectile, "gravity", "0" ) ? 1.0f : 0.0f;
+		weaponinfo->proj.bounce = DictGetFloat( w->projectile, "bounce", "0" );
+	}
+	weaponinfo->proj.damage = BotDefDamage( w->projectile, "def_damage", NULL );
+	weaponinfo->proj.damagetype = DAMAGETYPE_IMPACT;
+	if ( BotDefDamage( w->projectile, "def_splash_damage", &radius ) ) {
+		weaponinfo->proj.damagetype |= DAMAGETYPE_RADIAL;
+		weaponinfo->proj.radius = radius;
+	}
 } //end of the function BotGetWeaponInfo
 //===========================================================================
-//
-// Parameter:				-
-// Returns:					-
-// Changes Globals:		-
+// The best weapon the bot has ammo for: the weapon defs' "bot_rating"
+// (Daikatana's Weapons.csv ratings), melee weapons only when the enemy is
+// in reach, splash weapons not when it's too close. 0 rating: never.
 //===========================================================================
 int BotChooseBestFightWeapon(int weaponstate, int *inventory)
 {
-	int i, index, bestweapon;
-	float weight, bestweight;
-	weaponconfig_t *wc;
 	bot_weaponstate_t *ws;
+	int bestweapon, w, botNum;
+	float rating, bestrating, dist, radius;
+	playerState_t ps;
 
 	ws = BotWeaponStateFromHandle(weaponstate);
 	if (!ws) return 0;
-	wc = &weaponconfig;
-	if (!weaponconfig.valid) return 0;
 
-	//if the bot has no weapon weight configuration
-	if (!ws->weaponweightconfig) return 0;
+	// whose weapon state this is
+	for ( botNum = 0; botNum < MAX_CLIENTS; botNum++ ) {
+		if ( botstates[botNum] && botstates[botNum]->inuse && botstates[botNum]->ws == weaponstate ) break;
+	}
+	if ( botNum == MAX_CLIENTS ) return 0;
+	ps = botstates[botNum]->cur_ps;
+	dist = inventory[ENEMY_HORIZONTAL_DIST];
 
-	bestweight = 0;
+	bestrating = 0;
 	bestweapon = 0;
-	for (i = 0; i < wc->numweapons; i++)
-	{
-		if (!wc->weaponinfo[i].valid) continue;
-		index = ws->weaponweightindex[i];
-		if (index < 0) continue;
-		weight = FuzzyWeight(inventory, ws->weaponweightconfig, index);
-		if (weight > bestweight)
-		{
-			bestweight = weight;
-			bestweapon = i;
-		} //end if
-	} //end for
+	for ( w = 1; w < bg_numWeapons; w++ ) {
+		const bgWeapon_t *weapon = BG_Weapon( w );
+
+		if ( !BG_HasWeapon( &ps, w ) || !BG_WeaponHasAmmo( &ps, w ) ) continue;
+		rating = DictGetFloat( weapon->def, "bot_rating", va( "%d", weapon->slot * 100 ) );
+		if ( rating <= 0 ) continue;
+		if ( weapon->melee && dist > weapon->range * 2 ) {
+			rating *= 0.1f;		// keep as a last resort
+		}
+		if ( weapon->projectile && !weapon->hitscan
+			&& BotDefDamage( weapon->projectile, "def_splash_damage", &radius ) && dist < radius ) {
+			rating *= 0.5f;		// would hurt itself
+		}
+		if ( rating > bestrating ) {
+			bestrating = rating;
+			bestweapon = w;
+		}
+	}
 	return bestweapon;
 } //end of the function BotChooseBestFightWeapon
 //===========================================================================

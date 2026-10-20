@@ -1662,6 +1662,62 @@ static void PM_TorsoAnimation( void ) {
 
 /*
 ==============
+PM_WeaponAddTime
+
+A shot's time, for haste and the like.
+==============
+*/
+static int PM_WeaponAddTime( int addTime ) {
+#ifdef MISSIONPACK
+	if( BG_ItemForItemNum( pm->ps->stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_SCOUT ) {
+		addTime /= 1.5;
+	}
+	else
+	if( BG_ItemForItemNum( pm->ps->stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_AMMOREGEN ) {
+		addTime /= 1.3;
+	}
+	else
+#endif
+	if ( pm->ps->powerups[PW_HASTE] ) {
+		addTime /= 1.3;
+	}
+	return addTime;
+}
+
+/*
+==============
+PM_FireBurstShot
+
+The next shot of a burst ("burstCount"), until the burst or the ammo is out.
+==============
+*/
+static void PM_FireBurstShot( void ) {
+	const bgWeapon_t *weapon = BG_Weapon( pm->ps->weapon );
+	int addTime;
+
+	if ( !BG_WeaponHasAmmo( pm->ps, pm->ps->weapon ) ) {
+		pm->ps->weaponBurst = 0;
+		pm->ps->weaponTime += PM_WeaponAddTime( weapon->fireTime - ( weapon->burstCount - 1 ) * weapon->burstTime );
+		return;
+	}
+	if ( weapon->ammoRequired > 0 && pm->ps->ammo[ pm->ps->weapon ] != -1 ) {
+		pm->ps->ammo[ pm->ps->weapon ] -= weapon->ammoRequired;
+	}
+	PM_AddEvent( EV_FIRE_WEAPON );
+	pm->ps->weaponstate = WEAPON_FIRING;
+
+	pm->ps->weaponBurst--;
+	if ( pm->ps->weaponBurst > 0 ) {
+		addTime = weapon->burstTime;
+	} else {
+		// the burst's whole time is "fireRate"
+		addTime = weapon->fireTime - ( weapon->burstCount - 1 ) * weapon->burstTime;
+	}
+	pm->ps->weaponTime += PM_WeaponAddTime( addTime );
+}
+
+/*
+==============
 PM_Weapon
 
 Generates weapon events and modifes the weapon counter
@@ -1685,6 +1741,7 @@ static void PM_Weapon( void ) {
 	// check for dead player
 	if ( pm->ps->stats[STAT_HEALTH] <= 0 ) {
 		pm->ps->weapon = WP_NONE;
+		pm->ps->weaponBurst = 0;
 		return;
 	}
 
@@ -1709,6 +1766,15 @@ static void PM_Weapon( void ) {
 	// make weapon function
 	if ( pm->ps->weaponTime > 0 ) {
 		pm->ps->weaponTime -= pml.msec;
+	}
+
+	// the rest of a burst fires whatever the buttons
+	if ( pm->ps->weaponBurst > 0 ) {
+		if ( pm->ps->weaponTime > 0 ) {
+			return;
+		}
+		PM_FireBurstShot();
+		return;
 	}
 
 	// check for weapon change
@@ -1748,6 +1814,15 @@ static void PM_Weapon( void ) {
 		return;
 	}
 
+	// check for alt fire
+	if ( ( pm->cmd.buttons & BUTTON_ATTACK2 ) && BG_Weapon( pm->ps->weapon )->altFire != ALTFIRE_NONE ) {
+		PM_StartWeaponAnim( WP_ANIM_EXTRA1 );
+		PM_AddEvent( EV_ALT_FIRE_WEAPON );
+		pm->ps->weaponstate = WEAPON_FIRING;
+		pm->ps->weaponTime += BG_Weapon( pm->ps->weapon )->altFireTime;
+		return;
+	}
+
 	// check for fire
 	if ( ! (pm->cmd.buttons & BUTTON_ATTACK) ) {
 		pm->ps->weaponTime = 0;
@@ -1783,20 +1858,13 @@ static void PM_Weapon( void ) {
 	PM_AddEvent( EV_FIRE_WEAPON );
 
 	addTime = weapon->fireTime;
+	if ( weapon->burstCount > 1 ) {
+		// the rest of the burst follows, the last shot then waits out the rest
+		pm->ps->weaponBurst = weapon->burstCount - 1;
+		addTime = weapon->burstTime;
+	}
 
-#ifdef MISSIONPACK
-	if( BG_ItemForItemNum( pm->ps->stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_SCOUT ) {
-		addTime /= 1.5;
-	}
-	else
-	if( BG_ItemForItemNum( pm->ps->stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_AMMOREGEN ) {
-		addTime /= 1.3;
-	}
-	else
-#endif
-	if ( pm->ps->powerups[PW_HASTE] ) {
-		addTime /= 1.3;
-	}
+	addTime = PM_WeaponAddTime( addTime );
 
 	pm->ps->weaponTime += addTime;
 }

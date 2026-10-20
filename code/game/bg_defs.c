@@ -370,6 +370,10 @@ and the cgame. Its keys (Doom 3's names where Doom 3 has one):
 	"maxAmmo" N				the most ammo it holds
 	"raiseTime" S, "lowerTime" S	seconds to raise and put it away
 	"melee" 1				fires only at something in reach
+	"burstCount" N			shots a pull of the trigger fires, "burstRate"
+							seconds apart; "fireRate" is then the whole burst's
+	"altfire" "detonate"	the alt fire button sets off its projectiles
+	"altFireRate" S			seconds after that
 	"def_projectile" "<def>"	what it fires
 	"numProjectiles" N		that many a shot
 	"spread" D				degrees off aim, at most
@@ -447,6 +451,17 @@ static void BG_InitWeapons( void ) {
 		w->raiseTime = BG_DefMsec( dict, "raiseTime", "0.25" );
 		w->lowerTime = BG_DefMsec( dict, "lowerTime", "0.2" );
 		w->melee = DictGetBool( dict, "melee", "0" );
+		w->burstCount = DictGetInt( dict, "burstCount", "1" );
+		if ( w->burstCount < 1 ) {
+			w->burstCount = 1;
+		}
+		w->burstTime = BG_DefMsec( dict, "burstRate", "0.1" );
+		if ( DictGetString( dict, "altfire", "", &projectile ) && !Q_stricmp( projectile, "detonate" ) ) {
+			w->altFire = ALTFIRE_DETONATE;
+		} else if ( projectile[0] ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: weapon %s: unknown altfire \"%s\"\n", w->name, projectile );
+		}
+		w->altFireTime = BG_DefMsec( dict, "altFireRate", "0.5" );
 		w->numProjectiles = DictGetInt( dict, "numProjectiles", "1" );
 		w->spread = DictGetFloat( dict, "spread", "0" );
 		if ( DictGetString( dict, "def_projectile", "", &projectile ) && projectile[0] ) {

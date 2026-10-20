@@ -322,6 +322,22 @@ qboolean CG_PropTraceModel( const entityState_t *s1, traceModel_t *trm ) {
 
 /*
 ==================
+CG_PropTraceModels
+
+The trace models the game collides the prop with: the pieces of a compound
+one (origin2[1] is how many it may have), or the one. Returns how many.
+==================
+*/
+int CG_PropTraceModels( const entityState_t *s1, traceModel_t *trms ) {
+	if ( s1->modelindex == PROP_MODEL && s1->origin2[1] > 1 ) {
+		return BG_PropModelTraceModels( CG_ConfigString( CS_MODELS + s1->modelindex2 ), s1->origin2[0], s1->frame,
+										(int)s1->origin2[1], trms );
+	}
+	return CG_PropTraceModel( s1, &trms[0] ) ? 1 : 0;
+}
+
+/*
+==================
 CG_PhysicsPropModel
 
 A prop with a model: the model, turned and scaled as the game moves its
@@ -791,6 +807,9 @@ static void CG_Missile( centity_t *cent ) {
 	// spin as it moves
 	if ( s1->pos.trType != TR_STATIONARY ) {
 		RotateAroundDirection( ent.axis, cg.time / 4 );
+	} else if ( s1->apos.trType == TR_STATIONARY && !VectorCompare( s1->apos.trBase, vec3_origin ) ) {
+		// stuck to something (a "stick" projectile), as it lies
+		AnglesToAxis( s1->apos.trBase, ent.axis );
 	} else {
 		RotateAroundDirection( ent.axis, s1->time );
 	}
