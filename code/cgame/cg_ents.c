@@ -305,6 +305,62 @@ Draws the polygons of the prop's trace model, the same shape the game
 collides with.
 ==================
 */
+/*
+==================
+CG_PropTraceModel
+
+The trace model the game collides the prop with.
+==================
+*/
+qboolean CG_PropTraceModel( const entityState_t *s1, traceModel_t *trm ) {
+	if ( s1->modelindex == PROP_MODEL ) {
+		return BG_PropModelTraceModel( CG_ConfigString( CS_MODELS + s1->modelindex2 ), s1->origin2[0], trm );
+	}
+	BG_PropTraceModel( (propShape_t)s1->modelindex, s1->mins, s1->maxs, trm );
+	return trm->type != TRM_INVALID;
+}
+
+/*
+==================
+CG_PhysicsPropModel
+
+A prop with a model: the model, turned and scaled as the game moves its
+hull or shape.
+==================
+*/
+static void CG_PhysicsPropModel( centity_t *cent ) {
+	entityState_t	*s1 = &cent->currentState;
+	refEntity_t		ent;
+	float			scale;
+	vec3_t			center;
+
+	memset( &ent, 0, sizeof( ent ) );
+	ent.hModel = cgs.gameModels[s1->modelindex2];
+	if ( !ent.hModel ) {
+		return;
+	}
+	VectorCopy( cent->lerpOrigin, ent.origin );
+	VectorCopy( cent->lerpOrigin, ent.oldorigin );
+	AnglesToAxis( cent->lerpAngles, ent.axis );
+
+	scale = s1->origin2[0];
+	if ( scale > 0.0f && scale != 1.0f ) {
+		VectorScale( ent.axis[0], scale, ent.axis[0] );
+		VectorScale( ent.axis[1], scale, ent.axis[1] );
+		VectorScale( ent.axis[2], scale, ent.axis[2] );
+		ent.nonNormalizedAxes = qtrue;
+	}
+
+	// lit at its middle, not its origin which may be in the floor
+	VectorAdd( s1->mins, s1->maxs, center );
+	VectorScale( center, 0.5f, center );
+	MatrixRotateVector( center, (const vec3_t *)ent.axis, ent.lightingOrigin );
+	VectorAdd( ent.lightingOrigin, cent->lerpOrigin, ent.lightingOrigin );
+	ent.renderfx = RF_LIGHTING_ORIGIN;
+
+	CG_AddRefEntityWithMinLight( &ent );
+}
+
 static void CG_PhysicsProp( centity_t *cent ) {
 	entityState_t	*s1 = &cent->currentState;
 	traceModel_t	trm;
@@ -315,6 +371,11 @@ static void CG_PhysicsProp( centity_t *cent ) {
 	qhandle_t		shader;
 	int				i, j, edgeNum, numVerts, order[MAX_TRACEMODEL_POLYEDGES];
 	qboolean		fitTexture;
+
+	if ( s1->modelindex2 ) {
+		CG_PhysicsPropModel( cent );
+		return;
+	}
 
 	BG_PropTraceModel( (propShape_t)s1->modelindex, s1->mins, s1->maxs, &trm );
 	if ( trm.type == TRM_INVALID || !trm.numPolys ) {

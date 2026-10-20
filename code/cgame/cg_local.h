@@ -1831,6 +1831,7 @@ void CG_PainEvent( centity_t *cent, int health );
 //
 // cg_ents.c
 //
+qboolean CG_PropTraceModel( const entityState_t *s1, traceModel_t *trm );
 void CG_AddRefEntityWithMinLight( const refEntity_t *entity );
 void CG_SetEntitySoundPosition( centity_t *cent );
 void CG_AddPacketEntities( void );

@@ -139,6 +139,9 @@ static float RB_AngularImpulseTerm( const vec3_t invInertia[3], const vec3_t r, 
 */
 
 static void RB_Activate( rigidBody_t *body ) {
+	if ( body->isStatic ) {
+		return;
+	}
 	body->current.atRest = -1;
 }
 
@@ -234,7 +237,9 @@ static void G_PhysicsImpactInfo( gentity_t *ent, const vec3_t point, impactInfo_
 		return;
 	}
 
-	if ( ent->body ) {
+	if ( ent->body && ent->body->isStatic ) {
+		// immovable, like the world
+	} else if ( ent->body ) {
 		rigidBody_t *body = ent->body;
 		vec3_t linearVelocity, angularVelocity, massCenter;
 
@@ -1135,7 +1140,7 @@ qboolean G_PhysicsPushedByMover( gentity_t *prop, const vec3_t move, const vec3_
 	vec3_t oldPosition, oldOrientation[3], row, velocity;
 	int i, msec;
 
-	if ( !body ) {
+	if ( !body || body->isStatic ) {
 		return qtrue;
 	}
 
@@ -1192,9 +1197,23 @@ G_SpawnPhysicsProp
 */
 gentity_t *G_SpawnPhysicsProp( propShape_t shape, const vec3_t origin, const vec3_t angles,
 								const vec3_t mins, const vec3_t maxs, float density ) {
+	traceModel_t trm;
+
+	BG_PropTraceModel( shape, mins, maxs, &trm );
+	return G_SpawnPhysicsPropTrm( shape, &trm, origin, angles, density );
+}
+
+/*
+================
+G_SpawnPhysicsPropTrm
+
+A prop of any trace model; its bounds are the entity's mins and maxs.
+================
+*/
+gentity_t *G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, const vec3_t origin,
+									const vec3_t angles, float density ) {
 	gentity_t *ent;
 	rigidBody_t *body;
-	traceModel_t trm;
 
 	ent = G_Spawn();
 	if ( !G_AllocBody( ent ) ) {
@@ -1209,8 +1228,8 @@ gentity_t *G_SpawnPhysicsProp( propShape_t shape, const vec3_t origin, const vec
 	ent->s.modelindex = shape;
 	ent->s.collisionType = CT_AABB;
 	ent->s.contents = CONTENTS_SOLID;
-	VectorCopy( mins, ent->s.mins );
-	VectorCopy( maxs, ent->s.maxs );
+	VectorCopy( trm->bounds[0], ent->s.mins );
+	VectorCopy( trm->bounds[1], ent->s.maxs );
 	ent->r.svFlags &= ~SVF_NOCLIENT;
 	ent->takedamage = qtrue;
 	ent->touch = G_PhysicsTouch;
@@ -1227,8 +1246,7 @@ gentity_t *G_SpawnPhysicsProp( propShape_t shape, const vec3_t origin, const vec
 	VectorCopy( origin, body->current.i.position );
 	AnglesToAxis( angles, body->current.i.orientation );
 
-	BG_PropTraceModel( shape, mins, maxs, &trm );
-	RB_SetClipModel( body, &trm, density > 0.0f ? density : g_propDensity.value );
+	RB_SetClipModel( body, trm, density > 0.0f ? density : g_propDensity.value );
 
 	G_PhysicsLinkProp( ent );
 
@@ -1239,50 +1257,152 @@ gentity_t *G_SpawnPhysicsProp( propShape_t shape, const vec3_t origin, const vec
 	return ent;
 }
 
+/*
+================
+G_PropDie
+
+A prop with health breaks: fires its targets, plays its "breaksound" and
+goes, waking up whatever rested on it.
+================
+*/
+static void G_PropDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+	gentity_t *te;
+	vec3_t center;
+
+	self->takedamage = qfalse;
+	G_UseTargets( self, attacker );
+
+	if ( self->soundPos2 ) {
+		VectorAdd( self->r.absmin, self->r.absmax, center );
+		VectorScale( center, 0.5f, center );
+		te = G_TempEntity( center, EV_GENERAL_SOUND );
+		te->s.eventParm = self->soundPos2;
+	}
+
+	G_FreeEntity( self );
+}
+
+/*
+================
+G_UnstickProp
+
+Lifts a prop out of the floor it was placed in, a little at a time, or
+makes it static if that doesn't free it.
+================
+*/
+static void G_UnstickProp( gentity_t *prop ) {
+	rigidBody_t *body = prop->body;
+	int i;
+
+	for ( i = 0; i < 64 && body->startedInSolid; i++ ) {
+		body->current.i.position[2] += 1.0f;
+		G_PhysicsLinkProp( prop );
+		body->startedInSolid = ( ClipContents( &g_clip, body->current.i.position, &prop->clipModel,
+				(const vec3_t *)body->current.i.orientation, body->clipMask, (sharedEntity_t *)prop ) != 0 );
+	}
+	if ( body->startedInSolid ) {
+		// stuck sideways: leave it where it was, as scenery
+		body->current.i.position[2] -= i;
+		G_PhysicsLinkProp( prop );
+		body->current.atRest = level.time;
+		body->isStatic = qtrue;
+		body->noImpact = qtrue;
+		G_DPrintf( "prop %d at %s is in solid, made static\n", prop->s.number, vtos( body->current.i.position ) );
+	}
+}
+
 /*QUAKED func_physics (0 .5 .8) ?
 A rigid body that falls, tumbles and gets pushed around.
 "shape"			box, cylinder, cone, octahedron or dodecahedron (default box)
 "size"			edge length, or use "mins"/"maxs" (default 32)
+"model"			an MD3 to draw instead, colliding as a convex hull of its mesh, or as
+				the shape when it has none
+"modelscale"	the model's scale (default 1)
 "density"		mass per cubic unit (default g_propDensity)
 "mass"			overrides the density
 "bouncyness"	0 to 1 (default g_propBounce)
 "friction"		contact friction 0 to 1 (default g_propFriction)
 "angles"		starting orientation
+"static"		1 for one that never moves, solid scenery
+"health"		breaks when it has taken that much damage (default 0, unbreakable)
+"breaksound"	played when it breaks
 */
 void SP_func_physics( gentity_t *ent ) {
-	char *shapeName;
-	float size, density, mass, value;
-	vec3_t mins, maxs, origin, angles;
+	char *shapeName, *model, *noise;
+	float size, density, mass, value, scale, volume;
+	vec3_t mins, maxs, origin, angles, centerOfMass, inertia[3];
+	traceModel_t trm;
+	propShape_t shape;
+	int isStatic, health;
 	gentity_t *prop;
 
-	G_SpawnString( "shape", "box", &shapeName );
-	G_SpawnFloat( "size", "32", &size );
-	VectorSet( mins, -size * 0.5f, -size * 0.5f, -size * 0.5f );
-	VectorSet( maxs, size * 0.5f, size * 0.5f, size * 0.5f );
-	G_SpawnVector( "mins", va( "%f %f %f", mins[0], mins[1], mins[2] ), mins );
-	G_SpawnVector( "maxs", va( "%f %f %f", maxs[0], maxs[1], maxs[2] ), maxs );
+	G_SpawnString( "model", "", &model );
+	G_SpawnFloat( "modelscale", "1", &scale );
+	if ( model[0] && BG_PropModelTraceModel( model, scale, &trm ) ) {
+		shape = PROP_MODEL;
+	} else {
+		// a model without a hull, one that isn't there, collides as the shape
+		if ( model[0] ) {
+			G_DPrintf( "func_physics at %s: no collision hull for %s, colliding as its shape\n", vtos( ent->s.origin ), model );
+		}
+		G_SpawnString( "shape", "box", &shapeName );
+		G_SpawnFloat( "size", "32", &size );
+		VectorSet( mins, -size * 0.5f, -size * 0.5f, -size * 0.5f );
+		VectorSet( maxs, size * 0.5f, size * 0.5f, size * 0.5f );
+		G_SpawnVector( "mins", va( "%f %f %f", mins[0], mins[1], mins[2] ), mins );
+		G_SpawnVector( "maxs", va( "%f %f %f", maxs[0], maxs[1], maxs[2] ), maxs );
+		shape = BG_PropShapeForName( shapeName );
+		BG_PropTraceModel( shape, mins, maxs, &trm );
+	}
+
 	G_SpawnFloat( "density", "0", &density );
+	if ( G_SpawnFloat( "mass", "0", &mass ) && mass > 0.0f ) {
+		TraceModelGetMassProperties( &trm, 1.0f, &volume, centerOfMass, inertia );
+		if ( volume > 0.0f ) {
+			density = mass / volume;
+		}
+	}
 	VectorCopy( ent->s.origin, origin );
 	VectorCopy( ent->s.angles, angles );
 
 	// the map entity only carries the spawn arguments
-	prop = G_SpawnPhysicsProp( BG_PropShapeForName( shapeName ), origin, angles, mins, maxs, density );
-	if ( prop ) {
-		if ( G_SpawnFloat( "mass", "0", &mass ) && mass > 0.0f ) {
-			rigidBody_t *body = prop->body;
-			M3_Scale( body->inertiaTensor, mass / body->mass );
-			Mat3Inverse( (const vec3_t *)body->inertiaTensor, body->inverseInertiaTensor );
-			M3_Scale( body->inverseInertiaTensor, 1.0f / 6.0f );
-			body->mass = mass;
-			body->inverseMass = 1.0f / mass;
-		}
-		if ( G_SpawnFloat( "bouncyness", "0", &value ) ) {
-			prop->body->bouncyness = Com_Clamp( 0.0f, 1.0f, value );
-		}
-		if ( G_SpawnFloat( "friction", "0", &value ) ) {
-			prop->body->contactFriction = Com_Clamp( 0.0f, 1.0f, value );
+	prop = G_SpawnPhysicsPropTrm( shape, &trm, origin, angles, density );
+	if ( !prop ) {
+		G_FreeEntity( ent );
+		return;
+	}
+
+	if ( model[0] ) {
+		prop->s.modelindex2 = G_ModelIndex( model );
+		prop->s.origin2[0] = scale;
+		G_UnstickProp( prop );
+		G_PhysicsUpdateEntityState( prop );
+	}
+	if ( G_SpawnFloat( "bouncyness", "0", &value ) ) {
+		prop->body->bouncyness = Com_Clamp( 0.0f, 1.0f, value );
+	}
+	if ( G_SpawnFloat( "friction", "0", &value ) ) {
+		prop->body->contactFriction = Com_Clamp( 0.0f, 1.0f, value );
+	}
+	G_SpawnInt( "static", "0", &isStatic );
+	if ( isStatic ) {
+		prop->body->current.atRest = level.time;
+		prop->body->isStatic = qtrue;
+		prop->body->noImpact = qtrue;
+		G_PhysicsUpdateEntityState( prop );
+	}
+	G_SpawnInt( "health", "0", &health );
+	if ( health > 0 ) {
+		prop->health = health;
+		prop->die = G_PropDie;
+		G_SpawnString( "breaksound", "", &noise );
+		if ( noise[0] ) {
+			prop->soundPos2 = G_SoundIndex( noise );
 		}
 	}
+	prop->target = ent->target;
+	prop->targetname = ent->targetname;
+
 	G_FreeEntity( ent );
 }
 
@@ -1614,7 +1734,8 @@ void Svcmd_PropList_f( void ) {
 			continue;
 		}
 		RB_LinearVelocity( body, v );
-		G_Printf( "prop %d %s at %s angles %s speed %.1f contacts %d %s\n", body->self->s.number, bg_propShapeNames[body->shape],
+		G_Printf( "prop %d %s at %s angles %s speed %.1f contacts %d %s\n", body->self->s.number,
+					body->shape < PROP_NUM_SHAPES ? bg_propShapeNames[body->shape] : "model",
 					vtos( body->current.i.position ), vtos( body->self->r.currentAngles ), VectorLength( v ),
 					body->numContacts, RB_IsAtRest( body ) ? "resting" : "active" );
 		num++;

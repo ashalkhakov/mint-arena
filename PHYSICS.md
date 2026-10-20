@@ -34,7 +34,29 @@ Server console commands, for testing without a player:
 ## Map entity
 
 `func_physics` (point entity): `shape`, `size` or `mins`/`maxs`, `density`,
-`mass`, `bouncyness`, `friction`, `angles`.
+`mass`, `bouncyness`, `friction`, `angles`, and:
+
+- `model`, `modelscale`: an MD3 to draw, colliding as a convex hull of its
+  mesh (below), or as the shape when the model has no hull.
+- `static 1`: never moves, solid scenery.
+- `health`, `breaksound`: breaks after that much damage, firing its targets.
+
+A model prop placed into the floor is lifted out of it; one stuck any other
+way stays where it is, static.
+
+## Model hulls
+
+`bg_prophull.c` wraps the first frame of an MD3 in a k-DOP: the planes
+touching the mesh in 26 directions (the axes, the edge and the corner
+diagonals). Trace models hold at most 16 faces and 32 edges, so while the
+polytope is bigger the diagonal plane whose removal adds the least volume
+goes. A hull that comes out with slivers falls back to 18 directions, then
+to a box. Game and cgame build it from the same file, cached per model and
+scale, so prediction collides with what the game simulates.
+
+Daikatana's decos are model props: the converter (bsp-sekai) writes a solid
+`deco_e*` as a `func_physics` with its model, scale and mass, `static` for
+those that don't move, and `health` for the ones Daikatana lets break.
 
 ## Cvars
 

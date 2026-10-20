@@ -73,6 +73,7 @@ typedef struct rigidBody_s {
 	vec3_t			inertiaTensor[3];		// mass distribution
 	vec3_t			inverseInertiaTensor[3];	// inverse inertia tensor
 
+	qboolean		isStatic;				// never moves, as if of infinite mass
 	qboolean		noImpact;				// if true do not activate when another object collides
 	qboolean		noContact;				// if true do not determine contacts and no contact friction
 
@@ -102,6 +103,8 @@ void		G_PhysicsClear( void );
 
 gentity_t	*G_SpawnPhysicsProp( propShape_t shape, const vec3_t origin, const vec3_t angles,
 								 const vec3_t mins, const vec3_t maxs, float density );
+gentity_t	*G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, const vec3_t origin,
+									const vec3_t angles, float density );
 
 void		SP_func_physics( gentity_t *ent );
 

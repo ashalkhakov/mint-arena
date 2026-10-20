@@ -141,7 +141,9 @@ static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins,
 			// the same rotated trace model the game collides with
 			traceModel_t trm;
 
-			BG_PropTraceModel( (propShape_t)ent->modelindex, ent->mins, ent->maxs, &trm );
+			if ( !CG_PropTraceModel( ent, &trm ) ) {
+				continue;
+			}
 			cmodel = trap_CM_TempTraceModel( &trm, ent->contents );
 			VectorCopy( cent->lerpAngles, angles );
 			BG_EvaluateTrajectory( &cent->currentState.pos, cg.physicsTime, origin );

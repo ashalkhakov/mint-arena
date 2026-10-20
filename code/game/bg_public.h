@@ -1349,7 +1349,11 @@ typedef enum {
 	PROP_OCTAHEDRON,
 	PROP_DODECAHEDRON,
 
-	PROP_NUM_SHAPES
+	PROP_NUM_SHAPES,
+
+	// a model's mesh wrapped in a convex hull (BG_PropModelTraceModel); the
+	// entity's modelindex2 is the model, origin2[0] its scale
+	PROP_MODEL = PROP_NUM_SHAPES
 } propShape_t;
 
 #define PROP_CYLINDER_SIDES		8		// keeps cylinders inside MAX_TRACEMODEL_EDGES
@@ -1358,3 +1362,7 @@ extern const char *bg_propShapeNames[PROP_NUM_SHAPES];
 
 propShape_t	BG_PropShapeForName( const char *name );
 void		BG_PropTraceModel( propShape_t shape, const vec3_t mins, const vec3_t maxs, traceModel_t *trm );
+qboolean	BG_PropModelTraceModel( const char *modelName, float scale, traceModel_t *trm );
+
+long		BG_FS_ReadFile( const char *qpath, void **buffer );
+void		BG_FS_FreeFile( void *buffer );
