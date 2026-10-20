@@ -147,6 +147,7 @@ void SP_func_bobbing (gentity_t *ent);
 void SP_func_pendulum( gentity_t *ent );
 void SP_func_button (gentity_t *ent);
 void SP_func_door (gentity_t *ent);
+void SP_func_water( gentity_t *ent );
 void SP_func_door_rotating( gentity_t *ent );	// Rotating Doors
 void SP_func_train (gentity_t *ent);
 void SP_func_timer (gentity_t *self);
@@ -224,6 +225,7 @@ spawn_t	spawns[] = {
 	{"func_plat", SP_func_plat},
 	{"func_button", SP_func_button},
 	{"func_door", SP_func_door},
+	{"func_water", SP_func_water},
 	{"func_physics", SP_func_physics},
 	{"func_door_rotating", SP_func_door_rotating},	// Rotating Doors
 	{"func_static", SP_func_static},

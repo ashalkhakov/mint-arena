@@ -1790,6 +1790,27 @@ void Cmd_TeamVote_f( gentity_t *ent ) {
 
 /*
 =================
+Cmd_Contents_f
+
+Prints the contents where the player stands and at the eye, and the water
+level, for checking converted maps.
+=================
+*/
+void Cmd_Contents_f( gentity_t *ent ) {
+	vec3_t	eye;
+
+	if ( !g_cheats.integer ) {
+		trap_SendServerCommand( ent-g_entities, "print \"Cheats are not enabled on this server.\n\"");
+		return;
+	}
+	VectorCopy( ent->player->ps.origin, eye );
+	eye[2] += ent->player->ps.viewheight;
+	trap_SendServerCommand( ent-g_entities, va( "print \"contents at %s: origin %#x, eye %#x, waterlevel %d\n\"",
+		vtos( ent->player->ps.origin ), G_PointContents( ent->player->ps.origin, -1 ), G_PointContents( eye, -1 ), ent->waterlevel ) );
+}
+
+/*
+=================
 Cmd_SetViewpos_f
 =================
 */
@@ -1994,6 +2015,8 @@ void ClientCommand( int connectionNum ) {
 		Cmd_TeamVote_f (ent);
 	else if (Q_stricmp (cmd, "gc") == 0)
 		Cmd_GameCommand_f( ent );
+	else if (Q_stricmp (cmd, "contents") == 0)
+		Cmd_Contents_f( ent );
 	else if (Q_stricmp (cmd, "setviewpos") == 0)
 		Cmd_SetViewpos_f( ent );
 	else if (Q_stricmp (cmd, "stats") == 0)

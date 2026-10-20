@@ -1771,6 +1771,7 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "callteamvote", CG_ForwardToServer_f, CMD_INGAME, CG_CallTeamVoteComplete },
 	{ "teamvote", CG_ForwardToServer_f, CMD_INGAME, CG_VoteComplete },
 	{ "setviewpos", CG_ForwardToServer_f, CMD_INGAME },
+	{ "contents", CG_ForwardToServer_f, CMD_INGAME },
 	{ "stats", CG_ForwardToServer_f, CMD_INGAME },
 	// physics props, see g_physics.c
 	{ "prop", CG_ForwardToServer_f, CMD_INGAME, CG_PropShapeComplete },

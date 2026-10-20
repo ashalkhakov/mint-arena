@@ -3794,7 +3794,9 @@ static void Plaque_Deselect(itemDef_t *item) {
 		Plaque_Hilight(item, qfalse);
 	}
 
-	DC->startLocalSound(DC->registerSound("sounds/menus/600ms rotate descend_001.wav", qfalse), CHAN_LOCAL_SOUND);
+	if (plaque->deselectSound) {
+		DC->startLocalSound(plaque->deselectSound, CHAN_LOCAL_SOUND);
+	}
 }
 
 // select a plaque, turning back the other selected plaques of its menu
@@ -3834,7 +3836,9 @@ void Plaque_Select(itemDef_t *item) {
 		break;
 	}
 
-	DC->startLocalSound(DC->registerSound("sounds/menus/600ms rotate ascend_001.wav", qfalse), CHAN_LOCAL_SOUND);
+	if (plaque->selectSound) {
+		DC->startLocalSound(plaque->selectSound, CHAN_LOCAL_SOUND);
+	}
 }
 
 // Daikatana's CMenuMain::Animate
@@ -5015,6 +5019,28 @@ qboolean ItemParse_plaque_disabled( itemDef_t *item, int handle ) {
 	return qtrue;
 }
 
+qboolean ItemParse_plaque_selectSound( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+	const char *temp;
+
+	if (!plaque || !PC_String_Parse(handle, &temp)) {
+		return qfalse;
+	}
+	plaque->selectSound = DC->registerSound(temp, qfalse);
+	return qtrue;
+}
+
+qboolean ItemParse_plaque_deselectSound( itemDef_t *item, int handle ) {
+	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
+	const char *temp;
+
+	if (!plaque || !PC_String_Parse(handle, &temp)) {
+		return qfalse;
+	}
+	plaque->deselectSound = DC->registerSound(temp, qfalse);
+	return qtrue;
+}
+
 qboolean ItemParse_model_angle( itemDef_t *item, int handle ) {
 	modelDef_t *modelPtr;
 	Item_ValidateTypeData(item);
@@ -5620,6 +5646,8 @@ keywordHash_t itemParseKeywords[] = {
 	{"plaque_angles", ItemParse_plaque_angles, NULL},
 	{"plaque_scale", ItemParse_plaque_scale, NULL},
 	{"plaque_disabled", ItemParse_plaque_disabled, NULL},
+	{"plaque_selectSound", ItemParse_plaque_selectSound, NULL},
+	{"plaque_deselectSound", ItemParse_plaque_deselectSound, NULL},
 	{"model_fovx", ItemParse_model_fovx, NULL},
 	{"model_fovy", ItemParse_model_fovy, NULL},
 	{"model_rotation", ItemParse_model_rotation, NULL},

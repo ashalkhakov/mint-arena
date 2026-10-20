@@ -1179,6 +1179,52 @@ void SP_func_door (gentity_t *ent) {
 
 }
 
+/*QUAKED func_water (0 .5 .8) ? START_OPEN
+Quake 2's and Daikatana's moving water: its brushes give the contents (water,
+slime or lava) and it moves like a door when triggered, never on touch.
+START_OPEN	starts at the end of its move and moves back when triggered
+
+"angle"		determines the direction (-1 up, -2 down)
+"speed"		movement speed (25 default)
+"wait"		wait before returning (-1 default: wait for the next trigger)
+"lip"		lip remaining at end of move (0 default)
+*/
+void SP_func_water( gentity_t *ent ) {
+	vec3_t	abs_movedir, size;
+	float	distance, lip;
+
+	if ( !ent->speed ) {
+		ent->speed = 25;
+	}
+	if ( !ent->wait ) {
+		ent->wait = -1;
+	}
+	ent->wait *= 1000;
+	G_SpawnFloat( "lip", "0", &lip );
+
+	VectorCopy( ent->s.origin, ent->pos1 );
+	G_SetBrushModel( ent, ent->model );
+	G_SetMovedir( ent->s.angles, ent->movedir );
+	abs_movedir[0] = fabs( ent->movedir[0] );
+	abs_movedir[1] = fabs( ent->movedir[1] );
+	abs_movedir[2] = fabs( ent->movedir[2] );
+	VectorSubtract( ent->s.maxs, ent->s.mins, size );
+	distance = DotProduct( abs_movedir, size ) - lip;
+	VectorMA( ent->pos1, distance, ent->movedir, ent->pos2 );
+
+	if ( ent->spawnflags & 1 ) {
+		vec3_t	temp;
+
+		VectorCopy( ent->pos2, temp );
+		VectorCopy( ent->s.origin, ent->pos2 );
+		VectorCopy( temp, ent->pos1 );
+	}
+
+	InitMover( ent );
+	// the brushes say what the water is; nothing collides with it
+	ent->use = Use_BinaryMover;
+}
+
 /*QUAKED func_door_rotating (0 .5 .8) START_OPEN CRUSHER REVERSE TOGGLE X_AXIS Y_AXIS
 This is the rotating door... just as the name suggests it's a door that rotates
 START_OPEN	the door to moves to its destination when spawned, and operate in reverse.

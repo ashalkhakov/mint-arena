@@ -266,6 +266,7 @@ typedef struct plaqueDef_s {
 	qhandle_t		model;
 	qhandle_t		skin;
 	qboolean		disabled;	// drawn dark and ignores the mouse
+	sfxHandle_t		selectSound, deselectSound;	// as it turns to selected and back
 	plaqueStatus_t	status, destStatus;
 	int				time;		// in the current status
 	int				lastTime;
