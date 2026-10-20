@@ -110,6 +110,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_SHOW_OTHERTEAMHASFLAG          0x00020000
 #define CG_SHOW_YOURTEAMHASENEMYFLAG      0x00040000
 #define CG_SHOW_ANYNONTEAMGAME            0x00080000
+#define CG_SHOW_ARMORLOW                  0x00100000	// armor 25 or less
+#define CG_SHOW_ARMOROK                   0x00200000
+#define CG_SHOW_AMMOLOW                   0x00400000	// 5 or less for a weapon that uses ammo
+#define CG_SHOW_AMMOOK                    0x00800000
 #define CG_SHOW_2DONLY										0x10000000
 
 
@@ -210,6 +214,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_1STPLACE 67
 #define CG_2NDPLACE 68
 #define CG_CAPTURES 69
+#define CG_PLAYER_FACE 70				// the item's text names the pictures: %m model, %c state (a-e health, f dead, g invulnerable, h invisible)
 
 
 

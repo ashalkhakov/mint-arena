@@ -4280,7 +4280,18 @@ void Item_OwnerDraw_Paint(itemDef_t *item) {
 }
 
 
+static void Item_PaintInternal(itemDef_t *item);
+
+// items draw their text in their own font when they name one
 void Item_Paint(itemDef_t *item) {
+	itemDef_t *oldPaintItem = DC->paintItem;
+
+	DC->paintItem = item;
+	Item_PaintInternal(item);
+	DC->paintItem = oldPaintItem;
+}
+
+static void Item_PaintInternal(itemDef_t *item) {
   vec4_t red;
   menuDef_t *parent;
 
@@ -5019,6 +5030,22 @@ qboolean ItemParse_plaque_disabled( itemDef_t *item, int handle ) {
 	return qtrue;
 }
 
+// font <name> <pointSize>: the item's text in that font, whatever its scale
+qboolean ItemParse_font( itemDef_t *item, int handle ) {
+	const char *name;
+	int pointSize;
+
+	if (!PC_String_Parse(handle, &name) || !PC_Int_Parse(handle, &pointSize)) {
+		return qfalse;
+	}
+	item->font = UI_Alloc(sizeof(fontInfo_t));
+	if (!item->font) {
+		return qfalse;
+	}
+	DC->registerFont(name, pointSize, 0, qfalse, item->font);
+	return qtrue;
+}
+
 qboolean ItemParse_plaque_selectSound( itemDef_t *item, int handle ) {
 	plaqueDef_t *plaque = ItemParse_PlaqueDef(item);
 	const char *temp;
@@ -5646,6 +5673,7 @@ keywordHash_t itemParseKeywords[] = {
 	{"plaque_angles", ItemParse_plaque_angles, NULL},
 	{"plaque_scale", ItemParse_plaque_scale, NULL},
 	{"plaque_disabled", ItemParse_plaque_disabled, NULL},
+	{"font", ItemParse_font, NULL},
 	{"plaque_selectSound", ItemParse_plaque_selectSound, NULL},
 	{"plaque_deselectSound", ItemParse_plaque_deselectSound, NULL},
 	{"model_fovx", ItemParse_model_fovx, NULL},

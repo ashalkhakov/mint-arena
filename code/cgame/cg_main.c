@@ -2119,7 +2119,7 @@ qboolean CG_Asset_Parse(int handle) {
 
 void CG_ParseMenu(const char *menuFile) {
 	pc_token_t token;
-	source_t *handle;
+	int handle;
 
 	handle = PC_LoadSourceHandle( menuFile, NULL, NULL );
 	if (!handle)

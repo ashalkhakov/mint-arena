@@ -178,7 +178,9 @@ void AssetCache( void ) {
 
 fontInfo_t *UI_FontForScale( float scale ) {
 	fontInfo_t *font = &uiInfo.uiDC.Assets.textFont;
-	if (scale <= ui_smallFont.value) {
+	if ( uiInfo.uiDC.paintItem && uiInfo.uiDC.paintItem->font ) {
+		font = uiInfo.uiDC.paintItem->font;
+	} else if (scale <= ui_smallFont.value) {
 		font = &uiInfo.uiDC.Assets.smallFont;
 	} else if (scale >= ui_bigFont.value) {
 		font = &uiInfo.uiDC.Assets.bigFont;

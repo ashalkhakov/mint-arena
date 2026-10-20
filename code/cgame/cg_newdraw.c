@@ -38,7 +38,9 @@ extern displayContextDef_t cgDC;
 
 fontInfo_t *CG_FontForScale( float scale ) {
 	fontInfo_t *font = &cgDC.Assets.textFont;
-	if (scale <= cg_smallFont.value) {
+	if ( cgDC.paintItem && cgDC.paintItem->font ) {
+		font = cgDC.paintItem->font;
+	} else if (scale <= cg_smallFont.value) {
 		font = &cgDC.Assets.smallFont;
 	} else if (scale >= cg_bigFont.value) {
 		font = &cgDC.Assets.bigFont;
@@ -742,6 +744,79 @@ static void CG_DrawSelectedPlayerHead( rectDef_t *rect, qboolean draw2D, qboolea
 }
 
 
+/*
+==============
+CG_DrawPlayerFace
+
+A picture of the player that changes with their state, as Daikatana's
+status bar face does. The item's text names the pictures: %m becomes the
+player's model, %c the state, a to e from full to low health, f dead,
+g invulnerable (battle suit), h invisible. Without a picture for the
+model, the one of the model "default" is used.
+==============
+*/
+static qhandle_t CG_PlayerFaceShader( const char *pattern, const char *model, char state ) {
+	char	name[MAX_QPATH];
+	int		len = 0;
+
+	for ( ; *pattern && len < MAX_QPATH - 1; pattern++ ) {
+		if ( pattern[0] == '%' && pattern[1] == 'm' ) {
+			Q_strncpyz( name + len, model, sizeof( name ) - len );
+			len = strlen( name );
+			pattern++;
+		} else if ( pattern[0] == '%' && pattern[1] == 'c' ) {
+			name[len++] = state;
+			pattern++;
+		} else {
+			name[len++] = *pattern;
+		}
+	}
+	name[len] = '\0';
+	return trap_R_RegisterShaderNoMip( name );
+}
+
+static void CG_DrawPlayerFace( rectDef_t *rect, vec4_t color ) {
+	const playerState_t	*ps = cg.cur_ps;
+	const playerInfo_t	*pi = &cgs.playerinfo[ps->playerNum];
+	const char			*pattern;
+	char				model[MAX_QPATH], *slash, state;
+	int					health;
+	qhandle_t			face;
+
+	pattern = cgDC.paintItem ? cgDC.paintItem->text : NULL;
+	if ( !pattern || !pattern[0] ) {
+		return;
+	}
+
+	health = ps->stats[STAT_HEALTH];
+	if ( ps->powerups[PW_INVIS] ) {
+		state = 'h';
+	} else if ( ps->powerups[PW_BATTLESUIT] ) {
+		state = 'g';
+	} else if ( health <= 0 ) {
+		state = 'f';
+	} else {
+		state = 'a' + ( 100 - (int)Com_Clamp( 1, 100, health ) ) / 20;
+	}
+
+	// the model without its skin
+	Q_strncpyz( model, pi->modelName, sizeof( model ) );
+	slash = strchr( model, '/' );
+	if ( slash ) {
+		*slash = '\0';
+	}
+
+	face = CG_PlayerFaceShader( pattern, model, state );
+	if ( !face ) {
+		face = CG_PlayerFaceShader( pattern, "default", state );
+	}
+	if ( face ) {
+		trap_R_SetColor( color );
+		CG_DrawPic( rect->x, rect->y, rect->w, rect->h, face );
+		trap_R_SetColor( NULL );
+	}
+}
+
 static void CG_DrawPlayerHealth(rectDef_t *rect, float scale, vec4_t color, qhandle_t shader, int textStyle ) {
 	playerState_t	*ps;
 	int value;
@@ -1284,6 +1359,30 @@ qboolean CG_OwnerDrawVisible(int flags) {
 		}
 	}
 
+	if (flags & CG_SHOW_ARMORLOW) {
+		if (cg.cur_ps->stats[STAT_ARMOR] <= 25) {
+			return qtrue;
+		}
+	}
+
+	if (flags & CG_SHOW_ARMOROK) {
+		if (cg.cur_ps->stats[STAT_ARMOR] > 25) {
+			return qtrue;
+		}
+	}
+
+	if (flags & (CG_SHOW_AMMOLOW | CG_SHOW_AMMOOK)) {
+		int ammo = cg.cur_ps->ammo[cg.cur_ps->weapon];
+
+		// weapons without ammo, -1, are never low
+		if ((flags & CG_SHOW_AMMOLOW) && ammo >= 0 && ammo <= 5) {
+			return qtrue;
+		}
+		if ((flags & CG_SHOW_AMMOOK) && (ammo < 0 || ammo > 5)) {
+			return qtrue;
+		}
+	}
+
 	if (flags & CG_SHOW_SINGLEPLAYER) {
 		if( cgs.gametype == GT_SINGLE_PLAYER ) {
 			return qtrue;
@@ -1805,6 +1904,9 @@ void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y
 	case CG_GAUNTLET:
 	case CG_CAPTURES:
 		CG_DrawMedal(ownerDraw, &rect, scale, color, shader);
+		break;
+	case CG_PLAYER_FACE:
+		CG_DrawPlayerFace(&rect, color);
 		break;
   case CG_SPECTATORS:
 		CG_DrawTeamSpectators(&rect, scale, color, shader);

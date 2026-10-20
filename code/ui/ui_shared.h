@@ -307,6 +307,7 @@ typedef struct itemDef_s {
 	float special;								 // used for feeder id's etc.. diff per type
   int cursorPos;                 // cursor position in characters
 	void *typeData;								 // type specific data ptr's	
+	fontInfo_t *font;							 // ( optional ) its own font instead of the menus' ones
 } itemDef_t;
 
 typedef struct {
@@ -439,6 +440,7 @@ typedef struct {
 	qboolean	debug;
 
   cachedAssets_t Assets;
+  struct itemDef_s *paintItem;	// the item being painted: its font, its text for owner draws
 
 	qhandle_t	whiteShader;
   qhandle_t gradientImage;
