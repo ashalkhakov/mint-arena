@@ -396,6 +396,7 @@ typedef struct playerState_s {
 	//int			persistant[MAX_PERSISTANT];	// stats that aren't cleared on death
 	int			powerups[MAX_POWERUPS];	// level.time that the powerup runs out
 	int			ammo[MAX_WEAPONS];
+	int			ammoClip[MAX_WEAPONS];	// of ammo, how much is loaded (a weapon with a "clipSize")
 
 	int			tokens;			// harvester skulls
 	int			loopSound;
@@ -435,6 +436,7 @@ usercmd_t->button bits definitions
 #define	BUTTON_GUARDBASE	(1<<8)
 #define	BUTTON_PATROL		(1<<9)
 #define	BUTTON_FOLLOWME		(1<<10)
+#define	BUTTON_RELOAD		(1<<11)		// "+reload": Doom 3's reload (its _impulse13)
 
 #define	BUTTON_TALK			(1<<13)		// displays talk balloon and disables actions
 
@@ -477,7 +479,8 @@ typedef enum {
 	WEAPON_READY, 
 	WEAPON_RAISING,
 	WEAPON_DROPPING,
-	WEAPON_FIRING
+	WEAPON_FIRING,
+	WEAPON_RELOADING		// Doom 3's: filling the clip
 } weaponstate_t;
 
 //Blaze: for the weapon animation states
@@ -692,6 +695,8 @@ typedef struct bgWeapon_s {
 	int				lowerTime;		// "lowerTime" seconds, in msec
 	int				burstCount;		// "burstCount": shots a pull of the trigger fires
 	int				burstTime;		// "burstRate" seconds between them, in msec
+	int				clipSize;		// "clipSize": shots loaded at once, 0 for no clip (Doom 3's)
+	int				reloadTime;		// "reloadRate" seconds to fill the clip, in msec
 	int				altFire;		// "altfire": ALTFIRE_*
 	int				altFireTime;	// "altFireRate" seconds, in msec
 	qboolean		melee;			// "melee": fires only at something in reach
@@ -707,6 +712,10 @@ extern	int			bg_numWeapons;		// weapons are 1 to bg_numWeapons - 1
 
 #define BG_ValidWeapon( w )		( (w) > WP_NONE && (w) < bg_numWeapons )
 #define BG_Weapon( w )			( &bg_weapons[BG_ValidWeapon( w ) ? (w) : WP_NONE] )
+// a clip weapon's shot needs the clip loaded
+#define BG_WeaponClipLoaded( ps, w )	( BG_Weapon( w )->clipSize <= 0 || BG_Weapon( w )->ammoRequired <= 0 \
+										  || (ps)->ammoClip[w] >= BG_Weapon( w )->ammoRequired )
+void		BG_FillClip( playerState_t *ps, int weapon );
 #define BG_WeaponHasAmmo( ps, w )	( BG_Weapon( w )->ammoRequired <= 0 || (ps)->ammo[w] == -1 || (ps)->ammo[w] >= BG_Weapon( w )->ammoRequired )
 int		BG_WeaponForName( const char *name );
 void	BG_HitscanDir( const vec3_t forward, const vec3_t right, const vec3_t up, float spread, int *seed, vec3_t dir );
@@ -764,6 +773,7 @@ typedef enum {
 	EV_NOAMMO,
 	EV_CHANGE_WEAPON,
 	EV_FIRE_WEAPON,
+	EV_RELOAD_WEAPON,
 
 	EV_USE_ITEM0,
 	EV_USE_ITEM1,

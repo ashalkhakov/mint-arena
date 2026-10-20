@@ -810,6 +810,13 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		CG_FireWeapon( cent );
 		break;
 
+	case EV_RELOAD_WEAPON:
+		DEBUGNAME("EV_RELOAD_WEAPON");
+		if ( BG_ValidWeapon( es->weapon ) && cg_weapons[es->weapon].reloadSound ) {
+			trap_S_StartSound( NULL, es->number, CHAN_WEAPON, cg_weapons[es->weapon].reloadSound );
+		}
+		break;
+
 	case EV_USE_ITEM0:
 	case EV_USE_ITEM1:
 	case EV_USE_ITEM2:

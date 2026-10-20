@@ -213,6 +213,7 @@ int Pickup_Ammo (gentity_t *ent, gentity_t *other)
 
 int Pickup_Weapon (gentity_t *ent, gentity_t *other) {
 	int		quantity;
+	qboolean	hadWeapon;
 
 	if ( ent->count < 0 ) {
 		quantity = 0; // None for you, sir!
@@ -235,10 +236,14 @@ int Pickup_Weapon (gentity_t *ent, gentity_t *other) {
 		}
 	}
 
-	// add the weapon
+	// add the weapon, loaded if it's new (Doom 3's)
+	hadWeapon = BG_HasWeapon( &other->player->ps, ent->item->giTag );
 	BG_GiveWeapon( &other->player->ps, ent->item->giTag );
 
 	Add_Ammo( other, ent->item->giTag, quantity );
+	if ( !hadWeapon ) {
+		BG_FillClip( &other->player->ps, ent->item->giTag );
+	}
 
 	// team deathmatch has slow weapon respawns
 	if ( g_gametype.integer == GT_TEAM ) {

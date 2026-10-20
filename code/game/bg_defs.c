@@ -372,6 +372,8 @@ and the cgame. Its keys (Doom 3's names where Doom 3 has one):
 	"melee" 1				fires only at something in reach
 	"burstCount" N			shots a pull of the trigger fires, "burstRate"
 							seconds apart; "fireRate" is then the whole burst's
+	"clipSize" N			shots loaded at once (Doom 3's); empty, it reloads,
+							"reloadRate" seconds (and on "+reload")
 	"altfire" "detonate"	the alt fire button sets off its projectiles
 	"altFireRate" S			seconds after that
 	"def_projectile" "<def>"	what it fires
@@ -456,6 +458,8 @@ static void BG_InitWeapons( void ) {
 			w->burstCount = 1;
 		}
 		w->burstTime = BG_DefMsec( dict, "burstRate", "0.1" );
+		w->clipSize = DictGetInt( dict, "clipSize", "0" );
+		w->reloadTime = BG_DefMsec( dict, "reloadRate", "1" );
 		if ( DictGetString( dict, "altfire", "", &projectile ) && !Q_stricmp( projectile, "detonate" ) ) {
 			w->altFire = ALTFIRE_DETONATE;
 		} else if ( projectile[0] ) {

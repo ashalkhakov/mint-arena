@@ -1631,6 +1631,8 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "-attack", IN_Button0Up, 0 },
 	{ "+altattack", IN_Button1Down, 0 },
 	{ "-altattack", IN_Button1Up, 0 },
+	{ "+reload", IN_Button11Down, 0 },		// BUTTON_RELOAD
+	{ "-reload", IN_Button11Up, 0 },
 	{ "+back",IN_BackDown, 0 },
 	{ "-back",IN_BackUp, 0 },
 	{ "+button0", IN_Button0Down, 0 },

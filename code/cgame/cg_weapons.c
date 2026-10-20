@@ -300,7 +300,9 @@ CG_WeaponAnimations
 The view model's animations, from the def's "anim_raise", "anim_lower",
 "anim_idle", "anim_fire", "anim_reload" and "anim_empty": each the name of
 its frames ("shoota" for "shoota01" to "shoota08"), and frames a second
-("anim_fps", 10, by default).
+("anim_fps", 10, by default), and which of them: the first and how many
+("shoot 22 34" from the 35th on, as the shotcycler reloads with the end of
+its firing).
 =================
 */
 static qboolean CG_WeaponAnimations( weaponInfo_t *wi, const dict_t *def, const char *model ) {
@@ -322,7 +324,7 @@ static qboolean CG_WeaponAnimations( weaponInfo_t *wi, const dict_t *def, const 
 	const char *value;
 	char frameName[MAX_QPATH];
 	float fps, defaultFps;
-	int numFrames, i, j, k, len;
+	int numFrames, i, j, k, len, first, count;
 
 	numFrames = CG_ModelFrameNames( model, names, MAX_MODEL_FRAMES );
 	if ( !numFrames ) {
@@ -350,7 +352,8 @@ static qboolean CG_WeaponAnimations( weaponInfo_t *wi, const dict_t *def, const 
 			continue;
 		}
 		fps = defaultFps;
-		if ( sscanf( value, "%63s %f", frameName, &fps ) < 1 ) {
+		first = count = 0;
+		if ( sscanf( value, "%63s %f %d %d", frameName, &fps, &first, &count ) < 1 ) {
 			continue;
 		}
 		if ( fps <= 0 ) {
@@ -371,8 +374,12 @@ static qboolean CG_WeaponAnimations( weaponInfo_t *wi, const dict_t *def, const 
 				break;
 			}
 		}
-		anim->firstFrame = j;
-		anim->numFrames = k - j;
+		first = Com_Clamp( 0, k - j - 1, first );
+		anim->firstFrame = j + first;
+		anim->numFrames = k - j - first;
+		if ( count > 0 && count < anim->numFrames ) {
+			anim->numFrames = count;
+		}
 		anim->loopFrames = keys[i].loop ? anim->numFrames : 0;
 		anim->frameLerp = anim->initialLerp = 1000 / fps;
 		anim->reversed = anim->flipflop = 0;
@@ -423,7 +430,7 @@ The media of a weapon, from its entity def (see bg_defs.c):
 	"model_flash"		a flash on the weapon's tag_flash
 	"icon"				(or the item's)
 	"snd_fire"			sounds to choose from at random
-	"snd_hum", "snd_firing", "snd_raise", "snd_altfire"
+	"snd_hum", "snd_firing", "snd_raise", "snd_altfire", "snd_reload"
 	"flashColor", "flashRadius"	a light where it's fired
 	"fx_muzzle"			an effect (effects/*.efx) where it's fired
 and from its projectile's def:
@@ -509,6 +516,7 @@ void CG_RegisterWeapon( int weaponNum ) {
 	weaponInfo->readySound = CG_DefSound( def, "snd_hum" );
 	weaponInfo->firingSound = CG_DefSound( def, "snd_firing" );
 	weaponInfo->raiseSound = CG_DefSound( def, "snd_raise" );
+	weaponInfo->reloadSound = CG_DefSound( def, "snd_reload" );
 	weaponInfo->altFireSound = CG_DefSound( def, "snd_altfire" );
 	DictGetVector( def, "flashColor", "0 0 0", weaponInfo->flashDlightColor );
 	weaponInfo->flashDlight = DictGetFloat( def, "flashRadius", "0" );

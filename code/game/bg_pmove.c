@@ -1728,6 +1728,61 @@ static int PM_WeaponAddTime( int addTime ) {
 
 /*
 ==============
+PM_TakeAmmo
+
+A shot's ammo, from the clip too if the weapon has one.
+==============
+*/
+static void PM_TakeAmmo( const bgWeapon_t *weapon ) {
+	if ( weapon->ammoRequired <= 0 ) {
+		return;
+	}
+	if ( pm->ps->ammo[ pm->ps->weapon ] != -1 ) {
+		pm->ps->ammo[ pm->ps->weapon ] -= weapon->ammoRequired;
+	}
+	if ( weapon->clipSize > 0 ) {
+		pm->ps->ammoClip[ pm->ps->weapon ] -= weapon->ammoRequired;
+		if ( pm->ps->ammoClip[ pm->ps->weapon ] < 0 ) {
+			pm->ps->ammoClip[ pm->ps->weapon ] = 0;
+		}
+	}
+}
+
+/*
+==============
+PM_CanReload
+
+Whether the weapon's clip can take more of the ammo carried.
+==============
+*/
+static qboolean PM_CanReload( void ) {
+	const bgWeapon_t *weapon = BG_Weapon( pm->ps->weapon );
+	int w = pm->ps->weapon;
+
+	if ( !BG_ValidWeapon( w ) || weapon->clipSize <= 0 || pm->ps->ammoClip[w] >= weapon->clipSize ) {
+		return qfalse;
+	}
+	return pm->ps->ammo[w] == -1 || pm->ps->ammo[w] > pm->ps->ammoClip[w];
+}
+
+/*
+==============
+PM_BeginReload
+
+Doom 3's reload: the reload animation and sound, the clip filled when it's
+over ("reloadRate"). Changing weapons cancels it.
+==============
+*/
+static void PM_BeginReload( void ) {
+	pm->ps->weaponstate = WEAPON_RELOADING;
+	pm->ps->weaponTime = BG_Weapon( pm->ps->weapon )->reloadTime;
+	PM_StartWeaponAnim( WP_ANIM_RELOAD );
+	PM_StartTorsoAnim( TORSO_RAISE );
+	PM_AddEvent( EV_RELOAD_WEAPON );
+}
+
+/*
+==============
 PM_FireBurstShot
 
 The next shot of a burst ("burstCount"), until the burst or the ammo is out.
@@ -1737,14 +1792,12 @@ static void PM_FireBurstShot( void ) {
 	const bgWeapon_t *weapon = BG_Weapon( pm->ps->weapon );
 	int addTime;
 
-	if ( !BG_WeaponHasAmmo( pm->ps, pm->ps->weapon ) ) {
+	if ( !BG_WeaponHasAmmo( pm->ps, pm->ps->weapon ) || !BG_WeaponClipLoaded( pm->ps, pm->ps->weapon ) ) {
 		pm->ps->weaponBurst = 0;
 		pm->ps->weaponTime += PM_WeaponAddTime( weapon->fireTime - ( weapon->burstCount - 1 ) * weapon->burstTime );
 		return;
 	}
-	if ( weapon->ammoRequired > 0 && pm->ps->ammo[ pm->ps->weapon ] != -1 ) {
-		pm->ps->ammo[ pm->ps->weapon ] -= weapon->ammoRequired;
-	}
+	PM_TakeAmmo( weapon );
 	PM_AddEvent( EV_FIRE_WEAPON );
 	pm->ps->weaponstate = WEAPON_FIRING;
 
@@ -1851,6 +1904,21 @@ static void PM_Weapon( void ) {
 		return;
 	}
 
+	// the reload's over: the clip's full
+	if ( pm->ps->weaponstate == WEAPON_RELOADING ) {
+		BG_FillClip( pm->ps, pm->ps->weapon );
+		pm->ps->weaponstate = WEAPON_READY;
+		PM_StartWeaponAnim( WP_ANIM_IDLE );
+		return;
+	}
+
+	// an empty clip reloads by itself (Doom 3's auto reload), or on "+reload"
+	if ( PM_CanReload() && ( !BG_WeaponClipLoaded( pm->ps, pm->ps->weapon )
+							 || ( ( pm->cmd.buttons & BUTTON_RELOAD ) && pm->ps->weaponstate != WEAPON_RAISING ) ) ) {
+		PM_BeginReload();
+		return;
+	}
+
 	if ( pm->ps->weaponstate == WEAPON_RAISING ) {
 		pm->ps->weaponstate = WEAPON_READY;
 		if ( BG_Weapon( pm->ps->weapon )->melee ) {
@@ -1899,9 +1967,7 @@ static void PM_Weapon( void ) {
 	}
 
 	// take the ammo away if not infinite
-	if ( weapon->ammoRequired > 0 && pm->ps->ammo[ pm->ps->weapon ] != -1 ) {
-		pm->ps->ammo[ pm->ps->weapon ] -= weapon->ammoRequired;
-	}
+	PM_TakeAmmo( weapon );
 
 	// fire weapon
 	PM_AddEvent( EV_FIRE_WEAPON );

@@ -625,6 +625,7 @@ vmNetField_t	bg_playerStateFields[] =
 { PSA(stats), -16 },
 { PSA(persistant), -16 },
 { PSA(ammo), -16 },
+{ PSA(ammoClip), -16 },
 { PSA(powerups), 32 },
 { PSF(contents), 32 },
 { PSF(collisionType), 16 },
@@ -1173,6 +1174,7 @@ char *eventnames[] = {
 	"EV_NOAMMO",
 	"EV_CHANGE_WEAPON",
 	"EV_FIRE_WEAPON",
+	"EV_RELOAD_WEAPON",
 
 	"EV_USE_ITEM0",
 	"EV_USE_ITEM1",
@@ -1788,4 +1790,26 @@ void BG_PropTraceModel( propShape_t shape, const vec3_t mins, const vec3_t maxs,
 			TraceModelSetupBox( trm, bounds );
 			break;
 	}
+}
+
+/*
+================
+BG_FillClip
+
+Loads a clip weapon's clip from the ammo carried (Doom 3's reload: ammo
+counts all of it, the clip what of it is loaded). Weapons given or picked
+up come loaded.
+================
+*/
+void BG_FillClip( playerState_t *ps, int weapon ) {
+	const bgWeapon_t *w;
+
+	if ( !BG_ValidWeapon( weapon ) ) {
+		return;
+	}
+	w = BG_Weapon( weapon );
+	if ( w->clipSize <= 0 ) {
+		return;
+	}
+	ps->ammoClip[weapon] = ps->ammo[weapon] == -1 ? w->clipSize : MIN( w->clipSize, ps->ammo[weapon] );
 }

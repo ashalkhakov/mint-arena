@@ -287,6 +287,7 @@ void Cmd_Give_f (gentity_t *ent)
 	{
 		for ( i = 1 ; i < bg_numWeapons ; i++ ) {
 			ent->player->ps.ammo[i] = BG_Weapon( i )->maxAmmo;
+			BG_FillClip( &ent->player->ps, i );
 		}
 		if (!give_all)
 			return;

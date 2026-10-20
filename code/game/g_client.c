@@ -1091,6 +1091,7 @@ static void G_GiveStartWeapons( gplayer_t *player ) {
 		}
 		BG_GiveWeapon( &player->ps, weapon );
 		player->ps.ammo[weapon] = g_instagib.integer ? 999 : DictGetInt( BG_Weapon( weapon )->def, "startAmmo", "0" );
+		BG_FillClip( &player->ps, weapon );		// loaded
 	}
 }
 

@@ -545,6 +545,7 @@ typedef struct weaponInfo_s {
 	sfxHandle_t		readySound;			// "snd_hum", looped
 	sfxHandle_t		firingSound;		// "snd_firing", looped while firing
 	sfxHandle_t		raiseSound;			// "snd_raise"
+	sfxHandle_t		reloadSound;		// "snd_reload"
 	sfxHandle_t		altFireSound;		// "snd_altfire"
 
 	sfxWeapTiming_t animationSounds[MAX_ANIM_SOUNDS];

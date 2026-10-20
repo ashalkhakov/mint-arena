@@ -98,6 +98,17 @@ and `model_world_offset`, scaled by `model_world_scale`), `model_flash`, `icon`,
 A first person model is drawn at the eye, facing the view, with Daikatana's
 small bob, as its models are made for that.
 
+**Reloading, Doom 3's.** A weapon with `clipSize` holds that many shots
+loaded: a shot takes from the clip as well as from the ammo carried (`ammo`
+stays all of it, `ammoClip` what's loaded). An empty clip reloads by itself,
+and `+reload` (bound to R; Doom 3's reload impulse) reloads early; the reload
+takes `reloadRate` seconds, plays `anim_reload` and `snd_reload`, and the
+clip is filled when it's over. Changing weapons cancels it. Weapons come
+loaded when given or picked up. An animation may be part of the model's
+frames: `"<frames> [fps [first [count]]]"`, so `"shoot 22 34"` plays `shoot`
+from its 35th frame (the shotcycler fires its volley with the start of
+`shoot` and reloads with the rest, as Daikatana's cycles).
+
 `player_anim_suffix` picks a skeletal player's animations by the weapon, as
 Daikatana's do by weapon type and Doom 3's by `animPrefix`: with `"b"` the
 torso and legs play `atakb`, `runb`… where the model has them, else the plain
