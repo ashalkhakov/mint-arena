@@ -491,6 +491,9 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
     BG_InitIdLib();
     ie.Init();
 
+	// entity defs and the items made from them
+	BG_InitItems();
+
     ClipInit( &g_clip );
 	G_InitPhysics();
 

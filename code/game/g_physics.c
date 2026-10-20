@@ -46,6 +46,7 @@ static vmCvar_t		g_propPushMass;
 static vmCvar_t		g_propKnockback;
 static vmCvar_t		g_debugPhysics;
 static vmCvar_t		g_debugCollision;
+vmCvar_t				g_itemPhysics;
 
 // impact sounds
 #define IMPACT_SOUND_SPEED			60.0f		// slower impacts are silent
@@ -891,6 +892,7 @@ void G_InitPhysics( void ) {
 	trap_Cvar_Register( &g_propKnockback, "g_propKnockback", "1", 0 );
 	trap_Cvar_Register( &g_debugPhysics, "g_debugPhysics", "0", 0 );
 	trap_Cvar_Register( &g_debugCollision, "g_debugCollision", "0", 0 );
+	trap_Cvar_Register( &g_itemPhysics, "g_itemPhysics", "1", CVAR_SERVERINFO | CVAR_LATCH );
 
 	physicsLastStatsTime = 0;
 }
@@ -1037,10 +1039,14 @@ void G_RunPhysicsProp( gentity_t *ent ) {
 			RB_Evaluate( body, MIN( stepMsec, msec - i * stepMsec ) );
 		}
 
-		// fell out of the map
+		// fell out of the map: items placed in it go back, the rest goes
 		if ( RB_IsOutsideWorld( body ) ) {
-			G_FreeEntity( ent );
-			return;
+			if ( ent->s.eType == ET_ITEM && !( ent->flags & FL_DROPPED_ITEM ) ) {
+				G_PhysicsSetPose( ent, ent->pos1, ent->pos2 );
+			} else {
+				G_FreeEntity( ent );
+				return;
+			}
 		}
 	}
 
@@ -1265,36 +1271,34 @@ G_SpawnPhysicsPropTrm
 A prop of any trace model; its bounds are the entity's mins and maxs.
 ================
 */
-gentity_t *G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, const vec3_t origin,
-									const vec3_t angles, float density ) {
-	gentity_t *ent;
+/*
+================
+G_PhysicsAttachBody
+
+Makes the entity a rigid body of the trace model, at the pose; its own type,
+contents and touch stay. It collides with clipMask.
+================
+*/
+qboolean G_PhysicsAttachBody( gentity_t *ent, propShape_t shape, const traceModel_t *trm, const vec3_t origin,
+								const vec3_t angles, float density, int clipMask ) {
 	rigidBody_t *body;
 
-	ent = G_Spawn();
 	if ( !G_AllocBody( ent ) ) {
-		G_Printf( "G_SpawnPhysicsProp: more than %d props\n", MAX_PHYSICS_BODIES );
-		G_FreeEntity( ent );
-		return NULL;
+		G_Printf( "G_PhysicsAttachBody: more than %d bodies\n", MAX_PHYSICS_BODIES );
+		return qfalse;
 	}
 	body = ent->body;
 
-	ent->classname = "func_physics";
-	ent->s.eType = ET_PHYSICS_PROP;
-	ent->s.modelindex = shape;
-	ent->s.collisionType = CT_AABB;
-	ent->s.contents = CONTENTS_SOLID;
 	VectorCopy( trm->bounds[0], ent->s.mins );
 	VectorCopy( trm->bounds[1], ent->s.maxs );
-	ent->r.svFlags &= ~SVF_NOCLIENT;
-	ent->takedamage = qtrue;
-	ent->touch = G_PhysicsTouch;
+	ent->s.collisionType = CT_AABB;
 
 	body->shape = shape;
 	body->linearFriction = 0.6f;
 	body->angularFriction = 0.6f;
 	body->contactFriction = Com_Clamp( 0.0f, 1.0f, g_propFriction.value );
 	body->bouncyness = Com_Clamp( 0.0f, 1.0f, g_propBounce.value );
-	body->clipMask = MASK_SOLID | CONTENTS_BODY;
+	body->clipMask = clipMask;
 	body->current.atRest = -1;
 	body->current.lastTimeStep = 0.016f;
 
@@ -1308,7 +1312,97 @@ gentity_t *G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, co
 	body->startedInSolid = ( ClipContents( &g_clip, origin, &ent->clipModel, (const vec3_t *)body->current.i.orientation,
 											body->clipMask, (sharedEntity_t *)ent ) != 0 );
 	G_PhysicsUpdateEntityState( ent );
+	return qtrue;
+}
 
+/*
+================
+G_PhysicsDensityForMass
+
+The density that gives the trace model the mass.
+================
+*/
+float G_PhysicsDensityForMass( const traceModel_t *trm, float mass ) {
+	float volume;
+	vec3_t centerOfMass, inertia[3];
+
+	TraceModelGetMassProperties( trm, 1.0f, &volume, centerOfMass, inertia );
+	return ( volume > 0.0f && mass > 0.0f ) ? mass / volume : 0.0f;
+}
+
+/*
+================
+G_PhysicsSetPose
+
+Puts the body at the pose, at rest.
+================
+*/
+void G_PhysicsSetPose( gentity_t *ent, const vec3_t origin, const vec3_t angles ) {
+	rigidBody_t *body = ent->body;
+
+	if ( !body ) {
+		return;
+	}
+	VectorCopy( origin, body->current.i.position );
+	AnglesToAxis( angles, body->current.i.orientation );
+	VectorClear( body->current.i.linearMomentum );
+	VectorClear( body->current.i.angularMomentum );
+	body->current.atRest = body->isStatic ? level.time : -1;
+	G_PhysicsLinkProp( ent );
+	G_PhysicsUpdateEntityState( ent );
+}
+
+/*
+================
+G_PhysicsSetVelocity
+
+Sets the body moving, angular velocity in degrees a second about each axis.
+================
+*/
+void G_PhysicsSetVelocity( gentity_t *ent, const vec3_t linear, const vec3_t angular ) {
+	rigidBody_t *body = ent->body;
+	vec3_t radians, inertia[3];
+
+	if ( !body || body->isStatic ) {
+		return;
+	}
+	VectorScale( linear, body->mass, body->current.i.linearMomentum );
+	if ( angular ) {
+		VectorScale( angular, M_PI / 180.0f, radians );
+		// the inertia the simulation uses, from its inverse; in the body's
+		// frame, which is fine for setting something spinning
+		if ( Mat3Inverse( (const vec3_t *)body->inverseInertiaTensor, inertia ) ) {
+			M3_MulVec( (const vec3_t *)inertia, radians, body->current.i.angularMomentum );
+		}
+	}
+	RB_Activate( body );
+	G_PhysicsUpdateEntityState( ent );
+}
+
+/*
+================
+G_SpawnPhysicsPropTrm
+
+A prop of any trace model; its bounds are the entity's mins and maxs.
+================
+*/
+gentity_t *G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, const vec3_t origin,
+									const vec3_t angles, float density ) {
+	gentity_t *ent;
+
+	ent = G_Spawn();
+	ent->classname = "func_physics";
+	ent->s.eType = ET_PHYSICS_PROP;
+	ent->s.modelindex = shape;
+	ent->s.contents = CONTENTS_SOLID;
+	ent->r.svFlags &= ~SVF_NOCLIENT;
+	ent->takedamage = qtrue;
+	ent->touch = G_PhysicsTouch;
+
+	if ( !G_PhysicsAttachBody( ent, shape, trm, origin, angles, density, MASK_SOLID | CONTENTS_BODY ) ) {
+		G_FreeEntity( ent );
+		return NULL;
+	}
 	return ent;
 }
 
@@ -1339,13 +1433,13 @@ static void G_PropDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacke
 
 /*
 ================
-G_UnstickProp
+G_PhysicsUnstick
 
 Lifts a prop out of the floor it was placed in, a little at a time, or
 makes it static if that doesn't free it.
 ================
 */
-static void G_UnstickProp( gentity_t *prop ) {
+void G_PhysicsUnstick( gentity_t *prop ) {
 	rigidBody_t *body = prop->body;
 	int i;
 
@@ -1430,7 +1524,7 @@ void SP_func_physics( gentity_t *ent ) {
 	if ( model[0] ) {
 		prop->s.modelindex2 = G_ModelIndex( model );
 		prop->s.origin2[0] = scale;
-		G_UnstickProp( prop );
+		G_PhysicsUnstick( prop );
 		G_PhysicsUpdateEntityState( prop );
 	}
 	if ( G_SpawnFloat( "bouncyness", "0", &value ) ) {

@@ -51,7 +51,7 @@ An item fires all of its targets when it is picked up.  If the toucher can't car
 "count" override quantity or duration on most items.
 */
 
-gitem_t	bg_itemlist[] = 
+gitem_t	bg_builtinItems[] = 
 {
 	{
 		NULL,
@@ -876,7 +876,10 @@ Only in One Flag CTF games
 	{NULL}
 };
 
-int		bg_numItems = ARRAY_LEN( bg_itemlist ) - 1;
+// the items in play: the built-in ones, until BG_InitItems makes the list
+// from the entity defs (bg_defs.c)
+gitem_t	*bg_itemlist = bg_builtinItems;
+int		bg_numItems = ARRAY_LEN( bg_builtinItems ) - 1;
 
 // entityState_t fields
 #define	NETF(x) (size_t)&((entityState_t*)0)->x, 1

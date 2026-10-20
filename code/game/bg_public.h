@@ -616,6 +616,7 @@ typedef enum {
 #define EF_AWARD_DENIED		0x00040000		// denied
 #define EF_TEAMVOTED		0x00080000		// already cast a team vote
 #define EF_GIBBED			0x00100000		// player has been gibbed, client only renders player if com_blood or cg_gibs is 0
+#define EF_PHYSICS			0x00200000		// an item that's a rigid body: drawn at its pose, no bobbing or spinning
 
 // NOTE: may not have more than MAX_POWERUPS
 typedef enum {
@@ -1074,10 +1075,13 @@ typedef struct gitem_s {
 	int			giTag;
 
 	char		*sounds;		// string of all sounds this item will use
+
+	const struct dict_s	*def;	// its entity def (bg_defs.c), NULL for a built-in one before BG_InitItems
 } gitem_t;
 
 // included in both the game dll and the client
-extern	gitem_t	bg_itemlist[];
+extern	gitem_t	bg_builtinItems[];
+extern	gitem_t	*bg_itemlist;
 extern	int		bg_numItems;
 
 gitem_t	*BG_FindItem( const char *pickupName );
@@ -1154,6 +1158,19 @@ void	BG_AddStringToList( char *list, size_t listSize, int *listLength, char *nam
 void	SnapVectorTowards( vec3_t v, vec3_t to );
 
 void    BG_InitIdLib( void );
+
+// bg_defs.c, entity definitions (game and cgame)
+struct dict_s;
+void					BG_ClearDefs( void );
+struct dict_s			*BG_AddDef( const char *name );
+const struct dict_s		*BG_FindDef( const char *name );
+int						BG_NumDefs( void );
+const char				*BG_DefName( int num );
+const struct dict_s		*BG_DefForNum( int num );
+void					BG_LoadDefs( void );
+void					BG_InitItems( void );
+const struct dict_s		*BG_ItemDef( const gitem_t *item );
+float					BG_ItemModelScale( const gitem_t *item, qboolean customModel );
 
 #define ARENAS_PER_TIER		4
 #define MAX_ARENAS			1024

@@ -2685,6 +2685,9 @@ void CG_Init( connstate_t state, int maxSplitView, int playVideo ) {
 
     ie.Init();
 
+	// entity defs and the items made from them
+	BG_InitItems();
+
 	Swap_Init();
 
 	// clear everything

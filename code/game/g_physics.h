@@ -23,7 +23,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef __G_PHYSICS_H__
 #define __G_PHYSICS_H__
 
-#define MAX_PHYSICS_BODIES		256
+#define MAX_PHYSICS_BODIES		1024
 #define MAX_BODY_CONTACTS		10
 #define CONTACT_EPSILON			0.25f		// maximum contact seperation distance
 
@@ -90,6 +90,8 @@ typedef struct rigidBody_s {
 } rigidBody_t;
 
 // g_physics.c
+extern vmCvar_t	g_itemPhysics;		// items are rigid bodies
+
 void		G_InitPhysics( void );
 void		G_RunPhysicsProp( gentity_t *ent );
 void		G_PhysicsLinkProp( gentity_t *ent );
@@ -103,6 +105,12 @@ void		G_PhysicsClear( void );
 
 gentity_t	*G_SpawnPhysicsProp( propShape_t shape, const vec3_t origin, const vec3_t angles,
 								 const vec3_t mins, const vec3_t maxs, float density );
+qboolean	G_PhysicsAttachBody( gentity_t *ent, propShape_t shape, const traceModel_t *trm, const vec3_t origin,
+									const vec3_t angles, float density, int clipMask );
+float		G_PhysicsDensityForMass( const traceModel_t *trm, float mass );
+void		G_PhysicsSetPose( gentity_t *ent, const vec3_t origin, const vec3_t angles );
+void		G_PhysicsSetVelocity( gentity_t *ent, const vec3_t linear, const vec3_t angular );
+void		G_PhysicsUnstick( gentity_t *prop );
 gentity_t	*G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, const vec3_t origin,
 									const vec3_t angles, float density );
 

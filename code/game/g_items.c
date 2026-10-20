@@ -318,6 +318,77 @@ int Pickup_Armor( gentity_t *ent, gentity_t *other ) {
 RespawnItem
 ===============
 */
+/*
+===============
+G_ItemTakesPhysics
+
+Items are rigid bodies, like Doom 3's moveable items, unless physics is off
+for them (g_itemPhysics, or "nophysics" in the item's def). Team items keep
+Quake 3's rules for being dropped and returned.
+===============
+*/
+static qboolean G_ItemTakesPhysics( const gentity_t *ent ) {
+	const dict_t *def = BG_ItemDef( ent->item );
+
+	if ( !g_itemPhysics.integer || ent->item->giType == IT_TEAM ) {
+		return qfalse;
+	}
+	if ( def && DictGetBool( def, "nophysics", "0" ) ) {
+		return qfalse;
+	}
+	return qtrue;
+}
+
+/*
+===============
+G_ItemAttachBody
+
+Makes the item a rigid body: its model's hull at its scale, or the item's
+box for a model without one. Its def can give "density" or "mass",
+"bouncyness" (default 0.1) and "friction" (default 0.5). It stays a trigger for picking it up, and
+explosions push it.
+===============
+*/
+static qboolean G_ItemAttachBody( gentity_t *ent, const vec3_t origin, const vec3_t angles ) {
+	const dict_t *def = BG_ItemDef( ent->item );
+	const char *model;
+	qboolean customModel;
+	traceModel_t trm;
+	propShape_t shape = PROP_MODEL;
+	float density = 0.0f, value;
+
+	customModel = ( ent->model && ent->model[0] );
+	model = customModel ? ent->model : ent->item->world_model[0];
+	if ( !model || !BG_PropModelTraceModel( model, BG_ItemModelScale( ent->item, customModel ), &trm ) ) {
+		shape = PROP_BOX;
+		BG_PropTraceModel( PROP_BOX, ent->s.mins, ent->s.maxs, &trm );
+	}
+
+	if ( def ) {
+		density = DictGetFloat( def, "density", "0" );
+		if ( DictGetFloat2( def, "mass", "0", &value ) && value > 0.0f ) {
+			density = G_PhysicsDensityForMass( &trm, value );
+		}
+	}
+	if ( !G_PhysicsAttachBody( ent, shape, &trm, origin, angles, density, MASK_SOLID ) ) {
+		return qfalse;
+	}
+	// pickups settle where they land, they don't skate or roll away like
+	// the props' defaults would have them
+	ent->body->bouncyness = 0.1f;
+	ent->body->contactFriction = 0.5f;
+	if ( def && DictGetFloat2( def, "bouncyness", "0", &value ) ) {
+		ent->body->bouncyness = Com_Clamp( 0.0f, 1.0f, value );
+	}
+	if ( def && DictGetFloat2( def, "friction", "0", &value ) ) {
+		ent->body->contactFriction = Com_Clamp( 0.0f, 1.0f, value );
+	}
+
+	ent->s.eFlags |= EF_PHYSICS;
+	ent->takedamage = qtrue;
+	return qtrue;
+}
+
 void RespawnItem( gentity_t *ent ) {
 	if (!ent) {
 		return;
@@ -350,6 +421,10 @@ void RespawnItem( gentity_t *ent ) {
 	ent->s.contents = CONTENTS_TRIGGER;
 	ent->s.eFlags &= ~EF_NODRAW;
 	ent->r.svFlags &= ~SVF_NOCLIENT;
+	// a rigid body comes back where it was placed
+	if ( ent->body ) {
+		G_PhysicsSetPose( ent, ent->pos1, ent->pos2 );
+	}
     G_LinkEntity (ent);
 
 	if ( ent->item->giType == IT_POWERUP ) {
@@ -585,6 +660,18 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity ) {
 
 	dropped->flags = FL_DROPPED_ITEM;
 
+	// a rigid body tumbles to where it lands, spinning a little
+	if ( G_ItemTakesPhysics( dropped ) ) {
+		vec3_t angles, spin;
+
+		VectorSet( angles, 0, random() * 360, 0 );
+		VectorSet( spin, crandom() * 90, crandom() * 90, crandom() * 180 );
+		if ( G_ItemAttachBody( dropped, origin, angles ) ) {
+			dropped->s.eFlags &= ~EF_BOUNCE_HALF;
+			G_PhysicsSetVelocity( dropped, velocity, spin );
+		}
+	}
+
 	G_LinkEntity (dropped);
 
 	return dropped;
@@ -662,6 +749,12 @@ void FinishSpawningItem( gentity_t *ent ) {
 	if ( ent->spawnflags & 1 ) {
 		// suspended
 		G_SetOrigin( ent, ent->s.origin );
+	} else if ( G_ItemTakesPhysics( ent ) && G_ItemAttachBody( ent, ent->s.origin, ent->s.angles ) ) {
+		// a rigid body falls to the floor by itself; out of the floor if
+		// placed in it, and it comes back there
+		G_PhysicsUnstick( ent );
+		VectorCopy( ent->body->current.i.position, ent->pos1 );
+		VectorCopy( ent->s.angles, ent->pos2 );
 	} else {
 		// drop to floor
 		VectorSet( dest, ent->s.origin[0], ent->s.origin[1], ent->s.origin[2] - 4096 );

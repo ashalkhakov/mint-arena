@@ -1,0 +1,661 @@
+/*
+===========================================================================
+Copyright (C) 1999-2010 id Software LLC, a ZeniMax Media company.
+
+This file is part of Spearmint Source Code.
+
+Spearmint Source Code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 3 of the License,
+or (at your option) any later version.
+
+Spearmint Source Code is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
+===========================================================================
+*/
+// bg_defs.c -- entity definitions, Doom 3's entityDef declarations
+//
+// def/*.def hold blocks of
+//
+//	entityDef <name> {
+//		"inherit"	"<other def>"	// its keys, unless this one sets them
+//		"<key>"		"<value>"
+//		...
+//	}
+//
+// with // and /* */ comments. Other kinds of blocks (Doom 3's "model" and
+// the like) are skipped. A later def of a name replaces an earlier one,
+// files load in name order. The game and the cgame load the same files, so
+// they know the same defs. Code adds defs of its own (BG_AddDef) for things
+// built into the game; a file's def of such a name changes the keys it sets.
+
+#ifdef CGAME
+#include "../cgame/cg_local.h"
+#elif defined UI
+#include "../ui/ui_local.h"
+#else
+#include "g_local.h"
+#endif
+
+#define MAX_BG_DEFS			2048
+#define MAX_DEF_NAME		64
+#define DEF_HASH_SIZE		1024
+#define MAX_DEF_FILES		4096		// bytes of def/ file names
+
+typedef struct bgDef_s {
+	char			name[MAX_DEF_NAME];
+	dict_t			dict;
+	qboolean		resolved;		// "inherit" merged in
+	qboolean		resolving;		// to catch loops
+	qboolean		builtin;		// added by code: a file's def of the name only changes its keys
+	struct bgDef_s	*hashNext;
+} bgDef_t;
+
+static bgDef_t	*bg_defs[MAX_BG_DEFS];
+static int		bg_numDefs;
+static bgDef_t	*bg_defHash[DEF_HASH_SIZE];
+
+static int BG_DefHash( const char *name ) {
+	int hash = 0;
+
+	for ( ; *name; name++ ) {
+		int c = *name;
+		hash = hash * 31 + ( ( c >= 'A' && c <= 'Z' ) ? c - 'A' + 'a' : c );
+	}
+	return hash & ( DEF_HASH_SIZE - 1 );
+}
+
+static bgDef_t *BG_FindDefRaw( const char *name ) {
+	bgDef_t *def;
+
+	for ( def = bg_defHash[BG_DefHash( name )]; def; def = def->hashNext ) {
+		if ( !Q_stricmp( def->name, name ) ) {
+			return def;
+		}
+	}
+	return NULL;
+}
+
+/*
+================
+BG_ClearDefs
+================
+*/
+void BG_ClearDefs( void ) {
+	int i;
+
+	for ( i = 0; i < bg_numDefs; i++ ) {
+		DictFree( &bg_defs[i]->dict );
+		trap_HeapFree( bg_defs[i] );
+	}
+	bg_numDefs = 0;
+	memset( bg_defHash, 0, sizeof( bg_defHash ) );
+}
+
+/*
+================
+BG_AddDef
+
+A def with the name, for things built into the game; it starts empty. A
+def a file gives for the name later only changes the keys it sets, where
+a file's def replaces any other def of its name.
+================
+*/
+static dict_t *BG_AddDefFrom( const char *name, qboolean builtin ) {
+	bgDef_t *def;
+	int hash;
+
+	def = BG_FindDefRaw( name );
+	if ( def ) {
+		if ( !def->builtin || builtin ) {
+			DictClear( &def->dict );
+		}
+		def->builtin = builtin;
+		def->resolved = qfalse;
+		return &def->dict;
+	}
+	if ( bg_numDefs == MAX_BG_DEFS ) {
+		Com_Printf( S_COLOR_YELLOW "WARNING: more than %d entity defs, %s left out\n", MAX_BG_DEFS, name );
+		return NULL;
+	}
+
+	def = trap_HeapMalloc( sizeof( *def ) );
+	memset( def, 0, sizeof( *def ) );
+	def->builtin = builtin;
+	Q_strncpyz( def->name, name, sizeof( def->name ) );
+	DictInit( &def->dict );
+
+	hash = BG_DefHash( name );
+	def->hashNext = bg_defHash[hash];
+	bg_defHash[hash] = def;
+	bg_defs[bg_numDefs++] = def;
+	return &def->dict;
+}
+
+dict_t *BG_AddDef( const char *name ) {
+	return BG_AddDefFrom( name, qtrue );
+}
+
+/*
+================
+BG_ResolveDef
+
+Merges in what the def inherits, once.
+================
+*/
+static void BG_ResolveDef( bgDef_t *def ) {
+	const char *parentName;
+	bgDef_t *parent;
+
+	if ( def->resolved ) {
+		return;
+	}
+	if ( def->resolving ) {
+		Com_Printf( S_COLOR_YELLOW "WARNING: entity def %s inherits from itself\n", def->name );
+		return;
+	}
+	def->resolving = qtrue;
+
+	// the parent's own parents first, then its keys under this one's
+	while ( DictGetString( &def->dict, "inherit", "", &parentName ) && parentName[0] ) {
+		char name[MAX_DEF_NAME];
+
+		Q_strncpyz( name, parentName, sizeof( name ) );
+		DictDelete( &def->dict, "inherit" );
+		parent = BG_FindDefRaw( name );
+		if ( !parent ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: entity def %s inherits from unknown def %s\n", def->name, name );
+			continue;
+		}
+		BG_ResolveDef( parent );
+		DictSetDefaults( &def->dict, &parent->dict );
+	}
+
+	// a def's classname is its name, whatever it inherits
+	DictSet( &def->dict, "classname", def->name );
+
+	def->resolving = qfalse;
+	def->resolved = qtrue;
+}
+
+/*
+================
+BG_FindDef
+
+The def of the name, with what it inherits, or NULL.
+================
+*/
+const dict_t *BG_FindDef( const char *name ) {
+	bgDef_t *def;
+
+	if ( !name || !name[0] ) {
+		return NULL;
+	}
+	def = BG_FindDefRaw( name );
+	if ( !def ) {
+		return NULL;
+	}
+	BG_ResolveDef( def );
+	return &def->dict;
+}
+
+int BG_NumDefs( void ) {
+	return bg_numDefs;
+}
+
+const char *BG_DefName( int num ) {
+	if ( num < 0 || num >= bg_numDefs ) {
+		return NULL;
+	}
+	return bg_defs[num]->name;
+}
+
+const dict_t *BG_DefForNum( int num ) {
+	if ( num < 0 || num >= bg_numDefs ) {
+		return NULL;
+	}
+	BG_ResolveDef( bg_defs[num] );
+	return &bg_defs[num]->dict;
+}
+
+/*
+================
+BG_SkipBlock
+
+Past the closing brace of a block whose opening brace was read.
+================
+*/
+static void BG_SkipBlock( char **p ) {
+	int depth = 1;
+	char *token;
+
+	while ( depth > 0 ) {
+		token = COM_ParseExt( p, qtrue );
+		if ( !token[0] ) {
+			return;
+		}
+		if ( !strcmp( token, "{" ) ) {
+			depth++;
+		} else if ( !strcmp( token, "}" ) ) {
+			depth--;
+		}
+	}
+}
+
+/*
+================
+BG_ParseDefFile
+================
+*/
+static void BG_ParseDefFile( const char *fileName, char *text ) {
+	char *p = text, *token;
+	char name[MAX_DEF_NAME], key[MAX_TOKEN_CHARS];
+	dict_t *dict;
+	int line;
+
+	COM_BeginParseSession( fileName );
+
+	while ( 1 ) {
+		token = COM_ParseExt( &p, qtrue );
+		if ( !token[0] ) {
+			break;
+		}
+
+		// Doom 3 files hold other declarations too: skip to their block
+		if ( Q_stricmp( token, "entityDef" ) ) {
+			while ( token[0] && strcmp( token, "{" ) ) {
+				token = COM_ParseExt( &p, qtrue );
+			}
+			if ( token[0] ) {
+				BG_SkipBlock( &p );
+			}
+			continue;
+		}
+
+		token = COM_ParseExt( &p, qtrue );
+		Q_strncpyz( name, token, sizeof( name ) );
+		token = COM_ParseExt( &p, qtrue );
+		if ( strcmp( token, "{" ) ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: %s, line %d: no { after entityDef %s\n", fileName, COM_GetCurrentParseLine(), name );
+			break;
+		}
+
+		dict = BG_AddDefFrom( name, qfalse );
+		while ( 1 ) {
+			token = COM_ParseExt( &p, qtrue );
+			if ( !token[0] ) {
+				Com_Printf( S_COLOR_YELLOW "WARNING: %s: entityDef %s isn't closed\n", fileName, name );
+				return;
+			}
+			if ( !strcmp( token, "}" ) ) {
+				break;
+			}
+			Q_strncpyz( key, token, sizeof( key ) );
+			line = COM_GetCurrentParseLine();
+
+			// the value is on the key's line; "" is a value, nothing isn't
+			while ( *p == ' ' || *p == '\t' ) {
+				p++;
+			}
+			if ( !*p || *p == '\n' || *p == '\r' || ( p[0] == '/' && ( p[1] == '/' || p[1] == '*' ) ) ) {
+				Com_Printf( S_COLOR_YELLOW "WARNING: %s, line %d: key %s of %s has no value\n", fileName, line, key, name );
+				continue;
+			}
+			token = COM_ParseExt( &p, qfalse );
+			if ( dict ) {
+				DictSet( dict, key, token );
+			}
+		}
+	}
+}
+
+/*
+================
+BG_LoadDefs
+
+Every def/*.def, in name order. The defs added by code before stay unless a
+file replaces them.
+================
+*/
+static int QDECL BG_CompareFileNames( const void *a, const void *b ) {
+	return Q_stricmp( *(const char **)a, *(const char **)b );
+}
+
+void BG_LoadDefs( void ) {
+	char fileList[MAX_DEF_FILES], *fileName, *names[256];
+	char path[MAX_QPATH];
+	int numFiles, i;
+	long length;
+	void *text;
+
+	numFiles = trap_FS_GetFileList( "def", ".def", fileList, sizeof( fileList ) );
+	Com_DPrintf( "def/: %d files\n", numFiles );
+	numFiles = MIN( numFiles, (int)ARRAY_LEN( names ) );
+	fileName = fileList;
+	for ( i = 0; i < numFiles; i++ ) {
+		names[i] = fileName;
+		fileName += strlen( fileName ) + 1;
+	}
+	qsort( names, numFiles, sizeof( names[0] ), BG_CompareFileNames );
+
+	for ( i = 0; i < numFiles; i++ ) {
+		Com_sprintf( path, sizeof( path ), "def/%s", names[i] );
+		length = BG_FS_ReadFile( path, &text );
+		if ( length <= 0 || !text ) {
+			BG_FS_FreeFile( text );
+			continue;
+		}
+		( (char *)text )[length] = '\0';
+		BG_ParseDefFile( path, (char *)text );
+		BG_FS_FreeFile( text );
+	}
+}
+
+/*
+===============================================================================
+
+ITEMS
+
+Items are entity defs with "spawnclass" "item". The built-in ones (the
+bg_builtinItems table) are defs too, so a file can change one by giving a
+def of its name, or make a new one that inherits from it:
+
+	entityDef item_health_25 {
+		"inherit"		"item_health"
+		"model"			"models/e1/a1_hlth.md3"
+		"snd_acquire"	"sounds/global/a_hpick.wav"
+	}
+
+What an item gives comes from Doom 3 style keys, naming other items rather
+than numbers:
+	"inv_health" N						health
+	"inv_armor" N						armor
+	"inv_weapon" "<weapon item>"		that weapon, with "inv_ammo" N
+	"inv_ammo" N, "ammo_type" "<weapon item>"	ammo for that weapon
+	"inv_powerup" "<powerup item>"		that powerup, for "time" seconds
+	"inv_persistant" "<item>"			a persistant powerup
+	"inv_holdable" "<holdable item>"	that holdable
+	"inv_team" "<item>"					a team item (flags)
+Looks: "model" (and "model2" to "model4"), "model_scale", "icon",
+"snd_acquire", "inv_name", "sounds" (what else to precache). Physics in the game: "density", "mass",
+"bouncyness", "friction", "nophysics".
+
+The game and the cgame build the same list from the same files: built-in
+items first, at their usual numbers, then the new ones by name.
+
+===============================================================================
+*/
+
+static gitem_t	bg_defItems[MAX_ITEMS + 1];
+
+/*
+================
+BG_BuiltinItemForClass
+================
+*/
+static const gitem_t *BG_BuiltinItemForClass( const char *classname ) {
+	const gitem_t *it;
+
+	for ( it = bg_builtinItems + 1; it->classname; it++ ) {
+		if ( !Q_stricmp( it->classname, classname ) ) {
+			return it;
+		}
+	}
+	return NULL;
+}
+
+/*
+================
+BG_AddBuiltinItemDefs
+
+A def for each built-in item, with its keys.
+================
+*/
+static void BG_AddBuiltinItemDefs( void ) {
+	const gitem_t *it, *weapon;
+	dict_t *dict;
+	int i;
+
+	for ( it = bg_builtinItems + 1; it->classname; it++ ) {
+		dict = BG_AddDef( it->classname );
+		if ( !dict ) {
+			continue;
+		}
+		DictSet( dict, "spawnclass", "item" );
+		for ( i = 0; i < MAX_ITEM_MODELS; i++ ) {
+			if ( it->world_model[i] && it->world_model[i][0] ) {
+				DictSet( dict, i ? va( "model%d", i + 1 ) : "model", it->world_model[i] );
+			}
+		}
+		if ( it->pickup_sound && it->pickup_sound[0] ) {
+			DictSet( dict, "snd_acquire", it->pickup_sound );
+		}
+		if ( it->icon && it->icon[0] ) {
+			DictSet( dict, "icon", it->icon );
+		}
+		if ( it->pickup_name && it->pickup_name[0] ) {
+			DictSet( dict, "inv_name", it->pickup_name );
+		}
+		if ( it->sounds && it->sounds[0] ) {
+			DictSet( dict, "sounds", it->sounds );
+		}
+
+		switch ( it->giType ) {
+		case IT_HEALTH:
+			DictSetInt( dict, "inv_health", it->quantity );
+			break;
+		case IT_ARMOR:
+			DictSetInt( dict, "inv_armor", it->quantity );
+			break;
+		case IT_WEAPON:
+			DictSet( dict, "inv_weapon", it->classname );
+			DictSetInt( dict, "inv_ammo", it->quantity );
+			break;
+		case IT_AMMO:
+			for ( weapon = bg_builtinItems + 1; weapon->classname; weapon++ ) {
+				if ( weapon->giType == IT_WEAPON && weapon->giTag == it->giTag ) {
+					break;
+				}
+			}
+			if ( !weapon->classname ) {
+				weapon = NULL;
+			}
+			DictSetInt( dict, "inv_ammo", it->quantity );
+			DictSet( dict, "ammo_type", weapon ? weapon->classname : "" );
+			break;
+		case IT_POWERUP:
+			DictSet( dict, "inv_powerup", it->classname );
+			DictSetInt( dict, "time", it->quantity );
+			break;
+		case IT_PERSISTANT_POWERUP:
+			DictSet( dict, "inv_persistant", it->classname );
+			break;
+		case IT_HOLDABLE:
+			DictSet( dict, "inv_holdable", it->classname );
+			break;
+		case IT_TEAM:
+			DictSet( dict, "inv_team", it->classname );
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+/*
+================
+BG_ItemTag
+
+The tag of the built-in item a key names, for the type.
+================
+*/
+static qboolean BG_ItemTag( const dict_t *dict, const char *key, itemType_t type, int *tag ) {
+	const gitem_t *builtin;
+	const char *name;
+
+	if ( !DictGetString( dict, key, "", &name ) || !name[0] ) {
+		return qfalse;
+	}
+	builtin = BG_BuiltinItemForClass( name );
+	if ( !builtin || builtin->giType != type ) {
+		Com_Printf( S_COLOR_YELLOW "WARNING: item %s: %s \"%s\" isn't such an item\n",
+					DictGetStringReference( dict, "classname", "?" ), key, name );
+		return qfalse;
+	}
+	*tag = builtin->giTag;
+	return qtrue;
+}
+
+static char *BG_DefString( const dict_t *dict, const char *key ) {
+	const char *value;
+
+	if ( !DictGetString( dict, key, "", &value ) || !value[0] ) {
+		return NULL;
+	}
+	return (char *)value;
+}
+
+/*
+================
+BG_ItemFromDef
+================
+*/
+static qboolean BG_ItemFromDef( const dict_t *dict, gitem_t *item ) {
+	int i, tag = 0;
+
+	memset( item, 0, sizeof( *item ) );
+	item->def = dict;
+	item->classname = BG_DefString( dict, "classname" );
+	for ( i = 0; i < MAX_ITEM_MODELS; i++ ) {
+		item->world_model[i] = BG_DefString( dict, i ? va( "model%d", i + 1 ) : "model" );
+	}
+	item->pickup_sound = BG_DefString( dict, "snd_acquire" );
+	item->icon = BG_DefString( dict, "icon" );
+	item->pickup_name = BG_DefString( dict, "inv_name" );
+	item->sounds = BG_DefString( dict, "sounds" );
+	if ( !item->sounds ) {
+		item->sounds = "";
+	}
+
+	if ( DictFindKey( dict, "inv_health" ) ) {
+		item->giType = IT_HEALTH;
+		item->quantity = DictGetInt( dict, "inv_health", "0" );
+	} else if ( DictFindKey( dict, "inv_armor" ) ) {
+		item->giType = IT_ARMOR;
+		item->quantity = DictGetInt( dict, "inv_armor", "0" );
+	} else if ( BG_ItemTag( dict, "inv_weapon", IT_WEAPON, &tag ) ) {
+		item->giType = IT_WEAPON;
+		item->quantity = DictGetInt( dict, "inv_ammo", "0" );
+	} else if ( BG_ItemTag( dict, "ammo_type", IT_WEAPON, &tag ) ) {
+		item->giType = IT_AMMO;
+		item->quantity = DictGetInt( dict, "inv_ammo", "0" );
+	} else if ( BG_ItemTag( dict, "inv_powerup", IT_POWERUP, &tag ) ) {
+		item->giType = IT_POWERUP;
+		item->quantity = DictGetInt( dict, "time", "30" );
+	} else if ( BG_ItemTag( dict, "inv_persistant", IT_PERSISTANT_POWERUP, &tag ) ) {
+		item->giType = IT_PERSISTANT_POWERUP;
+	} else if ( BG_ItemTag( dict, "inv_holdable", IT_HOLDABLE, &tag ) ) {
+		item->giType = IT_HOLDABLE;
+	} else if ( BG_ItemTag( dict, "inv_team", IT_TEAM, &tag ) ) {
+		item->giType = IT_TEAM;
+	} else {
+		Com_Printf( S_COLOR_YELLOW "WARNING: item %s gives nothing, left out\n", item->classname );
+		return qfalse;
+	}
+	item->giTag = tag;
+	return qtrue;
+}
+
+static int QDECL BG_CompareItemClass( const void *a, const void *b ) {
+	return Q_stricmp( ( (const gitem_t *)a )->classname, ( (const gitem_t *)b )->classname );
+}
+
+/*
+================
+BG_InitItems
+
+Loads the entity defs and makes the item list from them.
+================
+*/
+void BG_InitItems( void ) {
+	const gitem_t *it;
+	const dict_t *dict;
+	const char *spawnclass;
+	int i, num, firstNew;
+
+	BG_ClearDefs();
+	BG_AddBuiltinItemDefs();
+	BG_LoadDefs();
+
+	// the built-in items keep their numbers
+	memset( bg_defItems, 0, sizeof( bg_defItems ) );
+	num = 1;
+	for ( it = bg_builtinItems + 1; it->classname && num < MAX_ITEMS; it++ ) {
+		dict = BG_FindDef( it->classname );
+		if ( !dict || !BG_ItemFromDef( dict, &bg_defItems[num] ) ) {
+			// keep the number taken, as the built-in item
+			bg_defItems[num] = *it;
+		}
+		num++;
+	}
+
+	// then the new ones, by name
+	firstNew = num;
+	for ( i = 0; i < BG_NumDefs(); i++ ) {
+		if ( BG_BuiltinItemForClass( BG_DefName( i ) ) ) {
+			continue;
+		}
+		dict = BG_DefForNum( i );
+		if ( !DictGetString( dict, "spawnclass", "", &spawnclass ) || Q_stricmp( spawnclass, "item" ) ) {
+			continue;
+		}
+		if ( num == MAX_ITEMS ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d items, %s left out\n", MAX_ITEMS - 1, BG_DefName( i ) );
+			break;
+		}
+		if ( BG_ItemFromDef( dict, &bg_defItems[num] ) ) {
+			num++;
+		}
+	}
+	qsort( bg_defItems + firstNew, num - firstNew, sizeof( bg_defItems[0] ), BG_CompareItemClass );
+
+	bg_itemlist = bg_defItems;
+	bg_numItems = num;
+
+	Com_DPrintf( "%d entity defs, %d items (%d from defs)\n", BG_NumDefs(), num - 1, num - firstNew );
+}
+
+/*
+================
+BG_ItemDef
+
+The item's entity def, NULL for none.
+================
+*/
+const dict_t *BG_ItemDef( const gitem_t *item ) {
+	return item ? item->def : NULL;
+}
+
+/*
+================
+BG_ItemModelScale
+
+How much bigger than its model an item is drawn, and collides in the game:
+its def's "model_scale", 1 by default (Quake 3 drew weapons at 1.5). A map's
+own model for the item ("model" key) is drawn as it is.
+================
+*/
+float BG_ItemModelScale( const gitem_t *item, qboolean customModel ) {
+	if ( customModel || !item ) {
+		return 1.0f;
+	}
+	if ( item->def ) {
+		return DictGetFloat( item->def, "model_scale", "1" );
+	}
+	return 1.0f;
+}

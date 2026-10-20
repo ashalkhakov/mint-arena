@@ -541,7 +541,7 @@ static void CG_Item( centity_t *cent ) {
 	float			scale;
 	weaponInfo_t	*wi;
 	qboolean		megaHealth;
-	qboolean		customModel;
+	qboolean		customModel, physics;
 
 	es = &cent->currentState;
 	if ( es->modelindex >= BG_NumItems() ) {
@@ -568,17 +568,25 @@ static void CG_Item( centity_t *cent ) {
 		return;
 	}
 
-	// items bob up and down continuously
+	// map items can use their own model (ET_ITEM frame holds its model index)
+	customModel = ( es->frame > 0 && es->frame < MAX_MODELS && cgs.gameModels[es->frame] );
+	physics = ( es->eFlags & EF_PHYSICS ) != 0;
+
+	memset (&ent, 0, sizeof(ent));
+
 	megaHealth = ( item->giType == IT_HEALTH && !strcmp(item->classname, "item_health_mega" ) );
-	if ( item->giType != IT_HEALTH || megaHealth ) {
+	if ( physics ) {
+		// a rigid body: drawn where the game simulates it, the way it lies
+		AnglesToAxis( cent->lerpAngles, ent.axis );
+	} else if ( item->giType != IT_HEALTH || megaHealth ) {
+		// items bob up and down continuously
 		scale = 0.005 + cent->currentState.number * 0.00001;
 		cent->lerpOrigin[2] += 4 + cos( ( cg.time + 1000 ) *  scale ) * 4;
 	}
 
-	memset (&ent, 0, sizeof(ent));
-
 	// autorotate at one of two speeds
-	if ( item->giType == IT_HEALTH ) {
+	if ( physics ) {
+	} else if ( item->giType == IT_HEALTH ) {
 		if ( megaHealth ) {
 			VectorCopy( cg.autoAngles, cent->lerpAngles );
 			AxisCopy( cg.autoAxis, ent.axis );
@@ -597,6 +605,8 @@ static void CG_Item( centity_t *cent ) {
 	// eccentricly
 	if ( item->giType == IT_WEAPON ) {
 		wi = &cg_weapons[item->giTag];
+	}
+	if ( item->giType == IT_WEAPON && !physics ) {
 		cent->lerpOrigin[0] -= 
 			wi->weaponMidpoint[0] * ent.axis[0][0] +
 			wi->weaponMidpoint[1] * ent.axis[1][0] +
@@ -620,8 +630,6 @@ static void CG_Item( centity_t *cent ) {
 
 	ent.hModel = cg_items[es->modelindex].models[0];
 
-	// map items can use their own model (ET_ITEM frame holds its model index)
-	customModel = ( es->frame > 0 && es->frame < MAX_MODELS && cgs.gameModels[es->frame] );
 	if ( customModel ) {
 		ent.hModel = cgs.gameModels[es->frame];
 	}
@@ -643,12 +651,15 @@ static void CG_Item( centity_t *cent ) {
 		frac = 1.0;
 	}
 
-	// increase the size of the weapons when they are presented as items
-	if ( item->giType == IT_WEAPON && !customModel ) {
-		VectorScale( ent.axis[0], 1.5, ent.axis[0] );
-		VectorScale( ent.axis[1], 1.5, ent.axis[1] );
-		VectorScale( ent.axis[2], 1.5, ent.axis[2] );
+	// the item's model scale, the game's physics uses it too
+	scale = BG_ItemModelScale( item, customModel );
+	if ( scale != 1.0f ) {
+		VectorScale( ent.axis[0], scale, ent.axis[0] );
+		VectorScale( ent.axis[1], scale, ent.axis[1] );
+		VectorScale( ent.axis[2], scale, ent.axis[2] );
 		ent.nonNormalizedAxes = qtrue;
+	}
+	if ( item->giType == IT_WEAPON && !customModel ) {
 #ifdef MISSIONPACK
 		trap_S_AddLoopingSound( cent->currentState.number, cent->lerpOrigin, vec3_origin, cgs.media.weaponHoverSound );
 #endif
@@ -697,7 +708,7 @@ static void CG_Item( centity_t *cent ) {
 
 		VectorClear( spinAngles );
 
-		if ( /*item->giType == IT_HEALTH ||*/ item->giType == IT_POWERUP && !customModel )
+		if ( /*item->giType == IT_HEALTH ||*/ item->giType == IT_POWERUP && !customModel && !physics )
 		{
 			if ( ( ent.hModel = cg_items[es->modelindex].models[1] ) != 0 )
 			{
