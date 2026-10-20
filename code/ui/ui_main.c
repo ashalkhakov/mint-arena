@@ -5239,7 +5239,46 @@ void UI_DrawConnectScreen( qboolean overlay ) {
 	float centerPoint, yStart, scale;
 	
 	menuDef_t *menu = Menus_FindByName("Connect");
+	qhandle_t levelshot = 0;
 
+	// the map's levelshot, as the cgame's loading screen shows it, so
+	// connecting goes straight into it
+	info[0] = '\0';
+	if ( !overlay ) {
+		char mapname[MAX_QPATH];
+
+		mapname[0] = '\0';
+		if ( trap_GetConfigString( CS_SERVERINFO, info, sizeof( info ) ) ) {
+			Q_strncpyz( mapname, Info_ValueForKey( info, "mapname" ), sizeof( mapname ) );
+		}
+		// starting a local server: no server info yet, but the map's set
+		trap_GetClientState( &cstate );
+		if ( !mapname[0] && !Q_stricmp( cstate.servername, "localhost" ) ) {
+			trap_Cvar_VariableStringBuffer( "mapname", mapname, sizeof( mapname ) );
+		}
+		if ( mapname[0] && Q_stricmp( mapname, "nomap" ) ) {
+			levelshot = trap_R_RegisterShaderNoMip( va( "levelshots/%s", mapname ) );
+		}
+	}
+	if ( levelshot && trap_R_RegisterShaderNoMip( "gfx/2d/loadingbar" ) ) {
+		float scale, ox, oy;
+
+		CG_ClearViewport();
+		// 4:3, filling the width of a wide screen (cg_info.c CG_DrawLoadingBar)
+		if ( cgs.glconfig.vidWidth * 480 > cgs.glconfig.vidHeight * 640 ) {
+			scale = cgs.glconfig.vidWidth / 640.0f;
+		} else {
+			scale = cgs.glconfig.vidHeight / 480.0f;
+			if ( cgs.glconfig.vidWidth / 640.0f < scale ) {
+				scale = cgs.glconfig.vidWidth / 640.0f;
+			}
+		}
+		ox = ( cgs.glconfig.vidWidth - 640.0f * scale ) * 0.5f;
+		oy = ( cgs.glconfig.vidHeight - 480.0f * scale ) * 0.5f;
+		trap_R_SetColor( NULL );
+		trap_R_DrawStretchPic( ox, oy, 640.0f * scale, 480.0f * scale, 0, 0, 1, 1, levelshot );
+		return;
+	}
 
 	if ( !overlay && menu ) {
 		CG_ClearViewport();

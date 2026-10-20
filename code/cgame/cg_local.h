@@ -1551,6 +1551,8 @@ extern	vmCvar_t		cg_drawGrappleHook;
 extern	vmCvar_t		cg_drawBBox;
 extern	vmCvar_t		cg_consoleFont;
 extern	vmCvar_t		cg_consoleFontSize;
+extern	vmCvar_t		cg_consoleLine;
+extern	vmCvar_t		cg_consoleShader;
 extern	vmCvar_t		cg_hudFont;
 extern	vmCvar_t		cg_hudFontBorder;
 extern	vmCvar_t		cg_numberFont;

@@ -314,20 +314,26 @@ void Con_DrawSolidConsole( connstate_t state, float frac ) {
 
 	CG_SetScreenPlacement( PLACE_STRETCH, PLACE_STRETCH );
 
-	// draw the background
+	// draw the background: the picture's bottom part, as if it slid down
+	// from above the screen
 	y = frac * SCREEN_HEIGHT;
 	if ( y < 1 ) {
 		y = 0;
 	}
 	else {
-		CG_DrawPic( 0, 0, SCREEN_WIDTH, y, cgs.media.consoleShader );
+		float px = 0, py = 0, pw = SCREEN_WIDTH, ph = y;
+
+		CG_AdjustFrom640( &px, &py, &pw, &ph );
+		trap_R_DrawStretchPic( px, py, pw, ph, 0, 1.0f - frac, 1, 1, cgs.media.consoleShader );
 	}
 
-	color[0] = 1;
-	color[1] = 0;
-	color[2] = 0;
-	color[3] = 1;
-	CG_FillRect( 0, y, SCREEN_WIDTH, 2, color );
+	if ( cg_consoleLine.integer ) {
+		color[0] = 1;
+		color[1] = 0;
+		color[2] = 0;
+		color[3] = 1;
+		CG_FillRect( 0, y, SCREEN_WIDTH, 2, color );
+	}
 
 	CG_SetScreenPlacement( PLACE_RIGHT, PLACE_TOP );
 
