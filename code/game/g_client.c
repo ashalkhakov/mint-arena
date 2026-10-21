@@ -1305,8 +1305,11 @@ void PlayerSpawn(gentity_t *ent) {
 			// positively link the player, even if the command times are weird
 			VectorCopy(ent->player->ps.origin, ent->r.currentOrigin);
 
-			tent = G_TempEntity(ent->player->ps.origin, EV_PLAYER_TELEPORT_IN);
-			tent->s.playerNum = ent->s.playerNum;
+			// Quake 3's teleport flash, not in Daikatana's single player
+			if ( g_gametype.integer != GT_CAMPAIGN ) {
+				tent = G_TempEntity(ent->player->ps.origin, EV_PLAYER_TELEPORT_IN);
+				tent->s.playerNum = ent->s.playerNum;
+			}
 
 			G_LinkEntity (ent);
 		}
@@ -1385,8 +1388,10 @@ qboolean PlayerDisconnect( int playerNum, qboolean force ) {
 	// send effect if they were completely connected
 	if ( ent->player->pers.connected == CON_CONNECTED 
 		&& ent->player->sess.sessionTeam != TEAM_SPECTATOR ) {
-		tent = G_TempEntity( ent->player->ps.origin, EV_PLAYER_TELEPORT_OUT );
-		tent->s.playerNum = ent->s.playerNum;
+		if ( g_gametype.integer != GT_CAMPAIGN ) {
+			tent = G_TempEntity( ent->player->ps.origin, EV_PLAYER_TELEPORT_OUT );
+			tent->s.playerNum = ent->s.playerNum;
+		}
 
 		// They don't get to take powerups with them!
 		// Especially important for stuff like CTF flags

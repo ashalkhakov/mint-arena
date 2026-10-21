@@ -70,7 +70,8 @@ void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	noAngles = (angles[0] > 999999.0);
 	// use temp events at source and destination to prevent the effect
 	// from getting dropped by a second player event
-	if ( player->player->sess.sessionTeam != TEAM_SPECTATOR ) {
+	if ( player->player->sess.sessionTeam != TEAM_SPECTATOR && g_gametype.integer != GT_CAMPAIGN ) {
+		// (Quake 3's teleport flash: not in Daikatana's single player)
 		tent = G_TempEntity( player->player->ps.origin, EV_PLAYER_TELEPORT_OUT );
 		tent->s.playerNum = player->s.playerNum;
 
