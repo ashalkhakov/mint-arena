@@ -1130,11 +1130,13 @@ set(Q3CGOBJ
   game/bg_ik.c
   game/bg_af.c
   game/bg_afdecl.c
+  game/bg_camera.c
   game/bg_snapshot.c
   game/bg_model.c
   game/bg_sound.c
   cgame/cg_atmospheric.c
   cgame/cg_console.c
+  cgame/cg_cinematic.c
   cgame/cg_consolecmds.c
   cgame/cg_newdraw.c
   cgame/cg_draw.c
@@ -1348,6 +1350,7 @@ set(Q3GOBJ
   game/bg_ik.c
   game/bg_af.c
   game/bg_afdecl.c
+  game/bg_camera.c
   game/bg_snapshot.c
   game/bg_model.c
   game/bg_sound.c
@@ -1356,6 +1359,7 @@ set(Q3GOBJ
   game/g_botlib.c
   game/g_client.c
   game/g_cmds.c
+  game/g_cinematic.c
   game/g_combat.c
   game/g_items.c
   game/g_misc.c

@@ -2227,3 +2227,11 @@ void IN_Button14Up( int localPlayerNum );
 //
 void CG_DrawBBox( centity_t *cent, float *color );
 
+//
+// cg_cinematic.c
+//
+void		CG_ParseCinematic( void );
+void		CG_ParseFade( void );
+qboolean	CG_InCinematic( void );
+qboolean	CG_CinematicView( void );
+qboolean	CG_DrawCinematicView( void );

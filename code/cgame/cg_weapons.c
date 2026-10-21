@@ -969,6 +969,10 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 		return;
 	}
 
+	if ( CG_InCinematic() ) {
+		return;
+	}
+
 	if ( ps->pm_type == PM_INTERMISSION ) {
 		return;
 	}

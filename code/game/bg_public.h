@@ -151,6 +151,8 @@ extern idlib_export_t ie;
 #define	CS_PLAYERS_READY		25		// players wishing to exit the intermission
 
 #define	CS_ITEMS				27		// string of 0's and 1's that tell which items are present
+#define	CS_CINEMATIC			28		// the camera everyone sees from (g_cinematic.c); "" for their own eyes
+#define	CS_FADE					29		// Doom 3's screen fade: "<r g b> <from alpha> <to alpha> <start> <ms>"
 
 #define	CS_MODELS				32
 #define	CS_SOUNDS				(CS_MODELS+MAX_MODELS)

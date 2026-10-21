@@ -99,10 +99,14 @@ void G_ScriptActivate( gentity_t *ent, gentity_t *activator ) {
 G_ScriptSetCallback
 
 EV_Thread_SetCallback: whether sys.waitFor( ent ) waits for it: a mover on
-its way (Reached_BinaryMover lets the thread go on)
+its way (Reached_BinaryMover lets the thread go on), or a camera playing
+(G_CameraStop)
 ================
 */
 qboolean G_ScriptSetCallback( gentity_t *ent ) {
+	if ( ent->cameraPlaying ) {
+		return qtrue;
+	}
 	if ( ent->s.eType == ET_MOVER && ( ent->moverState == MOVER_1TO2 || ent->moverState == MOVER_2TO1 ) ) {
 		return qtrue;
 	}

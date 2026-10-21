@@ -812,6 +812,9 @@ void PlayerThink_real( gentity_t *ent ) {
 	} else {
 		player->ps.pm_type = PM_NORMAL;
 	}
+	if ( level.inCinematic ) {
+		G_CinematicPlayerThink( ent, ucmd );		// frozen; a press skips it
+	}
 
 	player->ps.gravity = g_gravity.value;
 

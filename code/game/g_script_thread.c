@@ -652,6 +652,12 @@ Thread_WaitMS
 */
 void Thread_WaitMS( scriptThread_t *thread, int time ) {
 	Thread_Pause( thread );
+	if ( level.skipCinematic && !thread->manualControl ) {
+		// a cinematic is skipped: on at once, this frame
+		thread->waitingUntil = level.time;
+		Thread_DelayedStart( thread, 0 );
+		return;
+	}
 	thread->waitingUntil = level.time + time;
 }
 
@@ -699,6 +705,40 @@ static void Event_Wait( scriptThread_t *thread, const intptr_t *args ) {
 
 static void Event_WaitFrame( scriptThread_t *thread, const intptr_t *args ) {
 	Thread_WaitFrame( thread );
+}
+
+static void Event_SetCamera( scriptThread_t *thread, const intptr_t *args ) {
+	gentity_t *cam = EVARG_ENTITY( 0 );
+
+	if ( !cam || ( Q_stricmp( cam->classname, "func_cameraspline" ) && Q_stricmp( cam->classname, "func_cameraview" ) ) ) {
+		Thread_Error( thread, "Entity is not a camera" );
+		return;
+	}
+	G_SetCamera( cam );
+}
+
+static void Event_FirstPerson( scriptThread_t *thread, const intptr_t *args ) {
+	G_SetCamera( NULL );
+}
+
+static void Event_FadeIn( scriptThread_t *thread, const intptr_t *args ) {
+	G_SetFade( EVARG_VECTOR( 0 ), 0, EVARG_FLOAT( 1 ) * 1000 );
+}
+
+static void Event_FadeOut( scriptThread_t *thread, const intptr_t *args ) {
+	G_SetFade( EVARG_VECTOR( 0 ), 1, EVARG_FLOAT( 1 ) * 1000 );
+}
+
+static void Event_FadeTo( scriptThread_t *thread, const intptr_t *args ) {
+	G_SetFade( EVARG_VECTOR( 0 ), EVARG_FLOAT( 1 ), EVARG_FLOAT( 2 ) * 1000 );
+}
+
+static void Event_InCinematic( scriptThread_t *thread, const intptr_t *args ) {
+	Thread_ReturnInt( level.inCinematic );
+}
+
+static void Event_SkippingCinematic( scriptThread_t *thread, const intptr_t *args ) {
+	Thread_ReturnInt( level.skipCinematic );
 }
 
 static void Event_WaitFor( scriptThread_t *thread, const intptr_t *args ) {
@@ -1150,6 +1190,13 @@ const sysEventCallback_t threadEventCallbacks[] = {
 	{ "wait",				"f",		0,		Event_Wait },
 	{ "waitFrame",			NULL,		0,		Event_WaitFrame },
 	{ "waitFor",			"e",		0,		Event_WaitFor },
+	{ "setCamera",			"e",		0,		Event_SetCamera },
+	{ "firstPerson",		NULL,		0,		Event_FirstPerson },
+	{ "fadeIn",				"vf",		0,		Event_FadeIn },
+	{ "fadeOut",			"vf",		0,		Event_FadeOut },
+	{ "fadeTo",				"vff",		0,		Event_FadeTo },
+	{ "inCinematic",		NULL,		'd',	Event_InCinematic },
+	{ "skippingCinematic",	NULL,		'd',	Event_SkippingCinematic },
 	{ "waitForThread",		"d",		0,		Event_WaitForThread },
 	{ "print",				"s",		0,		Event_Print },
 	{ "println",			"s",		0,		Event_PrintLn },

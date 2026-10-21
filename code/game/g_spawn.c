@@ -151,6 +151,8 @@ void SP_func_door (gentity_t *ent);
 void SP_func_water( gentity_t *ent );
 void SP_func_door_rotating( gentity_t *ent );	// Rotating Doors
 void SP_func_train (gentity_t *ent);
+void SP_func_cameraspline( gentity_t *ent );
+void SP_func_cameraview( gentity_t *ent );
 void SP_func_timer (gentity_t *self);
 
 void SP_trigger_multiple (gentity_t *ent);
@@ -204,6 +206,8 @@ spawn_t	spawns[] = {
 	{"func_breakable", SP_func_breakable},
 	{"func_rotating", SP_func_rotating},
 	{"func_train", SP_func_train},
+	{"func_cameraspline", SP_func_cameraspline},
+	{"func_cameraview", SP_func_cameraview},
 	{"func_group", SP_info_null},
 	{"func_timer", SP_func_timer},			// rename trigger_timer?
 

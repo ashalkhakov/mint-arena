@@ -832,6 +832,18 @@ static int CG_CalcViewValues( void ) {
 	CG_CalcVrect();
 
 	ps = &cg.cur_lc->predictedPlayerState;
+
+	// a cinematic: its camera's view
+	if ( CG_CinematicView() ) {
+		int contents = CG_PointContents( cg.refdef.vieworg, -1 );
+
+		if ( contents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) ) {
+			cg.refdef.rdflags |= RDF_UNDERWATER;
+			return 1;
+		}
+		cg.refdef.rdflags &= ~RDF_UNDERWATER;
+		return 0;
+	}
 /*
 	if (cg.cameraMode) {
 		vec3_t origin, angles;

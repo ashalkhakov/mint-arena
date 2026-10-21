@@ -317,6 +317,13 @@ struct gentity_s {
 	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
 
 	scriptObject_t	scriptObject;		// its "scriptobject" (g_script.c): its type's fields
+
+	// a camera's (g_cinematic.c)
+	char		*cameraName;			// func_cameraspline: cameras/<name>.camera
+	char		*cameraTarget;			// func_cameraview: what it looks at
+	int			cameraStartTime;		// when it started playing (0: not yet)
+	qboolean	cameraPlaying;
+	float		cameraFov;
 	monsterState_t	monster;			// a monster's (g_monster.c)
 };
 
@@ -408,6 +415,9 @@ struct gplayer_s {
 
 	// the rest of the structure is private to game
 	playerPersistant_t	pers;
+	qboolean	cinematicHidden;		// hidden for a cinematic (g_cinematic.c)
+	int			cinematicOldUp;			// last frame's upmove and buttons, for a press that skips one
+	int			cinematicOldButtons;
 	playerSession_t		sess;
 
 	qboolean	readyToExit;		// wishes to leave the intermission
@@ -590,6 +600,17 @@ typedef struct {
 	qboolean	loadPersistant;			// a changelevel led here: the players take what they carried
 	int			numSecrets;
 	int			secretsFound;
+
+	// Doom 3's cinematic mode (g_cinematic.c)
+	gentity_t	*camera;				// what every player sees from; NULL: their own eyes
+	qboolean	inCinematic;
+	qboolean	skipCinematic;			// a player skipped it: waits end at once
+	int			cinematicStartTime, cinematicSkipTime;
+	vec3_t		cameraLastOrigin, cameraLastAngles;
+	gentity_t	*cinematicEyes[MAX_CLIENTS];	// each player's portal entity, seeing from the camera
+	vec4_t		fadeColor;				// the fade: colour, and the alpha it goes to
+	float		fadeFromAlpha;
+	int			fadeStartTime, fadeDuration;
 } level_locals_t;
 
 
@@ -1046,3 +1067,16 @@ extern	vmCvar_t	g_instagib;
 
 
 #include "g_physics.h"
+
+//
+// g_cinematic.c
+//
+qboolean	G_CameraView( gentity_t *cam, vec3_t origin, vec3_t angles, float *fov );
+void		G_CameraStart( gentity_t *cam );
+void		G_CameraStop( gentity_t *cam );
+void		G_SetCamera( gentity_t *cam );
+void		G_SkipCinematic( void );
+void		G_CinematicConfigString( void );
+void		G_CinematicPlayerThink( gentity_t *ent, usercmd_t *ucmd );
+void		G_RunCinematic( void );
+void		G_SetFade( const vec4_t color, float alpha, int ms );

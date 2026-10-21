@@ -2877,6 +2877,11 @@ static void CG_Draw2D(stereoFrame_t stereoFrame, qboolean *voiceMenuOpen)
 		return;
 	}
 
+	// a cinematic's letterbox and the fades; no HUD in a cinematic
+	if ( CG_DrawCinematicView() ) {
+		return;
+	}
+
 	if ( cg_draw2D.integer == 0 ) {
 		return;
 	}

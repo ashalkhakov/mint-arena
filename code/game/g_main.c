@@ -1993,6 +1993,9 @@ void G_RunFrame( int levelTime ) {
 	// the script threads whose time has come (Doom 3's ServiceEvents)
 	G_ScriptFrame();
 
+	// a cinematic's camera and the players watching it
+	G_RunCinematic();
+
 	//
 	// go through all allocated objects
 	//

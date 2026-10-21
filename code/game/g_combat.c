@@ -667,6 +667,11 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		return;
 	}
 
+	// Doom 3: no one in a cinematic is hurt
+	if ( targ->player && level.inCinematic ) {
+		return;
+	}
+
 	// the intermission has already been qualified for, so don't
 	// allow any extra scoring
 	if ( level.intermissionQueued ) {

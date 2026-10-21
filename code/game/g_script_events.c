@@ -698,6 +698,14 @@ static void Event_DisableGravity( gentity_t *self, const intptr_t *args ) {
 	self->monster.flags |= MONF_NOGRAVITY;
 }
 
+static void Event_CameraStart( gentity_t *self, const intptr_t *args ) {
+	G_CameraStart( self );
+}
+
+static void Event_CameraStop( gentity_t *self, const intptr_t *args ) {
+	G_CameraStop( self );
+}
+
 static void Event_Perch( gentity_t *self, const intptr_t *args ) {
 	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
 	Thread_ReturnInt( G_MonsterPerch( self, EVARG_VECTOR( 0 ), EVARG_VECTOR( 1 ) ) );
@@ -1043,6 +1051,8 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "facingIdeal",		NULL,		'd',	Event_FacingIdeal },
 	{ "setFlySpeed",		"f",		0,		Event_SetFlySpeed },
 	{ "perch",				"vv",		'd',	Event_Perch },
+	{ "start",				NULL,		0,		Event_CameraStart },		// a camera's (Doom 3's idCameraAnim)
+	{ "stop",				NULL,		0,		Event_CameraStop },
 	{ "isPerched",			NULL,		'd',	Event_IsPerched },
 	{ "setFlyOffset",		"d",		0,		Event_SetFlyOffset },
 	{ "enableGravity",		NULL,		0,		Event_EnableGravity },

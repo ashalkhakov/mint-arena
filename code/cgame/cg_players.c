@@ -2845,6 +2845,11 @@ void CG_Player( centity_t *cent ) {
 	}
 	pi = &cgs.playerinfo[ playerNum ];
 
+	// hidden (a cinematic's actors play the player)
+	if ( cent->currentState.eFlags & EF_NODRAW ) {
+		return;
+	}
+
 	// it is possible to see corpses from disconnected players that may
 	// not have valid playerinfo
 	if ( !pi->infoValid ) {
