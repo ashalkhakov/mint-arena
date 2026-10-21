@@ -1093,6 +1093,7 @@ set(idlib_files
   idlib/l_log.c
   idlib/q_math.c
   idlib/q_shared.c
+  idlib/q_lib.c
   idlib/q_extramath.c
   idlib/q_containers.c
   idlib/lcp.c
@@ -1127,7 +1128,6 @@ set(Q3CGOBJ
   game/bg_misc.c
   game/bg_pmove.c
   game/bg_slidemove.c
-  game/bg_lib.c
   game/bg_tracemap.c
   game/bg_prophull.c
   game/bg_defs.c
@@ -1393,7 +1393,6 @@ set(Q3GOBJ
   game/bg_misc.c
   game/bg_pmove.c
   game/bg_slidemove.c
-  game/bg_lib.c
   game/bg_tracemap.c
   game/bg_prophull.c
   game/bg_defs.c

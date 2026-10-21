@@ -1,11 +1,11 @@
 //
 //
-// bg_lib,c -- standard C library replacement routines used by code
+// q_lib.c -- standard C library replacement routines used by code
 // compiled for the virtual machine
 
 #ifdef Q3_VM
 
-#include "../idlib/q_shared.h"
+#include "q_shared.h"
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "bg_lib.h"
+#include "q_lib.h"
 
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0
@@ -2233,7 +2233,7 @@ int sscanf( const char *buffer, const char *fmt, ... ) {
 			}
 
 			if (!cmd) {
-				Com_Printf( "WARNING: bg_lib.c's sscanf doesn't support format %%%c\n", type );
+				Com_Printf( "WARNING: q_lib.c's sscanf doesn't support format %%%c\n", type );
 				break;
 			}
 		} else {
@@ -2295,7 +2295,7 @@ int sscanf( const char *buffer, const char *fmt, ... ) {
 			break;
 			}
 		default:
-			Com_Printf( "WARNING: bg_lib.c's sscanf doesn't support format %%%c\n", cmd );
+			Com_Printf( "WARNING: q_lib.c's sscanf doesn't support format %%%c\n", cmd );
 			break;
 		}
 	}

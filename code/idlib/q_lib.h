@@ -27,7 +27,7 @@ terms, you may contact in writing id Software LLC, c/o ZeniMax Media Inc.,
 Suite 120, Rockville, Maryland 20850 USA.
 ===========================================================================
 */
-// bg_lib.h -- standard C library replacement routines used by code
+// q_lib.h -- standard C library replacement routines used by code
 // compiled for the virtual machine
 
 // This file is NOT included on native builds
