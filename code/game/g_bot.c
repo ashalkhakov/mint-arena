@@ -795,8 +795,8 @@ void Svcmd_AddBot_f( void ) {
 	char			string[MAX_TOKEN_CHARS];
 	char			team[MAX_TOKEN_CHARS];
 
-	// are bots enabled?
-	if ( !trap_Cvar_VariableIntegerValue( "bot_enable" ) ) {
+	// are bots enabled? (their AI and AAS load now, if they haven't)
+	if ( !G_BotLibLoaded() ) {
 		return;
 	}
 

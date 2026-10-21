@@ -477,6 +477,27 @@ void G_UpdateCvars( void ) {
 }
 
 /*
+================
+G_BotLibLoaded
+
+the bots' AI and the map's AAS worlds, loaded if they aren't yet (a bot
+added in the campaign, a monster's path); qfalse if bots are off
+================
+*/
+qboolean G_BotLibLoaded( void ) {
+	if ( level.botLibLoaded ) {
+		return qtrue;
+	}
+	if ( !trap_Cvar_VariableIntegerValue( "bot_enable" ) ) {
+		return qfalse;
+	}
+	BotAISetup( qfalse );
+	BotAILoadMap( qfalse );
+	level.botLibLoaded = qtrue;
+	return qtrue;
+}
+
+/*
 ============
 G_InitGame
 
@@ -610,9 +631,13 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 		G_ModelIndex( SP_PODIUM_MODEL );
 	}
 
-	if ( trap_Cvar_VariableIntegerValue( "bot_enable" ) ) {
+	// the bots' AI and the map's AAS worlds: in deathmatch now, in the
+	// campaign only once something needs them (G_BotLibLoaded): a map loads
+	// only what it uses
+	if ( trap_Cvar_VariableIntegerValue( "bot_enable" ) && g_gametype.integer != GT_CAMPAIGN ) {
 		BotAISetup( restart );
 		BotAILoadMap( restart );
+		level.botLibLoaded = qtrue;
 		G_InitBots( restart );
 	}
 
@@ -643,7 +668,7 @@ void G_ShutdownGame( int restart ) {
 	// write all the player session data so we can get it back
 	G_WriteSessionData();
 
-	if ( trap_Cvar_VariableIntegerValue( "bot_enable" ) ) {
+	if ( level.botLibLoaded ) {
 		BotAIShutdown( restart );
 	}
 

@@ -602,6 +602,8 @@ typedef struct {
 	int			secretsFound;
 
 	// Doom 3's cinematic mode (g_cinematic.c)
+	qboolean	botLibLoaded;			// the bots' AI and the map's AAS worlds (G_BotLibLoaded)
+
 	gentity_t	*camera;				// what every player sees from; NULL: their own eyes
 	qboolean	inCinematic;
 	qboolean	skipCinematic;			// a player skipped it: waits end at once
@@ -913,6 +915,7 @@ void		G_AirNavShutdown( void );
 // g_monster.c
 void		SP_monster( gentity_t *ent );
 qboolean	G_IsMonster( const gentity_t *ent );
+qboolean	G_BotLibLoaded( void );		// g_main.c: the bots' AI and the map's AAS worlds, loaded when first needed
 qboolean	G_MonsterPerch( gentity_t *ent, const vec3_t pos, const vec3_t normal );
 gentity_t	*G_MonsterEnemy( gentity_t *ent );
 gentity_t	*G_MonsterFindEnemy( gentity_t *ent, qboolean useFov );
