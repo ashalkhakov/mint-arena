@@ -90,6 +90,7 @@ static int                  sizeTraceModelCache;
 static trmCache_t** 		traceModelCache;
 static hashIndex_t			traceModelHash;
 static qboolean             traceModelCacheInitialized;
+static int					temporaryTraceModelIndex = -1;	// the entry ClipModelLoadTemporaryTraceModel overwrites
 
 /*
 ===============
@@ -109,7 +110,9 @@ void ClipModelClearTraceModelCache( clip_t *self ) {
     int i;
 
     for ( i = 0; i < numTraceModelCache; i++ ) {
-        ii.FreeMemory( traceModelCache[i] );
+        if ( traceModelCache[i] ) {
+            ii.FreeMemory( traceModelCache[i] );
+        }
     }
     if ( traceModelCache ) {
         ii.FreeMemory( traceModelCache );
@@ -117,6 +120,7 @@ void ClipModelClearTraceModelCache( clip_t *self ) {
     }
     numTraceModelCache = 0;
     sizeTraceModelCache = 0;
+	temporaryTraceModelIndex = -1;
 	HashIndexFree( &traceModelHash );
 }
 
@@ -128,6 +132,9 @@ ClipModelTraceModelCacheSize
 int ClipModelTraceModelCacheSize( clip_t *self ) {
 	return numTraceModelCache * sizeof( traceModel_t );
 }
+
+static int ClipModelAddTraceModelEntry( trmCache_t *entry );
+void ClipModelFreeTraceModel( int traceModelIndex );
 
 /*
 ===============
@@ -151,6 +158,58 @@ int ClipModelAllocTraceModel( const traceModel_t *trm ) {
     TraceModelGetMassProperties( &entry->trm, 1.0f, &entry->volume, entry->centerOfMass, entry->inertiaTensor );
 	entry->refCount = 1;
 
+	traceModelIndex = ClipModelAddTraceModelEntry( entry );
+	HashIndexAdd( &traceModelHash, hashKey, traceModelIndex );
+	return traceModelIndex;
+}
+
+/*
+===============
+ClipModelLoadTemporaryTraceModel
+
+A trace model for the trace at hand only (G_Trace's box): one entry of the
+cache, not hashed, that the next overwrites. Doom 3's cache keeps every trace
+model until the map ends, which suits its clip models' few shapes; boxes of
+any size traced through it (a perched skeet's turned box) filled the heap.
+===============
+*/
+void ClipModelLoadTemporaryTraceModel( clipModel_t *self, const traceModel_t *trm ) {
+	trmCache_t *entry;
+
+	if ( temporaryTraceModelIndex < 0 ) {
+		entry = ( trmCache_t * ) ii.GetMemory( sizeof( trmCache_t ) );
+		entry->refCount = 1;
+		temporaryTraceModelIndex = ClipModelAddTraceModelEntry( entry );
+	}
+	if ( self->traceModelIndex != -1 && self->traceModelIndex != temporaryTraceModelIndex ) {
+		ClipModelFreeTraceModel( self->traceModelIndex );
+	}
+	memcpy( &traceModelCache[temporaryTraceModelIndex]->trm, trm, sizeof( *trm ) );	// (traces want no mass)
+	self->collisionModelHandle = 0;
+	self->renderModelHandle = -1;
+	self->traceModelIndex = temporaryTraceModelIndex;
+	VectorCopy( trm->bounds[0], self->bounds[0] );
+	VectorCopy( trm->bounds[1], self->bounds[1] );
+}
+
+/*
+===============
+ClipModelAddTraceModelEntry
+
+Puts an entry in the cache, in a freed one's place if there is one; returns
+its index.
+===============
+*/
+static int ClipModelAddTraceModelEntry( trmCache_t *entry ) {
+	int traceModelIndex;
+
+	for ( traceModelIndex = 0; traceModelIndex < numTraceModelCache; traceModelIndex++ ) {
+		if ( !traceModelCache[traceModelIndex] ) {
+			traceModelCache[traceModelIndex] = entry;
+			return traceModelIndex;
+		}
+	}
+
     if ( numTraceModelCache >= sizeTraceModelCache ) {
         sizeTraceModelCache = sizeTraceModelCache == 0 ? 64 : sizeTraceModelCache * 1.5;
         trmCache_t **newCache = ( trmCache_t ** )ii.GetMemory( sizeof( *traceModelCache ) * sizeTraceModelCache );
@@ -164,7 +223,6 @@ int ClipModelAllocTraceModel( const traceModel_t *trm ) {
     traceModelCache[numTraceModelCache] = entry;
     traceModelIndex = numTraceModelCache;
     numTraceModelCache++;
-	HashIndexAdd( &traceModelHash, hashKey, traceModelIndex );
 	return traceModelIndex;
 }
 
@@ -174,11 +232,23 @@ ClipModelFreeTraceModel
 ===============
 */
 void ClipModelFreeTraceModel( int traceModelIndex ) {
-	if ( traceModelIndex < 0 || traceModelIndex >= numTraceModelCache || traceModelCache[traceModelIndex]->refCount <= 0 ) {
+	trmCache_t *entry;
+
+	if ( traceModelIndex < 0 || traceModelIndex >= numTraceModelCache || !traceModelCache[traceModelIndex]
+		|| traceModelCache[traceModelIndex]->refCount <= 0 ) {
 		ii.Com_Printf( "ClipModelFreeTraceModel: tried to free uncached trace model" );
 		return;
 	}
-	traceModelCache[traceModelIndex]->refCount--;
+	entry = traceModelCache[traceModelIndex];
+	if ( --entry->refCount > 0 || traceModelIndex == temporaryTraceModelIndex ) {
+		return;
+	}
+	// no clip model has it: gone (Doom 3 kept them all until the map ended,
+	// but a box that changes as it goes, a ragdoll's, makes a new one each
+	// frame)
+	HashIndexRemove( &traceModelHash, ClipModelGetTraceModelHashKey( &entry->trm ), traceModelIndex );
+	ii.FreeMemory( entry );
+	traceModelCache[traceModelIndex] = NULL;
 }
 
 /*
@@ -237,12 +307,15 @@ ClipModelLoadTraceModel
 ================
 */
 void ClipModelLoadTraceModel( clipModel_t *self, const traceModel_t *trm ) {
+	int old = self->traceModelIndex;
+
 	self->collisionModelHandle = 0;
 	self->renderModelHandle = -1;
-	if ( self->traceModelIndex != -1 ) {
-		ClipModelFreeTraceModel( self->traceModelIndex );
-	}
+	// the new one first: the same shape again stays cached
 	self->traceModelIndex = ClipModelAllocTraceModel( trm );
+	if ( old != -1 ) {
+		ClipModelFreeTraceModel( old );
+	}
     VectorCopy( trm->bounds[0], self->bounds[0] );
     VectorCopy( trm->bounds[1], self->bounds[1] );
 }
@@ -365,6 +438,7 @@ void ClipModelFree( clipModel_t *self ) {
 	ClipModelUnlink( self );
 	if ( self->traceModelIndex != -1 ) {
 		ClipModelFreeTraceModel( self->traceModelIndex );
+		self->traceModelIndex = -1;		// (freeing it again does nothing)
 	}
 }
 
@@ -590,7 +664,7 @@ void ClipInit( clip_t *self ) {
     TraceModelSetupBox2( &trm, 8 );
 	ClipModelInitFromTraceModel( &self->defaultClipModel, &trm );
 
-	// the temporary clip model gets a new trace model for every bounds trace
+	// the temporary clip model gets the trace model of every bounds trace (ClipModelLoadTemporaryTraceModel)
 	ClipModelInit( &self->temporaryClipModel );
 
 	// set counters to zero
@@ -608,11 +682,8 @@ void ClipFree( clip_t *self ) {
     }
 	self->clipSectors = NULL;
 
-	// free the trace model used for the temporaryClipModel
-	if ( self->temporaryClipModel.traceModelIndex != -1 ) {
-		ClipModelFreeTraceModel( self->temporaryClipModel.traceModelIndex );
-		self->temporaryClipModel.traceModelIndex = -1;
-	}
+	// the temporaryClipModel's trace model goes with the cache
+	self->temporaryClipModel.traceModelIndex = -1;
 
 	// free the trace model used for the defaultClipModel
 	if ( self->defaultClipModel.traceModelIndex != -1 ) {

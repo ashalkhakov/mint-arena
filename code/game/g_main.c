@@ -572,6 +572,9 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	// initialize all entities for this game
 	memset( g_entities, 0, MAX_GENTITIES * sizeof(g_entities[0]) );
+	for ( i = 0; i < MAX_GENTITIES; i++ ) {
+		ClipModelInit( &g_entities[i].clipModel );		// no trace model
+	}
 	level.gentities = g_entities;
 
 	// initialize all client connections for this game

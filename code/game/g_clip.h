@@ -80,6 +80,7 @@ void ClipModelFree( clipModel_t *self );
 
 qboolean ClipModelLoadModel( clipModel_t *self, const char *name );
 void ClipModelLoadTraceModel( clipModel_t *self, const traceModel_t *trm );
+void ClipModelLoadTemporaryTraceModel( clipModel_t *self, const traceModel_t *trm );
 void ClipModelLoadRenderModel( clipModel_t *self, const int renderModelHandle );
 
 void ClipModelLink( clipModel_t *self, clip_t *clp );				// must have been linked with an entity and id before
@@ -317,7 +318,7 @@ static ID_INLINE qboolean ClipTraceBounds( clip_t *clip, cm_trace_t *results, co
     trm.type = TRM_INVALID;
     TraceModelSetupBox( &trm, bounds );
 
-	ClipModelLoadTraceModel( &clip->temporaryClipModel, &trm );
+	ClipModelLoadTemporaryTraceModel( &clip->temporaryClipModel, &trm );
 	ClipTranslation( clip, results, start, end, &clip->temporaryClipModel, axisDefault, contentMask, passEntity );
 	if ( results->fraction < 1.0f ) {
         return qtrue;

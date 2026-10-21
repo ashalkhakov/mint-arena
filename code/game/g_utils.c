@@ -552,8 +552,10 @@ void G_FreeEntity( gentity_t *ed ) {
 	}
 
 	G_ScriptEntityFreed( ed );
+	ClipModelFree( &ed->clipModel );		// its box's trace model
 
 	memset (ed, 0, sizeof(*ed));
+	ClipModelInit( &ed->clipModel );
 	ed->classname = "freed";
 	ed->freetime = level.time;
 	ed->inuse = qfalse;

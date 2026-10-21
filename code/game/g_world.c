@@ -175,8 +175,9 @@ void G_LinkEntity( gentity_t *ent ) {
 		VectorAdd (origin, ent->s.maxs, ent->r.absmax);
 	}
 
-	// drop the links at the old position, ClipModelInit forgets them without unlinking
-	ClipModelUnlink( &ent->clipModel );
+	// drop the links at the old position and the old box's trace model:
+	// ClipModelInit forgets both
+	ClipModelFree( &ent->clipModel );
 
     int newId = ent->s.number;
 	if ( ent->s.collisionType == CT_SUBMODEL ) {
@@ -292,7 +293,7 @@ static const clipModel_t *G_TraceClipModel( const vec3_t mins, const vec3_t maxs
 	VectorCopy( maxs, bounds[1] );
 	trm.type = TRM_INVALID;
 	TraceModelSetupBox( &trm, bounds );
-	ClipModelLoadTraceModel( &g_clip.temporaryClipModel, &trm );
+	ClipModelLoadTemporaryTraceModel( &g_clip.temporaryClipModel, &trm );
 
 	return &g_clip.temporaryClipModel;
 }

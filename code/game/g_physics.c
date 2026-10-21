@@ -814,6 +814,7 @@ static void RB_SetClipModel( rigidBody_t *body, const traceModel_t *trm, float d
 	int minIndex;
 	float min;
 
+	ClipModelFree( &body->self->clipModel );		// the box it linked with before
 	ClipModelInit( &body->self->clipModel );
 	ClipModelLoadTraceModel( &body->self->clipModel, trm );
 
