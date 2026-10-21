@@ -1580,11 +1580,16 @@ void SP_func_physics( gentity_t *ent ) {
 		return;
 	}
 
+	G_SpawnInt( "static", "0", &isStatic );
 	if ( model[0] ) {
 		prop->s.modelindex2 = G_ModelIndex( model );
 		prop->s.origin2[0] = scale;
 		prop->s.frame = frame;
-		G_PhysicsUnstick( prop );
+		if ( !isStatic ) {
+			// (scenery that doesn't move stays where the map puts it: a body
+			// lying on a coffin is in the coffin's hull)
+			G_PhysicsUnstick( prop );
+		}
 		G_PhysicsUpdateEntityState( prop );
 	}
 	if ( G_SpawnFloat( "bouncyness", "0", &value ) ) {
@@ -1593,7 +1598,6 @@ void SP_func_physics( gentity_t *ent ) {
 	if ( G_SpawnFloat( "friction", "0", &value ) ) {
 		prop->body->contactFriction = Com_Clamp( 0.0f, 1.0f, value );
 	}
-	G_SpawnInt( "static", "0", &isStatic );
 	if ( isStatic ) {
 		prop->body->current.atRest = level.time;
 		prop->body->isStatic = qtrue;
