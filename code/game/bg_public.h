@@ -1261,7 +1261,7 @@ void					BG_InitItems( void );		// and the weapons and the models
 //
 // bg_model.c: skeletal models
 //
-#define MAX_MODEL_DEFS			64
+#define MAX_MODEL_DEFS			256		// every character and monster rigged (modelindex2 is MODELINDEX_BITS)
 #define MAX_MODEL_ANIMS			128
 #define MAX_MODEL_HITBOXES		32
 #define MAX_MODEL_ZONES			16

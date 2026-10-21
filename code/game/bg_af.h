@@ -294,7 +294,7 @@ void		AF_DebugDraw( const afPhysics_t *af, void (*line)( const vec3_t start, con
 //
 // bg_afdecl.c: Doom 3's .af files, and idAF: the figure on a skeleton
 //
-#define AF_MAX_DECLS			16
+#define AF_MAX_DECLS			128		// a ragdoll for every character and monster
 
 typedef enum {
 	AFVEC_COORDS,
