@@ -680,9 +680,10 @@ struct svcmd
   void     ( *function )( void );
   void     ( *complete )( char *, int );
 } svcmds[ ] = {
+  // sorted, they're found with bsearch
+  { "aasworld", qfalse, Svcmd_AASWorld_f },
   { "addbot", qfalse, Svcmd_AddBot_f, Svcmd_AddBotComplete },
   { "addip", qfalse, Svcmd_AddIP_f },
-  { "aasworld", qfalse, Svcmd_AASWorld_f },
   { "botgoto", qfalse, Svcmd_BotGoto_f },
   { "botlist", qfalse, Svcmd_BotList_f },
   { "botreport", qfalse, Svcmd_BotTeamplayReport_f },

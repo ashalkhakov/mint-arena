@@ -128,7 +128,7 @@ void G_CameraStop( gentity_t *cam ) {
 	G_UseTargets( cam, cam );
 }
 
-static void G_CameraThink( gentity_t *cam ) {
+void G_CameraThink( gentity_t *cam ) {
 	cameraDef_t *def = BG_LoadCamera( cam->cameraName );
 
 	if ( !cam->cameraPlaying ) {
@@ -141,7 +141,7 @@ static void G_CameraThink( gentity_t *cam ) {
 	cam->nextthink = level.time + 1;
 }
 
-static void G_CameraUse( gentity_t *cam, gentity_t *other, gentity_t *activator ) {
+void G_CameraUse( gentity_t *cam, gentity_t *other, gentity_t *activator ) {
 	// Doom 3: a camera that's used is the view (or isn't, if it was)
 	if ( level.camera == cam ) {
 		G_SetCamera( NULL );
