@@ -135,125 +135,7 @@ void TossPlayerItems( gentity_t *self ) {
 	}
 }
 
-/*
-===========
-TossPlayerGametypeItems
-
-Drop CTF flag and Harvester cubes
-===========
-*/
-void TossPlayerGametypeItems(gentity_t *ent) {
-	int j;
-	gitem_t *item;
-	gentity_t *drop;
-	int angle = 0;
-
-	// drop flags in CTF
-	item = NULL;
-	j = 0;
-
-	if ( ent->player->ps.powerups[ PW_REDFLAG ] ) {
-		item = BG_FindItemForPowerup( PW_REDFLAG );
-		j = PW_REDFLAG;
-	} else if ( ent->player->ps.powerups[ PW_BLUEFLAG ] ) {
-		item = BG_FindItemForPowerup( PW_BLUEFLAG );
-		j = PW_BLUEFLAG;
-	} else if ( ent->player->ps.powerups[ PW_NEUTRALFLAG ] ) {
-		item = BG_FindItemForPowerup( PW_NEUTRALFLAG );
-		j = PW_NEUTRALFLAG;
-	}
-
-	if ( item ) {
-		drop = Drop_Item( ent, item, angle );
-		angle += 45;
-		// decide how many seconds it has left
-		drop->count = ( ent->player->ps.powerups[ j ] - level.time ) / 1000;
-		if ( drop->count < 1 ) {
-			drop->count = 1;
-		}
-		ent->player->ps.powerups[ j ] = 0;
-	}
-
 #ifdef MISSIONPACK
-	if ( g_gametype.integer == GT_HARVESTER ) {
-		if ( ent->player->ps.tokens > 0 ) {
-			if ( ent->player->sess.sessionTeam == TEAM_RED ) {
-				item = BG_FindItem( "Blue Cube" );
-			} else {
-				item = BG_FindItem( "Red Cube" );
-			}
-			if ( item ) {
-				for ( j = 0; j < ent->player->ps.tokens; j++ ) {
-					drop = Drop_Item( ent, item, angle );
-					if ( ent->player->sess.sessionTeam == TEAM_RED ) {
-						drop->s.team = TEAM_BLUE;
-					} else {
-						drop->s.team = TEAM_RED;
-					}
-					angle += 45;
-				}
-			}
-			ent->player->ps.tokens = 0;
-		}
-	}
-#endif
-}
-
-#ifdef MISSIONPACK
-
-/*
-=================
-TossPlayerCubes
-
-Spawn cube at neutral obelisk
-=================
-*/
-extern gentity_t	*neutralObelisk;
-
-void TossPlayerCubes( gentity_t *self ) {
-	gitem_t		*item;
-	gentity_t	*drop;
-	vec3_t		velocity;
-	vec3_t		angles;
-	vec3_t		origin;
-
-	self->player->ps.tokens = 0;
-
-	// this should never happen but we should never
-	// get the server to crash due to skull being spawned in
-	if (!G_EntitiesFree()) {
-		return;
-	}
-
-	if( self->player->sess.sessionTeam == TEAM_RED ) {
-		item = BG_FindItem( "Red Cube" );
-	}
-	else {
-		item = BG_FindItem( "Blue Cube" );
-	}
-
-	angles[YAW] = (float)(level.time % 360);
-	angles[PITCH] = 0;	// always forward
-	angles[ROLL] = 0;
-
-	AngleVectors( angles, velocity, NULL, NULL );
-	VectorScale( velocity, 150, velocity );
-	velocity[2] += 200 + crandom() * 50;
-
-	if( neutralObelisk ) {
-		VectorCopy( neutralObelisk->s.pos.trBase, origin );
-		origin[2] += 44;
-	} else {
-		VectorClear( origin ) ;
-	}
-
-	drop = LaunchItem( item, origin, velocity );
-
-	drop->nextthink = level.time + g_cubeTimeout.integer * 1000;
-	drop->think = G_FreeEntity;
-	drop->s.team = self->player->sess.sessionTeam;
-}
-
 
 /*
 =================
@@ -424,89 +306,6 @@ void Kamikaze_DeathTimer( gentity_t *self ) {
 
 /*
 ==================
-CheckAlmostCapture
-==================
-*/
-void CheckAlmostCapture( gentity_t *self, gentity_t *attacker ) {
-	gentity_t	*ent;
-	vec3_t		dir;
-	char		*classname;
-
-	// if this player was carrying a flag
-	if ( self->player->ps.powerups[PW_REDFLAG] ||
-		self->player->ps.powerups[PW_BLUEFLAG] ||
-		self->player->ps.powerups[PW_NEUTRALFLAG] ) {
-		// get the goal flag this player should have been going for
-		if ( g_gametype.integer == GT_CTF ) {
-			if ( self->player->sess.sessionTeam == TEAM_BLUE ) {
-				classname = "team_CTF_blueflag";
-			}
-			else {
-				classname = "team_CTF_redflag";
-			}
-		}
-		else {
-			if ( self->player->sess.sessionTeam == TEAM_BLUE ) {
-				classname = "team_CTF_redflag";
-			}
-			else {
-				classname = "team_CTF_blueflag";
-			}
-		}
-		ent = NULL;
-		do
-		{
-			ent = G_Find(ent, FOFS(classname), classname);
-		} while (ent && (ent->flags & FL_DROPPED_ITEM));
-		// if we found the destination flag and it's not picked up
-		if (ent && !(ent->r.svFlags & SVF_NOCLIENT) ) {
-			// if the player was *very* close
-			VectorSubtract( self->player->ps.origin, ent->s.origin, dir );
-			if ( VectorLength(dir) < 200 ) {
-				self->player->ps.persistant[PERS_PLAYEREVENTS] ^= PLAYEREVENT_HOLYSHIT;
-				if ( attacker->player ) {
-					attacker->player->ps.persistant[PERS_PLAYEREVENTS] ^= PLAYEREVENT_HOLYSHIT;
-				}
-			}
-		}
-	}
-}
-
-/*
-==================
-CheckAlmostScored
-==================
-*/
-void CheckAlmostScored( gentity_t *self, gentity_t *attacker ) {
-	gentity_t	*ent;
-	vec3_t		dir;
-	char		*classname;
-
-	// if the player was carrying cubes
-	if ( self->player->ps.tokens ) {
-		if ( self->player->sess.sessionTeam == TEAM_BLUE ) {
-			classname = "team_redobelisk";
-		}
-		else {
-			classname = "team_blueobelisk";
-		}
-		ent = G_Find(NULL, FOFS(classname), classname);
-		// if we found the destination obelisk
-		if ( ent ) {
-			// if the player was *very* close
-			VectorSubtract( self->player->ps.origin, ent->s.origin, dir );
-			if ( VectorLength(dir) < 200 ) {
-				self->player->ps.persistant[PERS_PLAYEREVENTS] ^= PLAYEREVENT_HOLYSHIT;
-				if ( attacker->player ) {
-					attacker->player->ps.persistant[PERS_PLAYEREVENTS] ^= PLAYEREVENT_HOLYSHIT;
-				}
-			}
-		}
-	}
-}
-
-/*
-==================
 player_die
 ==================
 */
@@ -531,11 +330,6 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 
 	// make sure the body shows up in the player's current position
 	G_UnTimeShiftClient( self );
-
-	// check for an almost capture
-	CheckAlmostCapture( self, attacker );
-	// check for a player that almost brought in cubes
-	CheckAlmostScored( self, attacker );
 
 	if (self->player && self->player->hook) {
 		Weapon_HookFree(self->player->hook);
@@ -626,31 +420,9 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 		AddScore( self, self->r.currentOrigin, -1 );
 	}
 
-	// Add team bonuses
-	Team_FragBonuses(self, inflictor, attacker);
-
-	// if I committed suicide, the flag does not fall, it returns.
-	if (meansOfDeath == MOD_SUICIDE || meansOfDeath == MOD_SUICIDE_TEAM_CHANGE) {
-		if ( self->player->ps.powerups[PW_NEUTRALFLAG] ) {		// only happens in One Flag CTF
-			Team_ReturnFlag( TEAM_FREE );
-			self->player->ps.powerups[PW_NEUTRALFLAG] = 0;
-		}
-		else if ( self->player->ps.powerups[PW_REDFLAG] ) {		// only happens in standard CTF
-			Team_ReturnFlag( TEAM_RED );
-			self->player->ps.powerups[PW_REDFLAG] = 0;
-		}
-		else if ( self->player->ps.powerups[PW_BLUEFLAG] ) {	// only happens in standard CTF
-			Team_ReturnFlag( TEAM_BLUE );
-			self->player->ps.powerups[PW_BLUEFLAG] = 0;
-		}
-	}
-
 	TossPlayerItems( self );
 #ifdef MISSIONPACK
 	TossPlayerPersistantPowerups( self );
-	if( g_gametype.integer == GT_HARVESTER ) {
-		TossPlayerCubes( self );
-	}
 #endif
 
 	Cmd_Score_f( self );		// show scores
@@ -925,11 +697,6 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		}
 		return;
 	}
-#ifdef MISSIONPACK
-	if( g_gametype.integer == GT_OBELISK && CheckObeliskAttack( targ, attacker ) ) {
-		return;
-	}
-#endif
 	// reduce damage by the attacker's handicap value
 	// unless they are rocket jumping
 	if ( attacker->player && attacker != targ ) {
@@ -1092,15 +859,6 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 			VectorCopy ( targ->r.currentOrigin, player->damage_from );
 			player->damage_fromWorld = qtrue;
 		}
-	}
-
-	// See if it's the player hurting the emeny flag carrier
-#ifdef MISSIONPACK
-	if( g_gametype.integer == GT_CTF || g_gametype.integer == GT_1FCTF ) {
-#else	
-	if( g_gametype.integer == GT_CTF) {
-#endif
-		Team_CheckHurtCarrier(targ, attacker);
 	}
 
 	if (targ->player) {

@@ -1169,16 +1169,7 @@ void PlayerSpawn(gentity_t *ent) {
 	if ( player->sess.sessionTeam == TEAM_SPECTATOR ) {
 		spawnPoint = SelectSpectatorSpawnPoint ( 
 						spawn_origin, spawn_angles);
-	} else if (g_gametype.integer >= GT_CTF ) {
-		// all base oriented team games use the CTF spawn points
-		spawnPoint = SelectCTFSpawnPoint ( 
-						player->sess.sessionTeam, 
-						player->pers.teamState.state, 
-						spawn_origin, spawn_angles,
-						!!(ent->r.svFlags & SVF_BOT));
-	}
-	else
-	{
+	} else {
 		// the first spawn should be at a good looking spot
 		if ( player->pers.initialSpawn && player->pers.localClient )
 		{
@@ -1402,9 +1393,6 @@ qboolean PlayerDisconnect( int playerNum, qboolean force ) {
 		TossPlayerItems( ent );
 #ifdef MISSIONPACK
 		TossPlayerPersistantPowerups( ent );
-		if( g_gametype.integer == GT_HARVESTER ) {
-			TossPlayerCubes( ent );
-		}
 #endif
 
 	}

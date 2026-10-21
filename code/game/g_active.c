@@ -582,7 +582,6 @@ void PlayerEvents( gentity_t *ent, int oldEventSequence ) {
 				break;
 
 			case HI_TELEPORTER:
-				TossPlayerGametypeItems( ent );
 				SelectSpawnPoint( ent->player->ps.origin, origin, angles, qfalse );
 				TeleportPlayer( ent, origin, angles );
 				break;

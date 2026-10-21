@@ -399,8 +399,6 @@ void PortalTouch( gentity_t *self, gentity_t *other, trace_t *trace) {
 //		return;
 //	}
 
-	TossPlayerGametypeItems( other );
-
 	// find the destination
 	destination = NULL;
 	while( (destination = G_Find(destination, FOFS(classname), "hi_portal destination")) != NULL ) {

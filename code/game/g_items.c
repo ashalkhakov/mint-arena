@@ -371,7 +371,7 @@ Quake 3's rules for being dropped and returned.
 static qboolean G_ItemTakesPhysics( const gentity_t *ent ) {
 	const dict_t *def = BG_ItemDef( ent->item );
 
-	if ( !g_itemPhysics.integer || ent->item->giType == IT_TEAM ) {
+	if ( !g_itemPhysics.integer ) {
 		return qfalse;
 	}
 	if ( def && DictGetBool( def, "nophysics", "0" ) ) {
@@ -564,9 +564,6 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 		respawn = Pickup_PersistantPowerup(ent, other);
 		break;
 #endif
-	case IT_TEAM:
-		respawn = Pickup_Team(ent, other);
-		break;
 	case IT_HOLDABLE:
 		respawn = Pickup_Holdable(ent, other);
 		break;
@@ -603,7 +600,7 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 	}
 
 	// powerup pickups are global broadcasts
-	if ( ent->item->giType == IT_POWERUP || ent->item->giType == IT_TEAM) {
+	if ( ent->item->giType == IT_POWERUP ) {
 		// if we want the global sound to play
 		if (!ent->speed) {
 			gentity_t	*te;
@@ -714,18 +711,9 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity ) {
 	VectorCopy( velocity, dropped->s.pos.trDelta );
 
 	dropped->s.eFlags |= EF_BOUNCE_HALF;
-#ifdef MISSIONPACK
-	if ((g_gametype.integer == GT_CTF || g_gametype.integer == GT_1FCTF)			&& item->giType == IT_TEAM) { // Special case for CTF flags
-#else
-	if (g_gametype.integer == GT_CTF && item->giType == IT_TEAM) { // Special case for CTF flags
-#endif
-		dropped->think = Team_DroppedFlagThink;
-		dropped->nextthink = level.time + 30000;
-		Team_CheckDroppedItem( dropped );
-	} else { // auto-remove after 30 seconds
-		dropped->think = G_FreeEntity;
-		dropped->nextthink = level.time + 30000;
-	}
+	// auto-remove after 30 seconds
+	dropped->think = G_FreeEntity;
+	dropped->nextthink = level.time + 30000;
 
 	dropped->flags = FL_DROPPED_ITEM;
 
@@ -872,90 +860,6 @@ void FinishSpawningItem( gentity_t *ent ) {
 qboolean	itemRegistered[MAX_ITEMS];
 
 /*
-==================
-G_CheckTeamItems
-==================
-*/
-void G_CheckTeamItems( void ) {
-
-	// Set up team stuff
-	Team_InitGame();
-
-	if( g_gametype.integer == GT_CTF ) {
-		gitem_t	*item;
-
-		// check for the two flags
-		item = BG_FindItem( "Red Flag" );
-		if ( !item || !itemRegistered[ BG_ItemNumForItem( item ) ] ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_CTF_redflag in map\n" );
-		}
-		item = BG_FindItem( "Blue Flag" );
-		if ( !item || !itemRegistered[ BG_ItemNumForItem( item ) ] ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_CTF_blueflag in map\n" );
-		}
-	}
-#ifdef MISSIONPACK
-	if( g_gametype.integer == GT_1FCTF ) {
-		gitem_t	*item;
-
-		// check for all three flags
-		item = BG_FindItem( "Red Flag" );
-		if ( !item || !itemRegistered[ BG_ItemNumForItem( item ) ] ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_CTF_redflag in map\n" );
-		}
-		item = BG_FindItem( "Blue Flag" );
-		if ( !item || !itemRegistered[ BG_ItemNumForItem( item ) ] ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_CTF_blueflag in map\n" );
-		}
-		item = BG_FindItem( "Neutral Flag" );
-		if ( !item || !itemRegistered[ BG_ItemNumForItem( item ) ] ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_CTF_neutralflag in map\n" );
-		}
-	}
-
-	if( g_gametype.integer == GT_OBELISK ) {
-		gentity_t	*ent;
-
-		// check for the two obelisks
-		ent = NULL;
-		ent = G_Find( ent, FOFS(classname), "team_redobelisk" );
-		if( !ent ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_redobelisk in map\n" );
-		}
-
-		ent = NULL;
-		ent = G_Find( ent, FOFS(classname), "team_blueobelisk" );
-		if( !ent ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_blueobelisk in map\n" );
-		}
-	}
-
-	if( g_gametype.integer == GT_HARVESTER ) {
-		gentity_t	*ent;
-
-		// check for all three obelisks
-		ent = NULL;
-		ent = G_Find( ent, FOFS(classname), "team_redobelisk" );
-		if( !ent ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_redobelisk in map\n" );
-		}
-
-		ent = NULL;
-		ent = G_Find( ent, FOFS(classname), "team_blueobelisk" );
-		if( !ent ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_blueobelisk in map\n" );
-		}
-
-		ent = NULL;
-		ent = G_Find( ent, FOFS(classname), "team_neutralobelisk" );
-		if( !ent ) {
-			G_Printf( S_COLOR_YELLOW "WARNING: No team_neutralobelisk in map\n" );
-		}
-	}
-#endif
-}
-
-/*
 ==============
 ClearRegisteredItems
 ==============
@@ -971,12 +875,6 @@ void ClearRegisteredItems( void ) {
 			RegisterItem( BG_FindItemForWeapon( i ) );
 		}
 	}
-#ifdef MISSIONPACK
-	if( g_gametype.integer == GT_HARVESTER ) {
-		RegisterItem( BG_FindItem( "Red Cube" ) );
-		RegisterItem( BG_FindItem( "Blue Cube" ) );
-	}
-#endif
 }
 
 /*
@@ -1175,11 +1073,7 @@ void G_RunItem( gentity_t *ent ) {
 	// if it is in a nodrop volume, remove it
 	contents = G_PointContents( ent->r.currentOrigin, -1 );
 	if ( contents & CONTENTS_NODROP ) {
-		if (ent->item && ent->item->giType == IT_TEAM) {
-			Team_FreeEntity(ent);
-		} else {
-			G_FreeEntity( ent );
-		}
+		G_FreeEntity( ent );
 		return;
 	}
 

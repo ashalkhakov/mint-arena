@@ -958,11 +958,6 @@ void Blocked_Door( gentity_t *ent, gentity_t *other ) {
 
 	// remove anything else
 	if ( !holdsDoor ) {
-		// except CTF flags!!!!
-		if( other->s.eType == ET_ITEM && other->item->giType == IT_TEAM ) {
-			Team_DroppedFlagThink( other );
-			return;
-		}
 		G_TempEntity( other->s.origin, EV_ITEM_POP );
 		G_FreeEntity( other );
 		return;
