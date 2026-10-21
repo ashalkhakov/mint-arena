@@ -490,6 +490,7 @@ typedef struct {
 
 	// the campaign's
 	qboolean	changingLevel;			// a trigger_changelevel was touched
+	qboolean	loadPersistant;			// a changelevel led here: the players take what they carried
 	int			numSecrets;
 	int			secretsFound;
 } level_locals_t;

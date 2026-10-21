@@ -356,6 +356,7 @@ void G_ChangeLevel( const char *map, const char *target ) {
 
 	level.changingLevel = qtrue;
 	trap_Cvar_Set( "g_spawnTarget", target ? target : "" );
+	trap_Cvar_Set( "g_persistant", "1" );		// the next map takes what's carried
 	G_SavePersistant( map );
 	trap_Cmd_ExecuteText( EXEC_INSERT, va( "%s %s\n", g_cheats.integer ? "devmap" : "map", map ) );
 }

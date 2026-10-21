@@ -521,6 +521,10 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	// set some level globals
 	memset( &level, 0, sizeof( level ) );
+
+	// the campaign: a changelevel led here (g_persistant), not a new game
+	level.loadPersistant = trap_Cvar_VariableIntegerValue( "g_persistant" ) != 0;
+	trap_Cvar_Set( "g_persistant", "0" );
 	level.time = levelTime;
 	level.startTime = levelTime;
 

@@ -108,8 +108,8 @@ qboolean G_LoadPersistant( gentity_t *ent ) {
 	char map[MAX_QPATH];
 	int len, i;
 
-	if ( player->pers.persistantLoaded ) {
-		return qfalse;
+	if ( player->pers.persistantLoaded || !level.loadPersistant ) {
+		return qfalse;		// once, and only in a map a changelevel led to (not a new game)
 	}
 	player->pers.persistantLoaded = qtrue;
 
