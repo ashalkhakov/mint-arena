@@ -143,11 +143,8 @@ void SP_info_player_deathmatch (gentity_t *ent);
 void SP_info_player_intermission (gentity_t *ent);
 
 void SP_func_plat (gentity_t *ent);
-void SP_func_static (gentity_t *ent);
 void SP_func_breakable (gentity_t *ent);
 void SP_func_rotating (gentity_t *ent);
-void SP_func_bobbing (gentity_t *ent);
-void SP_func_pendulum( gentity_t *ent );
 void SP_func_button (gentity_t *ent);
 void SP_func_door (gentity_t *ent);
 void SP_func_water( gentity_t *ent );
@@ -155,44 +152,22 @@ void SP_func_door_rotating( gentity_t *ent );	// Rotating Doors
 void SP_func_train (gentity_t *ent);
 void SP_func_timer (gentity_t *self);
 
-void SP_trigger_always (gentity_t *ent);
 void SP_trigger_multiple (gentity_t *ent);
-void SP_trigger_push (gentity_t *ent);
 void SP_trigger_teleport (gentity_t *ent);
 void SP_trigger_hurt (gentity_t *ent);
 
-void SP_target_remove_powerups( gentity_t *ent );
-void SP_target_give (gentity_t *ent);
 void SP_target_delay (gentity_t *ent);
 void SP_target_speaker (gentity_t *ent);
-void SP_target_print (gentity_t *ent);
-void SP_target_laser (gentity_t *self);
-void SP_target_score( gentity_t *ent );
-void SP_target_teleporter( gentity_t *ent );
 void SP_target_relay (gentity_t *ent);
-void SP_target_kill (gentity_t *ent);
 void SP_target_position (gentity_t *ent);
 void SP_target_location (gentity_t *ent);
-void SP_target_push (gentity_t *ent);
 
-void SP_light (gentity_t *self);
-void SP_lightJunior (gentity_t *self);
 void SP_info_null (gentity_t *self);
 void SP_info_notnull (gentity_t *self);
-void SP_info_camp (gentity_t *self);
 void SP_path_corner (gentity_t *self);
 
 void SP_misc_teleporter_dest (gentity_t *self);
-void SP_misc_model(gentity_t *ent);
 void SP_misc_gamemodel (gentity_t *ent);
-void SP_misc_portal_camera(gentity_t *ent);
-void SP_misc_portal_surface(gentity_t *ent);
-void SP_misc_vis_dummy( gentity_t *ent );
-void SP_misc_vis_dummy_multiple( gentity_t *ent );
-
-void SP_shooter_rocket( gentity_t *ent );
-void SP_shooter_plasma( gentity_t *ent );
-void SP_shooter_grenade( gentity_t *ent );
 
 void SP_team_CTF_redplayer( gentity_t *ent );
 void SP_team_CTF_blueplayer( gentity_t *ent );
@@ -205,10 +180,8 @@ void SP_team_blueobelisk( gentity_t *ent );
 void SP_team_redobelisk( gentity_t *ent );
 void SP_team_neutralobelisk( gentity_t *ent );
 #endif
-void SP_item_botroam( gentity_t *ent ) { }
 
 void SP_dlight( gentity_t *ent );
-void SP_corona( gentity_t *ent );
 
 void SP_props_skyportal( gentity_t *ent );
 
@@ -223,7 +196,6 @@ spawn_t	spawns[] = {
 	{"info_player_intermission", SP_info_player_intermission},
 	{"info_null", SP_info_null},
 	{"info_notnull", SP_info_notnull},		// use target_position instead
-	{"info_camp", SP_info_camp},
 
 	{"func_plat", SP_func_plat},
 	// Daikatana's campaign (g_campaign.c)
@@ -240,11 +212,8 @@ spawn_t	spawns[] = {
 	{"func_physics", SP_func_physics},
 	{"misc_character", SP_misc_character},
 	{"func_door_rotating", SP_func_door_rotating},	// Rotating Doors
-	{"func_static", SP_func_static},
 	{"func_breakable", SP_func_breakable},
 	{"func_rotating", SP_func_rotating},
-	{"func_bobbing", SP_func_bobbing},
-	{"func_pendulum", SP_func_pendulum},
 	{"func_train", SP_func_train},
 	{"func_group", SP_info_null},
 	{"func_timer", SP_func_timer},			// rename trigger_timer?
@@ -254,45 +223,23 @@ spawn_t	spawns[] = {
 	// While almost everything could be done with
 	// a single trigger class and different targets, triggered effects
 	// could not be client side predicted (push and teleport).
-	{"trigger_always", SP_trigger_always},
 	{"trigger_multiple", SP_trigger_multiple},
-	{"trigger_push", SP_trigger_push},
 	{"trigger_teleport", SP_trigger_teleport},
 	{"trigger_hurt", SP_trigger_hurt},
 
 	// targets perform no action by themselves, but must be triggered
 	// by another entity
-	{"target_give", SP_target_give},
-	{"target_remove_powerups", SP_target_remove_powerups},
 	{"target_delay", SP_target_delay},
 	{"target_speaker", SP_target_speaker},
-	{"target_print", SP_target_print},
-	{"target_laser", SP_target_laser},
-	{"target_score", SP_target_score},
-	{"target_teleporter", SP_target_teleporter},
 	{"target_relay", SP_target_relay},
 	{"target_callobjectfunction", SP_target_callobjectfunction},
-	{"target_kill", SP_target_kill},
 	{"target_position", SP_target_position},
 	{"target_location", SP_target_location},
-	{"target_push", SP_target_push},
-
-	{"light", SP_light},
-	{"lightJunior", SP_lightJunior},
 
 	{"path_corner", SP_path_corner},
 
 	{"misc_teleporter_dest", SP_misc_teleporter_dest},
-	{"misc_model", SP_misc_model},
 	{"misc_gamemodel", SP_misc_gamemodel},
-	{"misc_portal_surface", SP_misc_portal_surface},
-	{"misc_portal_camera", SP_misc_portal_camera},
-	{"misc_vis_dummy", SP_misc_vis_dummy},
-	{"misc_vis_dummy_multiple", SP_misc_vis_dummy_multiple},
-
-	{"shooter_rocket", SP_shooter_rocket},
-	{"shooter_grenade", SP_shooter_grenade},
-	{"shooter_plasma", SP_shooter_plasma},
 
 	{"team_CTF_redplayer", SP_team_CTF_redplayer},
 	{"team_CTF_blueplayer", SP_team_CTF_blueplayer},
@@ -305,10 +252,8 @@ spawn_t	spawns[] = {
 	{"team_blueobelisk", SP_team_blueobelisk},
 	{"team_neutralobelisk", SP_team_neutralobelisk},
 #endif
-	{"item_botroam", SP_item_botroam},
 
 	{"dlight", SP_dlight},
-	{"corona", SP_corona},
 
 	{"props_skyportal", SP_props_skyportal},
 
