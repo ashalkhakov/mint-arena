@@ -856,13 +856,6 @@ void G_InitWorldSession( void );
 void G_WriteSessionData( void );
 
 //
-// g_arenas.c
-//
-void UpdateTournamentInfo( void );
-void SpawnModelsOnVictoryPads( void );
-void Svcmd_AbortPodium_f( void );
-
-//
 // g_world.c
 //
 //

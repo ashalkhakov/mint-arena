@@ -39,10 +39,6 @@ endif()
 if(NOT USE_MISSIONPACK_MP_HUD)
    set(USE_MISSIONPACK_MP_HUD ON)
 endif()
-# menus from .menu scripts (the Team Arena UI) in the base game instead of q3_ui
-if(NOT USE_SCRIPTED_UI)
-   set(USE_SCRIPTED_UI OFF)
-endif()
 if(NOT BUILD_FINAL)
    set(BUILD_FINAL OFF)
 endif()
@@ -1171,64 +1167,17 @@ set(Q3CGOBJ
   cgame/cg_unlagged.c
   cgame/cg_view.c
   cgame/cg_weapons.c
-  
-  q3_ui/ui_main.c
-  q3_ui/ui_addbots.c
-  q3_ui/ui_atoms.c
-  q3_ui/ui_cinematics.c
-  q3_ui/ui_confirm.c
-  q3_ui/ui_connect.c
-  q3_ui/ui_controls2.c
-  q3_ui/ui_credits.c
-  q3_ui/ui_demo2.c
-  q3_ui/ui_display.c
-  q3_ui/ui_gameinfo.c
-  q3_ui/ui_ingame.c
-  q3_ui/ui_ingame_selectplayer.c
-  q3_ui/ui_joystick.c
-  q3_ui/ui_loadconfig.c
-  q3_ui/ui_menu.c
-  q3_ui/ui_mfield.c
-  q3_ui/ui_mods.c
-  q3_ui/ui_network.c
-  q3_ui/ui_options.c
-  q3_ui/ui_playermodel.c
-  q3_ui/ui_players.c
-  q3_ui/ui_playersettings.c
-  q3_ui/ui_preferences.c
-  q3_ui/ui_qmenu.c
-  q3_ui/ui_removebots.c
-  q3_ui/ui_saveconfig.c
-  q3_ui/ui_selectplayer.c
-  q3_ui/ui_serverinfo.c
-  q3_ui/ui_servers2.c
-  q3_ui/ui_setup.c
-  q3_ui/ui_sound.c
-  q3_ui/ui_sparena.c
-  q3_ui/ui_specifyserver.c
-  q3_ui/ui_splevel.c
-  q3_ui/ui_sppostgame.c
-  q3_ui/ui_spskill.c
-  q3_ui/ui_startserver.c
-  q3_ui/ui_team.c
-  q3_ui/ui_teamorders.c
-  q3_ui/ui_video.c
-  
+
   ${idlib_files}
   qcommon/q_unicode.c)
 
-if(${USE_SCRIPTED_UI})
-  list(FILTER Q3CGOBJ EXCLUDE REGEX "^q3_ui/")
-  list(APPEND Q3CGOBJ
-    ui/ui_main.c
-    ui/ui_atoms.c
-    ui/ui_gameinfo.c
-    ui/ui_players.c
-    ui/ui_shared.c)
-elseif(${USE_BASEGAME_MP_HUD})
-  list(APPEND Q3CGOBJ
-    mpui/ui_shared.c)
-endif()
+# the menus are .menu scripts (the Team Arena UI)
+list(APPEND Q3CGOBJ
+  ui/ui_main.c
+  ui/ui_atoms.c
+  ui/ui_gameinfo.c
+  ui/ui_players.c
+  ui/ui_shared.c)
 
 list(TRANSFORM Q3CGOBJ PREPEND code/)
 
@@ -1403,7 +1352,6 @@ set(Q3GOBJ
   game/bg_model.c
   game/bg_sound.c
   game/g_active.c
-  game/g_arenas.c
   game/g_bot.c
   game/g_botlib.c
   game/g_client.c

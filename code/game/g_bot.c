@@ -60,10 +60,6 @@ static botSpawnQueue_t	botSpawnQueue[BOT_SPAWN_QUEUE_DEPTH];
 
 vmCvar_t bot_minplayers;
 
-extern gentity_t	*podium1;
-extern gentity_t	*podium2;
-extern gentity_t	*podium3;
-
 
 /*
 ===============
@@ -928,10 +924,6 @@ static void G_SpawnBots( char *botList, int baseDelay ) {
 	float		skill;
 	int			delay;
 	char		bots[MAX_INFO_VALUE];
-
-	podium1 = NULL;
-	podium2 = NULL;
-	podium3 = NULL;
 
 	skill = trap_Cvar_VariableValue( "g_spSkill" );
 	if( skill < 1 ) {

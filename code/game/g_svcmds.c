@@ -653,7 +653,6 @@ struct svcmd
   void     ( *function )( void );
   void     ( *complete )( char *, int );
 } svcmds[ ] = {
-  { "abort_podium", qfalse, Svcmd_AbortPodium_f },
   { "addbot", qfalse, Svcmd_AddBot_f, Svcmd_AddBotComplete },
   { "addip", qfalse, Svcmd_AddIP_f },
   { "botgoto", qfalse, Svcmd_BotGoto_f },
