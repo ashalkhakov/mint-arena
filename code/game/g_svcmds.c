@@ -646,6 +646,33 @@ void	Svcmd_SectorListComplete( char *args, int argNum ) {
 
 }
 
+/*
+===================
+Svcmd_AASWorld_f
+
+aasworld <0 standard | 1 large | 2 xxl>: chooses that size's AAS world, as a
+creature of the size does (loading it if it's the first time, and the bots'
+AI and AAS if they aren't yet), and says where the first player is in it
+===================
+*/
+void Svcmd_AASWorld_f( void ) {
+	char	arg[16];
+	int		world;
+	vec3_t	origin;
+
+	trap_Argv( 1, arg, sizeof( arg ) );
+	world = atoi( arg );
+	if ( !G_BotLibLoaded() ) {
+		G_Printf( "no AAS: bot_enable is 0\n" );
+		return;
+	}
+	trap_AAS_SetCurrentWorld( world );
+	VectorCopy( g_entities[0].r.currentOrigin, origin );
+	G_Printf( "AAS world %d: %s, the first player in area %d\n", world,
+			  trap_AAS_Initialized() ? "loaded" : "not loaded (yet, or the map hasn't it)", trap_AAS_PointAreaNum( origin ) );
+	trap_AAS_SetCurrentWorld( 0 );
+}
+
 struct svcmd
 {
   char     *cmd;
@@ -655,6 +682,7 @@ struct svcmd
 } svcmds[ ] = {
   { "addbot", qfalse, Svcmd_AddBot_f, Svcmd_AddBotComplete },
   { "addip", qfalse, Svcmd_AddIP_f },
+  { "aasworld", qfalse, Svcmd_AASWorld_f },
   { "botgoto", qfalse, Svcmd_BotGoto_f },
   { "botlist", qfalse, Svcmd_BotList_f },
   { "botreport", qfalse, Svcmd_BotTeamplayReport_f },

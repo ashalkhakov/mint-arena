@@ -46,6 +46,8 @@ extern aas_t *aasworldp;
 
 //the AAS world the functions work on
 void AAS_SetCurrentWorld(int world);
+//the game's choice: a bigger size's world is loaded when first chosen
+void AAS_SelectWorld(int world);
 int AAS_CurrentWorld(void);
 
 //AAS error message

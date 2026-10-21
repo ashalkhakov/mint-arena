@@ -193,6 +193,7 @@ typedef struct midrangearea_s
 typedef struct aas_s
 {
 	int loaded;									//true when an AAS file is loaded
+	int available;								//a bigger size's: the map has it, loaded when first chosen (AAS_SelectWorld)
 	int initialized;							//true when AAS has been initialized
 	int savefile;								//set true when file should be saved
 	int bspchecksum;

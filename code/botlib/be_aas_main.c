@@ -85,6 +85,27 @@ void AAS_SetCurrentWorld(int world)
 	aasworldp = &aasworlds[world];
 } //end of the function AAS_SetCurrentWorld
 
+//===========================================================================
+// the game's choice of world (its creature's size): a bigger size's world,
+// if the map has it, is loaded the first time it's chosen, so a map holds
+// only the worlds its creatures use
+//===========================================================================
+static int AAS_LoadWorld(const char *mapname);
+
+void AAS_SelectWorld(int world)
+{
+	AAS_SetCurrentWorld(world);
+	if (world == AASWORLD_STANDARD || aasworld.loaded || !aasworld.available || !aasworlds[AASWORLD_STANDARD].loaded)
+	{
+		return;
+	} //end if
+	aasworld.available = qfalse;		//once: a failed load isn't tried again
+	if (AAS_LoadWorld(aasworlds[AASWORLD_STANDARD].mapname) == BLERR_NOERROR)
+	{
+		botimport.Print(PRT_MESSAGE, "loaded %s, when first needed\n", aasworld.filename);
+	} //end if
+} //end of the function AAS_SelectWorld
+
 int AAS_CurrentWorld(void)
 {
 	return aasworldp - aasworlds;
@@ -301,7 +322,8 @@ int AAS_LoadMap(const char *mapname)
 	{
 		return 0;
 	} //end if
-	//the standard world (bots) must be there, the others may not
+	//the standard world (bots) must be there; the bigger sizes' may not, and
+	//are loaded when first chosen (AAS_SelectWorld)
 	AAS_InitSettings();
 	for (w = MAX_AAS_WORLDS - 1; w > AASWORLD_STANDARD; w--)
 	{
@@ -320,16 +342,8 @@ int AAS_LoadMap(const char *mapname)
 		aasworld.initialized = qfalse;
 		//a map needn't have the bigger sizes' worlds
 		Com_sprintf(aasfile, sizeof(aasfile), "maps/%s%s.aas", mapname, aasWorldSuffixes[w]);
-		if (botimport.FS_FOpenFile(aasfile, &fp, FS_READ) <= 0)
-		{
-			if (fp) botimport.FS_FCloseFile(fp);
-			continue;
-		} //end if
-		botimport.FS_FCloseFile(fp);
-		if (AAS_LoadWorld(mapname) == BLERR_NOERROR)
-		{
-			botimport.Print(PRT_MESSAGE, "loaded maps/%s%s.aas\n", mapname, aasWorldSuffixes[w]);
-		} //end if
+		aasworld.available = botimport.FS_FOpenFile(aasfile, &fp, FS_READ) > 0;
+		if (fp) botimport.FS_FCloseFile(fp);
 	} //end for
 	AAS_SetCurrentWorld(AASWORLD_STANDARD);
 	errnum = AAS_LoadWorld(mapname);

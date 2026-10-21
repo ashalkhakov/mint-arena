@@ -284,7 +284,7 @@ static void Init_AAS_Export( aas_export_t *aas ) {
 	aas->AAS_Initialized = AAS_Initialized;
 	aas->AAS_PresenceTypeBoundingBox = AAS_PresenceTypeBoundingBox;
 	aas->AAS_Time = AAS_Time;
-	aas->AAS_SetCurrentWorld = AAS_SetCurrentWorld;
+	aas->AAS_SetCurrentWorld = AAS_SelectWorld;		// (loads a bigger size's world when first chosen)
 	aas->AAS_CurrentWorld = AAS_CurrentWorld;
 	//--------------------------------------------
 	// be_aas_debug.c
