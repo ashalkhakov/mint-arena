@@ -187,6 +187,23 @@ int Pickup_Inventory( gentity_t *ent, gentity_t *other ) {
 	return -1;
 }
 
+/*
+===============
+Pickup_Script
+
+an IT_SCRIPT item: what its script object's pickup( player ) does. It comes
+back after its def's "respawn" seconds (none: never).
+===============
+*/
+int Pickup_Script( gentity_t *ent, gentity_t *other ) {
+	int respawn;
+
+	G_ScriptCallObjectFunction( ent, "pickup", other, NULL );
+
+	respawn = ent->item->def ? DictGetInt( ent->item->def, "respawn", "30" ) : 30;
+	return respawn > 0 ? respawn : -1;		// (0 would be a refusal)
+}
+
 int Pickup_Holdable( gentity_t *ent, gentity_t *other ) {
 
 	other->player->ps.stats[STAT_HOLDABLE_ITEM] = BG_ItemNumForItem( ent->item );
@@ -503,8 +520,19 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 		return;		// dead people can't pickup
 
 	// the same pickup rules are used for client side and server side
-	if ( !BG_CanItemBeGrabbed( g_gametype.integer, &ent->s, &other->player->ps ) ) {
+	// (a script item's are its script's)
+	if ( ent->item->giType != IT_SCRIPT && !BG_CanItemBeGrabbed( g_gametype.integer, &ent->s, &other->player->ps ) ) {
 		return;
+	}
+
+	// its script object's canPickup( player ), when it has one
+	if ( ScriptObject_HasObject( &ent->scriptObject ) ) {
+		float	can = 1;
+
+		G_ScriptCallObjectFunction( ent, "canPickup", other, &can );
+		if ( !can ) {
+			return;
+		}
 	}
 
 	G_LogPrintf( "Item: %i %s\n", other->s.number, ent->item->classname );
@@ -545,8 +573,17 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 	case IT_INVENTORY:
 		respawn = Pickup_Inventory(ent, other);
 		break;
+	case IT_SCRIPT:
+		respawn = Pickup_Script(ent, other);
+		predict = qfalse;
+		break;
 	default:
 		return;
+	}
+
+	// what its script does as it's picked up (a script item's pickup() is its giving)
+	if ( respawn && ent->item->giType != IT_SCRIPT && ScriptObject_HasObject( &ent->scriptObject ) ) {
+		G_ScriptCallObjectFunction( ent, "pickup", other, NULL );
 	}
 
 	// the campaign's don't come back

@@ -671,6 +671,9 @@ void Reached_BinaryMover( gentity_t *ent ) {
 			ent->activator = ent;
 		}
 		G_UseTargets( ent, ent->activator );
+
+		// a script's sys.waitFor( it ) goes on
+		Thread_EntityMoveDone( ent );
 	} else if ( ent->moverState == MOVER_2TO1 ) {
 		// reached pos1
 		SetMoverState( ent, MOVER_POS1, level.time );
@@ -684,6 +687,9 @@ void Reached_BinaryMover( gentity_t *ent ) {
 		if ( ent->teammaster == ent || !ent->teammaster ) {
 			trap_AdjustAreaPortalState( ent, qfalse );
 		}
+
+		// a script's sys.waitFor( it ) goes on
+		Thread_EntityMoveDone( ent );
 	} else {
 		G_Error( "Reached_BinaryMover: bad moverState" );
 	}

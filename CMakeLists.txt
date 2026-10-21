@@ -1431,6 +1431,13 @@ set(Q3GOBJ
   game/g_ragdoll.c
   game/g_campaign.c
   game/g_save.c
+  game/g_script.c
+  game/g_script_compiler.c
+  game/g_script_debug.c
+  game/g_script_events.c
+  game/g_script_interp.c
+  game/g_script_program.c
+  game/g_script_thread.c
   game/g_netevent.c
   
   botlib/be_aas_bspq3.c

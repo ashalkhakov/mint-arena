@@ -271,6 +271,7 @@ spawn_t	spawns[] = {
 	{"target_score", SP_target_score},
 	{"target_teleporter", SP_target_teleporter},
 	{"target_relay", SP_target_relay},
+	{"target_callobjectfunction", SP_target_callobjectfunction},
 	{"target_kill", SP_target_kill},
 	{"target_position", SP_target_position},
 	{"target_location", SP_target_location},
@@ -468,7 +469,7 @@ Spawn an entity and fill in all of the level fields from
 level.spawnVars[], then call the class specific spawn function
 ===================
 */
-void G_SpawnGEntityFromSpawnVars( void ) {
+gentity_t *G_SpawnGEntityFromSpawnVars( void ) {
 	int			i;
 	gentity_t	*ent;
 	bgEntitySpawnInfo_t spawnInfo;
@@ -488,7 +489,7 @@ void G_SpawnGEntityFromSpawnVars( void ) {
 	if ( !BG_CheckSpawnEntity( &spawnInfo ) || G_CampaignSkipEntity( ent ) ) {
 		ADJUST_AREAPORTAL();
 		G_FreeEntity( ent );
-		return;
+		return NULL;
 	}
 
 	// move editor origin to pos
@@ -498,7 +499,45 @@ void G_SpawnGEntityFromSpawnVars( void ) {
 	// if we didn't get a classname, don't bother spawning anything
 	if ( !G_CallSpawn( ent ) ) {
 		G_FreeEntity( ent );
+		return NULL;
 	}
+
+	// its spawn args, $name and script object
+	if ( ent->inuse ) {
+		G_ScriptEntitySpawned( ent );
+	}
+	return ent;
+}
+
+char *G_AddSpawnVarToken( const char *string );
+
+/*
+===================
+G_SpawnEntityFromKeys
+
+an entity from keys and values, as the map's are spawned (a script's
+sys.spawn())
+===================
+*/
+gentity_t *G_SpawnEntityFromKeys( int numKeys, const char **keys, const char **values ) {
+	gentity_t	*ent;
+	qboolean	spawning;
+	int			i;
+
+	level.numSpawnVars = 0;
+	level.numSpawnVarChars = 0;
+	for ( i = 0; i < numKeys && i < MAX_SPAWN_VARS; i++ ) {
+		level.spawnVars[ i ][ 0 ] = G_AddSpawnVarToken( keys[ i ] );
+		level.spawnVars[ i ][ 1 ] = G_AddSpawnVarToken( values[ i ] );
+		level.numSpawnVars++;
+	}
+
+	spawning = level.spawning;
+	level.spawning = qtrue;
+	ent = G_SpawnGEntityFromSpawnVars();
+	level.spawning = spawning;
+	level.numSpawnVars = 0;
+	return ent;
 }
 
 
@@ -641,6 +680,8 @@ void SP_worldspawn( void ) {
 		G_LogPrintf( "Warmup:\n" );
 	}
 
+	// the map's script, its main() and the functions its "call" keys name
+	G_ScriptWorldSpawn();
 }
 
 

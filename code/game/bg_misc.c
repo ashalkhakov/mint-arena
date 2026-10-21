@@ -1011,6 +1011,9 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 	case IT_INVENTORY:	// always: they add up
 		return qtrue;
 
+	case IT_SCRIPT:		// the server's script decides (Touch_Item), the client doesn't predict it
+		return qfalse;
+
 	case IT_TEAM: // team items, such as flags
 #ifdef MISSIONPACK		
 		if( gametype == GT_1FCTF ) {

@@ -1339,6 +1339,9 @@ void PlayerSpawn(gentity_t *ent) {
 
 	// we don't want players being backward-reconciled to the place they died
 	G_ResetHistory( ent );
+
+	// $player1...
+	G_ScriptPlayerSpawned( ent );
 }
 
 

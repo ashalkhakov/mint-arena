@@ -1004,13 +1004,17 @@ int PC_Directive_include(source_t *source)
 int PC_ReadLine(source_t *source, token_t *token)
 {
 	int crossline;
+	script_t *script;
 
 	crossline = 0;
 	do
 	{
+		script = source->scriptstack;
 		if (!PC_ReadSourceToken(source, token)) return qfalse;
 		
-		if (token->linescrossed > crossline)
+		//the line ends with its file too: a token of the file that included it
+		//isn't on the line, whatever line of that file it is on
+		if (token->linescrossed > crossline || source->scriptstack != script)
 		{
 			PC_UnreadSourceToken(source, token);
 			return qfalse;
@@ -2610,6 +2614,35 @@ int PC_ReadDollarDirective(source_t *source)
 	return qfalse;
 } //end of the function PC_ReadDirective
 //============================================================================
+// a $ followed by a $ directive's name on its line; else, as Doom 3's
+// idParser does, the $ is a token of its own (Doom 3's scripts' $entity)
+//
+// Parameter:				-
+// Returns:					-
+// Changes Globals:		-
+//============================================================================
+int PC_IsDollarDirective(source_t *source)
+{
+	token_t token;
+	int i, found;
+
+	if (!PC_ReadSourceToken(source, &token)) return qfalse;
+	found = qfalse;
+	if (token.type == TT_NAME && token.linescrossed == 0)
+	{
+		for (i = 0; dollardirectives[i].name; i++)
+		{
+			if (!strcmp(dollardirectives[i].name, token.string))
+			{
+				found = qtrue;
+				break;
+			} //end if
+		} //end for
+	} //end if
+	PC_UnreadSourceToken(source, &token);
+	return found;
+} //end of the function PC_IsDollarDirective
+//============================================================================
 //
 // Parameter:				-
 // Returns:					-
@@ -2632,7 +2665,7 @@ int PC_ReadToken(source_t *source, token_t *token)
 			} //end if
 			continue;
 		} //end if
-		if (token->type == TT_PUNCTUATION && *token->string == '$')
+		if (token->type == TT_PUNCTUATION && *token->string == '$' && PC_IsDollarDirective(source))
 		{
 			//read the precompiler directive
 			if (!PC_ReadDollarDirective(source))

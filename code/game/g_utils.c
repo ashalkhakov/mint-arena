@@ -287,6 +287,9 @@ void G_UseTargets( gentity_t *ent, gentity_t *activator ) {
 		trap_SetConfigstring(CS_SHADERSTATE, BuildShaderStateConfig());
 	}
 
+	// the script function its "call" key names (Doom 3's idTrigger::CallScript)
+	G_ScriptCallTargets( ent, activator );
+
 	if ( !ent->target ) {
 		return;
 	}
@@ -547,6 +550,8 @@ void G_FreeEntity( gentity_t *ed ) {
 	if ( ed->neverFree ) {
 		return;
 	}
+
+	G_ScriptEntityFreed( ed );
 
 	memset (ed, 0, sizeof(*ed));
 	ed->classname = "freed";

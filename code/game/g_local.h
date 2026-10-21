@@ -79,6 +79,8 @@ typedef enum {
 typedef struct gentity_s gentity_t;
 typedef struct gplayer_s gplayer_t;
 
+#include "g_script.h"
+
 struct gentity_s {
 	entityShared_t	r;				// shared by both the server system and game
 	entityState_t	s;				// communicated by server to clients
@@ -221,6 +223,8 @@ struct gentity_s {
 	struct gRagdoll_s	*ragdoll;			// gone limp: its articulated figure (g_ragdoll.c)
 	struct rigidBody_s	*body;			// physics props, see g_physics.c
 	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
+
+	scriptObject_t	scriptObject;		// its "scriptobject" (g_script.c): its type's fields
 };
 
 
@@ -796,6 +800,13 @@ qboolean	G_SavePersistant( const char *nextmap );
 qboolean	G_LoadPersistant( gentity_t *ent );
 qboolean	G_SaveGame( const char *name );
 struct characterHistory_s *G_AllocCharacterHistory( void );		// g_character.c
+
+// g_save.c: what a saved game is written with and read from
+void		G_SaveBytes( const void *data, int len );
+void		G_SaveString( const char *s );
+void		G_LoadBytes( void *data, int len );
+qboolean	G_LoadStringBuf( char *buf, int size );
+void		G_SaveFailed( void );
 void		Svcmd_SaveGame_f( void );
 qboolean	G_LoadGame( void );
 

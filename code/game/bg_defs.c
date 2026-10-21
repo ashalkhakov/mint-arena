@@ -551,6 +551,9 @@ than numbers:
 	"inv_persistant" "<item>"			a persistant powerup
 	"inv_holdable" "<holdable item>"	that holdable
 	"inv_team" "<item>"					a team item (flags)
+	"inv_item" 1						kept in the inventory, up to "inv_max"
+	"scriptobject" "<object>"			what its script object's pickup() does
+										(none of the keys above: g_items.c)
 Looks: "model" (and "model2" to "model4"), "model_scale", "icon",
 "snd_acquire", "inv_name", "sounds" (what else to precache). Physics in the game: "density", "mass",
 "bouncyness", "friction", "nophysics".
@@ -749,6 +752,9 @@ static qboolean BG_ItemFromDef( const dict_t *dict, gitem_t *item ) {
 		item->giType = IT_HOLDABLE;
 	} else if ( BG_ItemTag( dict, "inv_team", IT_TEAM, &tag ) ) {
 		item->giType = IT_TEAM;
+	} else if ( DictFindKey( dict, "scriptobject" ) && !DictGetInt( dict, "inv_item", "0" ) ) {
+		// what the item does is its script's
+		item->giType = IT_SCRIPT;
 	} else if ( DictGetInt( dict, "inv_item", "0" ) ) {
 		// Doom 3's: into the inventory
 		item->giType = IT_INVENTORY;

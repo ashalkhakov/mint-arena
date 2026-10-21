@@ -1140,7 +1140,8 @@ typedef enum {
 							// EFX: rotate + bob
 	IT_PERSISTANT_POWERUP,
 	IT_TEAM,
-	IT_INVENTORY			// Doom 3's "inv_item": kept in the inventory (keys, quest items, save gems)
+	IT_INVENTORY,			// Doom 3's "inv_item": kept in the inventory (keys, quest items, save gems)
+	IT_SCRIPT				// its "scriptobject" gives it: the script's pickup( player ) (g_items.c)
 } itemType_t;
 
 // Doom 3's idInventory's items: what a player carries of the IT_INVENTORY

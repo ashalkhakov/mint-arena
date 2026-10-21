@@ -157,8 +157,9 @@ qboolean G_LoadPersistant( gentity_t *ent ) {
 
 	save/<name>.svg: the map, the time, the level's, every entity as it is
 	(its pointers made names and numbers: strings and functions by name, as
-	RTCW's g_funcs.h has them, entities by number, items by classname) and
-	the players'. "loadgame" goes back to the map at the time the game was
+	RTCW's g_funcs.h has them, entities by number, items by classname, its
+	script object by its type's name), the scripts' variables and threads
+	(G_ScriptWriteGame) and the players'. "loadgame" goes back to the map at the time the game was
 	saved (the engine's savegame_time) and puts it all back over the map's
 	freshly spawned entities once the first player is in.
 
@@ -173,7 +174,7 @@ typedef struct {
 #include "g_funcs.h"		// made by code/tools/extractfuncs.py
 
 #define SAVEGAME_MAGIC		0x47534b44		// "DKSG"
-#define SAVEGAME_VERSION	1
+#define SAVEGAME_VERSION	2		// 2: the scripts' (g_script.c)
 #define MAX_SAVEGAME_SIZE	( 8 << 20 )
 
 typedef enum {
@@ -262,7 +263,7 @@ static byte		*g_saveBuf;
 static int		g_saveSize, g_saveOfs;
 static qboolean	g_saveError;
 
-static void G_SaveBytes( const void *data, int len ) {
+void G_SaveBytes( const void *data, int len ) {
 	if ( g_saveSize + len > MAX_SAVEGAME_SIZE ) {
 		g_saveError = qtrue;
 		return;
@@ -271,7 +272,7 @@ static void G_SaveBytes( const void *data, int len ) {
 	g_saveSize += len;
 }
 
-static void G_SaveString( const char *s ) {
+void G_SaveString( const char *s ) {
 	int len = s ? strlen( s ) + 1 : 0;
 
 	G_SaveBytes( &len, sizeof( len ) );
@@ -280,7 +281,7 @@ static void G_SaveString( const char *s ) {
 	}
 }
 
-static void G_LoadBytes( void *data, int len ) {
+void G_LoadBytes( void *data, int len ) {
 	if ( g_saveOfs + len > g_saveSize ) {
 		g_saveError = qtrue;
 		memset( data, 0, len );
@@ -306,6 +307,29 @@ static char *G_LoadString( void ) {
 	G_LoadBytes( buf, len );
 	buf[len - 1] = '\0';
 	return G_NewString( buf );
+}
+
+// a string read back into buf; qfalse if it was NULL
+qboolean G_LoadStringBuf( char *buf, int size ) {
+	int len;
+
+	G_LoadBytes( &len, sizeof( len ) );
+	buf[0] = '\0';
+	if ( len <= 0 ) {
+		return qfalse;
+	}
+	if ( len > size || g_saveOfs + len > g_saveSize ) {
+		g_saveError = qtrue;
+		return qfalse;
+	}
+	G_LoadBytes( buf, len );
+	buf[len - 1] = '\0';
+	return qtrue;
+}
+
+// a damaged save, as g_script.c reads it
+void G_SaveFailed( void ) {
+	g_saveError = qtrue;
 }
 
 static const char *G_FuncName( void *func ) {
@@ -347,6 +371,7 @@ static void G_WriteEntity( const gentity_t *ent ) {
 		memset( (byte *)&copy + g_entityFields[i].ofs, 0, sizeof( void * ) );
 	}
 	memset( &copy.clipModel, 0, sizeof( copy.clipModel ) );
+	memset( &copy.scriptObject, 0, sizeof( copy.scriptObject ) );
 	G_SaveBytes( &copy, sizeof( copy ) );
 
 	for ( i = 0; i < (int)ARRAY_LEN( g_entityFields ); i++ ) {
@@ -376,6 +401,9 @@ static void G_WriteEntity( const gentity_t *ent ) {
 				break;
 		}
 	}
+
+	// its script object and spawn args
+	G_ScriptWriteEntity( ent );
 }
 
 /*
@@ -456,6 +484,9 @@ qboolean G_SaveGame( const char *name ) {
 	G_SaveBytes( &i, sizeof( i ) );
 	( (saveHeader_t *)g_saveBuf )->numEntities = numEntities;
 
+	// the scripts' variables and threads
+	G_ScriptWriteGame();
+
 	if ( g_saveError ) {
 		G_Printf( S_COLOR_YELLOW "G_SaveGame: the game is too big to save\n" );
 		trap_HeapFree( g_saveBuf );
@@ -527,6 +558,11 @@ static void G_ReadEntity( gentity_t *ent, const gentity_t *fresh, qboolean fresh
 		*(void **)( (byte *)&saved + f->ofs ) = p;
 	}
 	saved.player = NULL;
+
+	// its script object, instead of the map's
+	ScriptObject_Free( &ent->scriptObject );
+	memset( &saved.scriptObject, 0, sizeof( saved.scriptObject ) );
+	G_ScriptReadEntity( &saved, ent - g_entities );
 	*ent = saved;
 }
 
@@ -570,10 +606,13 @@ qboolean G_LoadGame( void ) {
 	g_saveError = qfalse;
 
 	G_LoadBytes( &header, sizeof( header ) );
-	if ( header.magic != SAVEGAME_MAGIC || header.entitySize != (int)sizeof( gentity_t ) ) {
+	if ( header.magic != SAVEGAME_MAGIC || header.version != SAVEGAME_VERSION || header.entitySize != (int)sizeof( gentity_t ) ) {
 		trap_HeapFree( g_saveBuf );
 		return qfalse;
 	}
+
+	// no destroy() for the map's script objects the save replaces
+	G_ScriptLoading( qtrue );
 
 	// what the map spawned, kept aside: its bodies go to the saved ones
 	for ( i = MAX_CLIENTS; i < MAX_GENTITIES; i++ ) {
@@ -623,6 +662,12 @@ qboolean G_LoadGame( void ) {
 			G_FreeEntity( keep );
 		}
 	}
+
+	// the scripts' variables and threads, as they were
+	if ( !g_saveError ) {
+		G_ScriptReadGame();
+	}
+	G_ScriptLoading( qfalse );
 
 	// in the world again
 	for ( i = MAX_CLIENTS; i < level.num_entities; i++ ) {

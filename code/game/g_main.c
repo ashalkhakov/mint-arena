@@ -86,6 +86,8 @@ vmCvar_t	g_ragdollPush;
 vmCvar_t	g_skill;
 vmCvar_t	g_spawnTarget;
 vmCvar_t	g_unlimitedSaves;
+vmCvar_t	g_debugScript;
+vmCvar_t	g_disasm;
 vmCvar_t	g_weaponRespawn;
 vmCvar_t	g_weaponTeamRespawn;
 vmCvar_t	g_motd;
@@ -176,10 +178,12 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_debugMove, "g_debugMove", "0", 0, 0, RANGE_BOOL },
 	{ &g_debugDamage, "g_debugDamage", "0", 0, 0, RANGE_BOOL },
 	{ &g_debugHitboxes, "g_debugHitboxes", "0", 0, 0, RANGE_BOOL },
-	{ &g_ragdollPush, "g_ragdollPush", "200", 0, 0, RANGE_ALL },
+	{ &g_ragdollPush, "g_ragdollPush", "200", 0, 0, RANGE_ALL },	// a hit's impulse on a ragdoll, per point of knockback
 	{ &g_skill, "g_skill", "1", CVAR_ARCHIVE | CVAR_LATCH, 0, RANGE_INT( 0, 2 ) },	// the campaign's: 0 easy, 1 medium, 2 hard (Daikatana's skill)
-	{ &g_spawnTarget, "g_spawnTarget", "", 0, 0, RANGE_ALL },
-	{ &g_unlimitedSaves, "g_unlimitedSaves", "0", CVAR_ARCHIVE, 0, RANGE_BOOL },	// Daikatana's unlimited_saves: saving costs no Save Gem	// the campaign's: the spawn point the last changelevel named	// a hit's impulse on a ragdoll, per point of knockback
+	{ &g_spawnTarget, "g_spawnTarget", "", 0, 0, RANGE_ALL },	// the campaign's: the spawn point the last changelevel named
+	{ &g_unlimitedSaves, "g_unlimitedSaves", "0", CVAR_ARCHIVE, 0, RANGE_BOOL },	// Daikatana's unlimited_saves: saving costs no Save Gem
+	{ &g_debugScript, "g_debugScript", "0", 0, 0, RANGE_BOOL },	// Doom 3's: the scripts' lines and threads as they run
+	{ &g_disasm, "g_disasm", "0", 0, 0, RANGE_BOOL },	// Doom 3's: script/disasm.txt, the compiled scripts
 	{ &g_motd, "g_motd", "", 0, 0, RANGE_ALL },
 
 	{ &g_podiumDist, "g_podiumDist", "80", 0, 0, RANGE_ALL },
@@ -600,6 +604,9 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	ClearRegisteredItems();
 
+	// the game's script, then the map's (worldspawn) as its entities spawn
+	G_ScriptInit( NULL );
+
 	// parse the key/value pairs and spawn gentities
 	G_SpawnEntitiesFromString();
 
@@ -655,6 +662,8 @@ void G_ShutdownGame( int restart ) {
 	if ( trap_Cvar_VariableIntegerValue( "bot_enable" ) ) {
 		BotAIShutdown( restart );
 	}
+
+	G_ScriptShutdown();
 
     ClipFree( &g_clip );
 
@@ -2002,6 +2011,9 @@ void G_RunFrame( int levelTime ) {
 
 	// get any cvar changes
 	G_UpdateCvars();
+
+	// the script threads whose time has come (Doom 3's ServiceEvents)
+	G_ScriptFrame();
 
 	//
 	// go through all allocated objects
