@@ -1068,10 +1068,11 @@ void SP_monster( gentity_t *ent ) {
 	ent->characterModel = trap_R_RegisterModel( model->mesh );
 	ent->characterHistory = G_AllocCharacterHistory();
 
-	// the box it moves with: its own "mins" and "maxs" (the map's, its def's),
-	// else its model def's (what the rigger measured), scaled; and the one
-	// shots and others meet: as far as its model reaches ("hit_mins",
-	// "hit_maxs"), so its hitboxes are all inside it (a skeet's wings)
+	// the box it moves with and others meet: its own "mins" and "maxs" (the
+	// map's, its def's), else its model def's (what the rigger measured),
+	// scaled; and the one shots meet, as far as its model reaches ("hit_mins",
+	// "hit_maxs": a skeet's wings), as Doom 3's render model is apart from its
+	// clip model (G_TraceShot looks for it)
 	ent->s.origin2[0] = G_MonsterFloat( ent, "modelscale", "1" );
 	if ( ent->s.origin2[0] <= 0 ) {
 		ent->s.origin2[0] = 1;
@@ -1094,8 +1095,11 @@ void SP_monster( gentity_t *ent ) {
 		DictGetVector( model->def, "hit_mins", "0 0 0", hitMins );
 		DictGetVector( model->def, "hit_maxs", "0 0 0", hitMaxs );
 		for ( k = 0; k < 3; k++ ) {
-			ent->s.mins[k] = MIN( m->moveMins[k], hitMins[k] * ent->s.origin2[0] );
-			ent->s.maxs[k] = MAX( m->moveMaxs[k], hitMaxs[k] * ent->s.origin2[0] );
+			m->hitMins[k] = MIN( m->moveMins[k], hitMins[k] * ent->s.origin2[0] );
+			m->hitMaxs[k] = MAX( m->moveMaxs[k], hitMaxs[k] * ent->s.origin2[0] );
+		}
+		if ( !VectorCompare( m->hitMins, m->moveMins ) || !VectorCompare( m->hitMaxs, m->moveMaxs ) ) {
+			m->flags |= MONF_HIT_REACH;
 		}
 	}
 	ent->s.contents = CONTENTS_BODY;

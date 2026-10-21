@@ -784,28 +784,51 @@ static int DamageFromDef( const char *name ) {
 	return DictGetInt( def, "damage", "0" ) + (int)( random() * DictGetInt( def, "damage_random", "0" ) );
 }
 
-static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
-	gentity_t	*enemy;
-	const dict_t *def;
-	vec3_t		dir, point;
-	float		range, dist;
+/*
+================
+MeleeReach
+
+whether its enemy is in a melee attack's reach (its def's "range", else the
+monster's "melee_range"): the gap between their boxes, as Doom 3's
+TestMelee, in front of it, and seen
+================
+*/
+static qboolean MeleeReach( gentity_t *self, gentity_t *enemy, const char *damageDef ) {
+	const dict_t *def = damageDef[0] ? BG_FindDef( damageDef ) : NULL;
+	vec3_t	gap, dir;
+	float	range;
+	int		k;
+
+	range = def ? DictGetFloat( def, "range", G_ScriptGetSpawnArg( self, "melee_range", "64" ) )
+				: atof( G_ScriptGetSpawnArg( self, "melee_range", "64" ) );
+	for ( k = 0; k < 3; k++ ) {
+		gap[k] = MAX( 0, MAX( enemy->r.absmin[k] - self->r.absmax[k], self->r.absmin[k] - enemy->r.absmax[k] ) );
+	}
+	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
+	return VectorLength( gap ) <= range && fabs( AngleSubtract( vectoyaw( dir ), self->r.currentAngles[YAW] ) ) <= 60
+		&& G_MonsterCanSee( self, enemy );
+}
+
+static void Event_TestMeleeAttack( gentity_t *self, const intptr_t *args ) {
+	gentity_t *enemy;
 
 	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
 	enemy = G_MonsterEnemy( self );
-	def = BG_FindDef( EVARG_STRING( 0 ) );
-	if ( !enemy || !def ) {
-		Thread_ReturnInt( 0 );
-		return;
-	}
+	Thread_ReturnInt( enemy && MeleeReach( self, enemy, "" ) );
+}
 
-	// in reach (box to box), in front, and seen
-	range = DictGetFloat( def, "range", G_ScriptGetSpawnArg( self, "melee_range", "64" ) );
-	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
-	dist = VectorNormalize( dir ) - self->monster.moveMaxs[0] - enemy->s.maxs[0];
-	if ( dist > range || fabs( AngleSubtract( vectoyaw( dir ), self->r.currentAngles[YAW] ) ) > 60 || !G_MonsterCanSee( self, enemy ) ) {
+static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
+	gentity_t	*enemy;
+	vec3_t		dir, point;
+
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	enemy = G_MonsterEnemy( self );
+	if ( !enemy || !BG_FindDef( EVARG_STRING( 0 ) ) || !MeleeReach( self, enemy, EVARG_STRING( 0 ) ) ) {
 		Thread_ReturnInt( 0 );
 		return;
 	}
+	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
+	VectorNormalize( dir );
 
 	VectorMA( self->r.currentOrigin, self->monster.moveMaxs[0], dir, point );
 	G_Damage( enemy, self, self, dir, point, DamageFromDef( EVARG_STRING( 0 ) ), 0, MOD_UNKNOWN );
@@ -1014,6 +1037,7 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "disableGravity",		NULL,		0,		Event_DisableGravity },
 	{ "allowMovement",		"f",		0,		Event_AllowMovement },
 	{ "getJumpVelocity",	"vff",		'v',	Event_GetJumpVelocity },
+	{ "testMeleeAttack",	NULL,		'd',	Event_TestMeleeAttack },
 	{ "attackMelee",		"s",		'd',	Event_AttackMelee },
 	{ "directDamage",		"es",		0,		Event_DirectDamage },
 	{ "playAnim",			"ds",		'd',	Event_PlayAnim },

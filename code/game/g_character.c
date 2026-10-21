@@ -307,6 +307,39 @@ static qboolean G_TraceHitboxes( gentity_t *ent, const vec3_t start, const vec3_
 
 /*
 ================
+G_SegmentMeetsBox
+
+whether the line from a to b goes through the box
+================
+*/
+static qboolean G_SegmentMeetsBox( const vec3_t a, const vec3_t b, const vec3_t lo, const vec3_t hi ) {
+	float	t0 = 0, t1 = 1, d, ta, tb;
+	int		k;
+
+	for ( k = 0; k < 3; k++ ) {
+		d = b[k] - a[k];
+		if ( fabs( d ) < 0.0001f ) {
+			if ( a[k] < lo[k] || a[k] > hi[k] ) {
+				return qfalse;
+			}
+			continue;
+		}
+		ta = ( lo[k] - a[k] ) / d;
+		tb = ( hi[k] - a[k] ) / d;
+		if ( ta > tb ) {
+			d = ta; ta = tb; tb = d;
+		}
+		t0 = MAX( t0, ta );
+		t1 = MIN( t1, tb );
+		if ( t0 > t1 ) {
+			return qfalse;
+		}
+	}
+	return qtrue;
+}
+
+/*
+================
 G_TraceShot
 
 A trace for something that hits characters on their hitboxes: shots and
@@ -357,6 +390,33 @@ void G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const
 	}
 	for ( i = 0; i < numSkipped; i++ ) {
 		skipped[i]->s.contents = skippedContents[i];
+	}
+
+	// characters whose models reach past the boxes they move with (a skeet's
+	// wings): their hitboxes, nearer than what it hit
+	for ( i = 0; i < level.num_entities; i++ ) {
+		trace_t	tr;
+		vec3_t	lo, hi;
+		int		z;
+
+		ent = &g_entities[i];
+		if ( !ent->inuse || !( ent->monster.flags & MONF_HIT_REACH ) || ent->ragdoll || i == passEntityNum
+			|| i == results->entityNum || !ent->characterDef || !ent->characterModel || !( ent->s.contents & contentmask ) ) {
+			continue;
+		}
+		VectorAdd( ent->r.currentOrigin, ent->monster.hitMins, lo );
+		VectorAdd( ent->r.currentOrigin, ent->monster.hitMaxs, hi );
+		VectorSubtract( lo, maxs, lo );
+		VectorSubtract( hi, mins, hi );
+		if ( !G_SegmentMeetsBox( start, results->endpos, lo, hi ) ) {
+			continue;
+		}
+		if ( G_TraceHitboxes( ent, start, mins, maxs, end, contentmask, &tr, &z ) && tr.fraction < results->fraction ) {
+			*results = tr;
+			if ( zone ) {
+				*zone = z;
+			}
+		}
 	}
 }
 
