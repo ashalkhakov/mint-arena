@@ -463,6 +463,16 @@ extern void			UI_DrawChar( int x, int y, int ch, int style, vec4_t color );
 extern qboolean 	UI_CursorInRect (int x, int y, int width, int height);
 extern qboolean		UI_IsFullscreen( void );
 extern void			UI_SetActiveMenu( uiMenuCommand_t menu );
+
+//
+// ui_inventory.c
+//
+qboolean	UI_InventoryOwnerDraw( int ownerDraw, rectDef_t *rect, float scale, vec4_t color, qhandle_t shader, int textStyle );
+qboolean	UI_InventoryVisible( int *flags );
+qboolean	UI_InventoryHandleKey( int ownerDraw, int key );
+void		UI_InventoryCommand( const char *cmd );
+void		UI_InventoryOpen( void );
+int			UI_InvSelected( void );
 extern void			UI_ForceMenuOff (void);
 void UI_LoadBestScores(const char *map, int game);
 

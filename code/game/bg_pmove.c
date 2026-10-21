@@ -1084,6 +1084,10 @@ void CheckLadder( void ) {
 
 	pml.ladder = qfalse;
 	activate = ( pm->cmd.buttons & BUTTON_ACTIVATE ) && !( pm->ps->pm_flags & PMF_ACTIVATE_HELD );
+	// use pressed on something looked at takes or uses that instead (g_frob.c)
+	if ( pm->ps->stats[STAT_FROB_ENTITY] > 0 && pm->ps->stats[STAT_FROB_ENTITY] != ENTITYNUM_NONE ) {
+		activate = qfalse;
+	}
 	if ( pm->cmd.buttons & BUTTON_ACTIVATE ) {
 		pm->ps->pm_flags |= PMF_ACTIVATE_HELD;
 	} else {

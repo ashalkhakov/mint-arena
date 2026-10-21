@@ -505,6 +505,8 @@ void RespawnItem( gentity_t *ent ) {
 }
 
 
+qboolean	g_itemFrobbed;		// Touch_Item is a player's use of it (g_frob.c), not a touch
+
 /*
 ===============
 Touch_Item
@@ -537,7 +539,25 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 
 	G_LogPrintf( "Item: %i %s\n", other->s.number, ent->item->classname );
 
-	predict = other->player->pers.predictItemPickup;
+	predict = other->player->pers.predictItemPickup && g_touchPickup.integer;
+
+	// into the inventory (g_inventory.c), when there's room
+	if ( ent->item->giType != IT_SCRIPT ) {
+		respawn = G_InventoryTakeItem( ent, other );
+		if ( g_debugFrob.integer ) {
+			G_Printf( "take: %s -> %d, %d in the grid\n", ent->item->classname, respawn, BG_InvCount( &other->player->ps, BG_ItemNumForItem( ent->item ) ) );
+		}
+		if ( !respawn ) {
+			if ( g_itemFrobbed ) {
+				G_InventoryRefuse( other, ent->item );
+			}
+			return;
+		}
+		if ( respawn == INV_TAKEN_SOME ) {
+			G_AddEvent( other, EV_ITEM_PICKUP, ent->s.modelindex );
+			return;
+		}
+	} else
 
 	// call the item-specific pickup function
 	switch( ent->item->giType ) {

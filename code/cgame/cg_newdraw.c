@@ -749,7 +749,7 @@ static void CG_DrawSelectedPlayerHead( rectDef_t *rect, qboolean draw2D, qboolea
 CG_DrawPlayerFace
 
 A picture of the player that changes with their state, as Daikatana's
-status bar face does. The item's text names the pictures: %m becomes the
+status bar face does. The item's ownerDrawParam names the pictures: %m becomes the
 player's model, %c the state, a to e from full to low health, f dead,
 g invulnerable (battle suit), h invisible. Without a picture for the
 model, the one of the model "default" is used.
@@ -783,7 +783,7 @@ static void CG_DrawPlayerFace( rectDef_t *rect, vec4_t color ) {
 	int					health;
 	qhandle_t			face;
 
-	pattern = cgDC.paintItem ? cgDC.paintItem->text : NULL;
+	pattern = cgDC.paintItem ? cgDC.paintItem->ownerDrawParam : NULL;
 	if ( !pattern || !pattern[0] ) {
 		return;
 	}
@@ -932,6 +932,90 @@ The centre print, a line at a time centred in the rect from its top,
 fading as the one Quake 3 draws does.
 ==============
 */
+/*
+==============
+CG_FrobRoom
+
+Whether what the player looks at can be used: an item there's room for in
+the inventory, or anything else made usable. -1 when nothing's looked at.
+==============
+*/
+static int CG_FrobRoom( const playerState_t *ps ) {
+	int num = ps->stats[STAT_FROB_ENTITY];
+	const entityState_t *es;
+
+	if ( num <= 0 || num >= ENTITYNUM_MAX_NORMAL ) {
+		return -1;
+	}
+	es = &cg_entities[num].currentState;
+	if ( es->eType != ET_ITEM ) {
+		return 1;
+	}
+	if ( es->modelindex <= 0 || es->modelindex >= BG_NumItems() ) {
+		return -1;
+	}
+	return BG_InvRoomFor( ps, es->modelindex, 1, 0 ) > 0;
+}
+
+/*
+==============
+CG_DrawFrobHint
+
+What use does to what's looked at (g_frob.c), "[E] Take Plasteel Armor":
+the item's ownerDrawParam, %k the key for use, %a what it does, %n what it's on.
+==============
+*/
+static void CG_DrawFrobHint( rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
+	const playerState_t *ps = cg.cur_ps;
+	const char *pattern, *p, *action, *name;
+	const entityState_t *es;
+	char keys[64], text[256];
+	int len = 0, num, width;
+
+	if ( !ps || ps->stats[STAT_HEALTH] <= 0 || CG_FrobRoom( ps ) < 0 || ( Key_GetCatcher() & KEYCATCH_UI ) ) {
+		return;
+	}
+	num = ps->stats[STAT_FROB_ENTITY];
+	es = &cg_entities[num].currentState;
+	if ( es->eType == ET_ITEM ) {
+		action = CG_FrobRoom( ps ) ? "Take" : "No room for";
+		name = BG_ItemForItemNum( es->modelindex )->pickup_name;
+	} else {
+		action = "Use";
+		name = "";
+	}
+
+	CG_KeysStringForBinding( Com_LocalPlayerCvarName( cg.cur_localPlayerNum, "+use" ), keys, sizeof( keys ) );
+	if ( !keys[0] || !Q_stricmp( keys, "???" ) ) {
+		CG_KeysStringForBinding( Com_LocalPlayerCvarName( cg.cur_localPlayerNum, "+activate" ), keys, sizeof( keys ) );
+	}
+
+	pattern = cgDC.paintItem && cgDC.paintItem->ownerDrawParam && cgDC.paintItem->ownerDrawParam[0]
+		? cgDC.paintItem->ownerDrawParam : "[%k] %a %n";
+	for ( p = pattern; *p && len < (int)sizeof( text ) - 1; p++ ) {
+		const char *insert = NULL;
+
+		if ( p[0] == '%' && p[1] == 'k' ) {
+			insert = keys;
+		} else if ( p[0] == '%' && p[1] == 'a' ) {
+			insert = action;
+		} else if ( p[0] == '%' && p[1] == 'n' ) {
+			insert = name;
+		}
+		if ( insert ) {
+			Q_strncpyz( text + len, insert, sizeof( text ) - len );
+			len = strlen( text );
+			p++;
+		} else {
+			text[len++] = *p;
+		}
+	}
+	text[len] = '\0';
+
+	width = CG_Text_Width( text, scale, 0 );
+	CG_Text_Paint( rect->x + ( rect->w - width ) / 2, rect->y + rect->h, scale, color, text, 0, 0, textStyle );
+}
+
 static void CG_DrawCenterPrintText( rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
 	char	line[1024];
 	const char	*s, *end;
@@ -1529,6 +1613,17 @@ qboolean CG_OwnerDrawVisible(int flags) {
 		}
 	}
 
+	if (flags & (CG_SHOW_FROB_ROOM | CG_SHOW_FROB_NOROOM)) {
+		int room = CG_FrobRoom( cg.cur_ps );
+
+		if ( ( flags & CG_SHOW_FROB_ROOM ) && room == 1 ) {
+			return qtrue;
+		}
+		if ( ( flags & CG_SHOW_FROB_NOROOM ) && room == 0 ) {
+			return qtrue;
+		}
+	}
+
 	if (flags & CG_SHOW_SINGLEPLAYER) {
 		if( cgs.gametype == GT_SINGLE_PLAYER ) {
 			return qtrue;
@@ -2065,6 +2160,9 @@ void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y
 		break;
 	case CG_CENTERPRINT:
 		CG_DrawCenterPrintText(&rect, scale, color, textStyle);
+		break;
+	case CG_FROB_HINT:
+		CG_DrawFrobHint(&rect, scale, color, textStyle);
 		break;
 	case CG_LEVEL_TIME:
 		CG_DrawLevelTime(&rect, scale, color, textStyle);

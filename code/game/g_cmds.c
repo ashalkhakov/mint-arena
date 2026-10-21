@@ -242,6 +242,59 @@ int PlayerNumberFromString( gentity_t *to, char *s, qboolean checkNums, qboolean
 
 /*
 ==================
+Cmd_SpawnItem_f
+
+spawnitem <classname>: hangs an item in front of the player's eye, to try
+taking it (cheat)
+==================
+*/
+void Cmd_SpawnItem_f( gentity_t *ent ) {
+	char name[MAX_TOKEN_CHARS];
+	gitem_t *it;
+	gentity_t *it_ent;
+	vec3_t forward, angles;
+
+	if ( !CheatsOk( ent ) ) {
+		return;
+	}
+	trap_Argv( 1, name, sizeof( name ) );
+	it = BG_FindItemByClassname( name );
+	if ( !it ) {
+		trap_SendServerCommand( ent - g_entities, va( "print \"no item %s\n\"", name ) );
+		return;
+	}
+	VectorSet( angles, 0, ent->player->ps.viewangles[YAW], 0 );
+	AngleVectors( angles, forward, NULL, NULL );
+	it_ent = G_Spawn();
+	VectorMA( ent->r.currentOrigin, 56, forward, it_ent->s.origin );
+	it_ent->s.origin[2] += ent->player->ps.viewheight;		// at the eye, hanging
+	it_ent->spawnflags |= 1;
+	it_ent->classname = it->classname;
+	G_SpawnItem( it_ent, it );
+	FinishSpawningItem( it_ent );
+	G_Printf( "spawnitem: %s is entity %d\n", it->classname, it_ent->s.number );
+}
+
+/*
+==================
+Cmd_Hurt_f
+
+hurt <damage>: hurts the player, armor taking its share (cheat)
+==================
+*/
+void Cmd_Hurt_f( gentity_t *ent ) {
+	char buf[MAX_TOKEN_CHARS];
+
+	if ( !CheatsOk( ent ) ) {
+		return;
+	}
+	trap_Argv( 1, buf, sizeof( buf ) );
+	G_Damage( ent, NULL, NULL, NULL, NULL, atoi( buf ), DAMAGE_NO_KNOCKBACK, MOD_FALLING );
+	G_Printf( "hurt: health %d, armor %d\n", ent->health, ent->player->ps.stats[STAT_ARMOR] );
+}
+
+/*
+==================
 Cmd_Give_f
 
 Give items to a player
@@ -2076,6 +2129,12 @@ void ClientCommand( int connectionNum ) {
 		Cmd_TeamVote_f (ent);
 	else if (Q_stricmp (cmd, "gc") == 0)
 		Cmd_GameCommand_f( ent );
+	else if (Q_stricmp (cmd, "spawnitem") == 0)
+		Cmd_SpawnItem_f( ent );
+	else if (Q_stricmp (cmd, "hurt") == 0)
+		Cmd_Hurt_f( ent );
+	else if ( !Q_stricmpn( cmd, "inv", 3 ) )
+		Cmd_Inventory_f( ent, cmd );
 	else if (Q_stricmp (cmd, "contents") == 0)
 		Cmd_Contents_f( ent );
 	else if (Q_stricmp (cmd, "setviewpos") == 0)

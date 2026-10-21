@@ -538,9 +538,15 @@ int CheckArmor (gentity_t *ent, int damage, int dflags)
 	if (dflags & DAMAGE_NO_ARMOR)
 		return 0;
 
-	// armor
+	// the suit worn takes its share ("armor_absorb"), never all of it (Doom
+	// 3's), and is worn through at 0 (g_inventory.c); armor given without a
+	// suit takes Quake 3's share
 	count = player->ps.stats[STAT_ARMOR];
-	save = ceil( damage * ARMOR_PROTECTION );
+	save = ceil( damage * ( player->ps.stats[STAT_ARMOR_ITEM]
+		? BG_ItemForItemNum( player->ps.stats[STAT_ARMOR_ITEM] )->armorAbsorb : ARMOR_PROTECTION ) );
+	if ( save >= damage && damage > 1 ) {
+		save = damage - 1;
+	}
 	if (save >= count)
 		save = count;
 
@@ -548,6 +554,9 @@ int CheckArmor (gentity_t *ent, int damage, int dflags)
 		return 0;
 
 	player->ps.stats[STAT_ARMOR] -= save;
+	if ( player->ps.stats[STAT_ARMOR] <= 0 && player->ps.stats[STAT_ARMOR_ITEM] ) {
+		player->ps.stats[STAT_ARMOR_ITEM] = 0;		// worn through
+	}
 
 	return save;
 }

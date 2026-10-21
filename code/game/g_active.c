@@ -290,6 +290,10 @@ void	G_TouchTriggers( gentity_t *ent ) {
 		// use separate code for determining if an item is picked up
 		// so you don't have to actually contact its bounding box
 		if ( hit->s.eType == ET_ITEM ) {
+			// players take items by using them (g_frob.c); bots by touch still
+			if ( !g_touchPickup.integer && !( ent->r.svFlags & SVF_BOT ) ) {
+				continue;
+			}
 			if ( !BG_PlayerTouchesItem( &ent->player->ps, &hit->s, level.time ) ) {
 				continue;
 			}
@@ -454,10 +458,7 @@ void PlayerTimerActions( gentity_t *ent, int msec ) {
 			}
 		}
 
-		// count down armor when over max
-		if ( player->ps.stats[STAT_ARMOR] > player->ps.stats[STAT_MAX_HEALTH] ) {
-			player->ps.stats[STAT_ARMOR]--;
-		}
+		// a worn suit keeps its points (g_inventory.c)
 	}
 #ifdef MISSIONPACK
 	if( BG_ItemForItemNum( player->ps.stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_AMMOREGEN ) {
@@ -969,6 +970,9 @@ void PlayerThink_real( gentity_t *ent ) {
 	player->buttons = ucmd->buttons;
 	player->latched_buttons |= player->buttons & ~player->oldbuttons;
 
+	// what it looks at, and use pressed on it (g_frob.c)
+	G_FrobThink( ent );
+
 	// check for respawning
 	if ( player->ps.stats[STAT_HEALTH] <= 0 ) {
 		// wait for the attack button to be pressed
@@ -1095,6 +1099,12 @@ void PlayerEndFrame( gentity_t *ent ) {
 		if ( ent->player->ps.powerups[ i ] < level.time ) {
 			ent->player->ps.powerups[ i ] = 0;
 		}
+	}
+
+	// the grid as weapons and ammo were changed this frame (g_inventory.c)
+	G_InventorySync( ent );
+	if ( ent->r.svFlags & SVF_BOT ) {
+		G_InventoryBotThink( ent );
 	}
 
 #ifdef MISSIONPACK

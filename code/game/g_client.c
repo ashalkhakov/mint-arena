@@ -1157,6 +1157,7 @@ void PlayerSpawn(gentity_t *ent) {
 //	char	*savedAreaBits;
 	int		accuracy_hits, accuracy_shots;
 	int		eventSequence;
+	int		invItem[MAX_INV_SLOTS], invCount[MAX_INV_SLOTS], invCell[MAX_INV_SLOTS], invValue[MAX_INV_SLOTS];
 
 	index = ent - g_entities;
 	player = ent->player;
@@ -1206,6 +1207,10 @@ void PlayerSpawn(gentity_t *ent) {
 		persistant[i] = player->ps.persistant[i];
 	}
 	eventSequence = player->ps.eventSequence;
+	memcpy( invItem, player->ps.invItem, sizeof( invItem ) );
+	memcpy( invCount, player->ps.invCount, sizeof( invCount ) );
+	memcpy( invCell, player->ps.invCell, sizeof( invCell ) );
+	memcpy( invValue, player->ps.invValue, sizeof( invValue ) );
 
 	Com_Memset (player, 0, sizeof(*player));
 
@@ -1250,6 +1255,9 @@ void PlayerSpawn(gentity_t *ent) {
 
 	player->ps.playerNum = index;
 
+	// the inventory: kept in the campaign, emptied elsewhere (g_inventory.c)
+	G_InventorySpawn( ent, invItem, invCount, invCell, invValue );
+
 	G_GiveStartWeapons( player );
 
 	// health will count down towards max_health
@@ -1259,6 +1267,7 @@ void PlayerSpawn(gentity_t *ent) {
 	if ( g_gametype.integer == GT_CAMPAIGN ) {
 		G_LoadPersistant( ent );
 	}
+	G_InventorySync( ent );
 
 	G_SetOrigin( ent, spawn_origin );
 	VectorCopy( spawn_origin, player->ps.origin );

@@ -1245,6 +1245,25 @@ static void CG_ServerCommand( void ) {
 		return;
 	}
 
+	if ( !strcmp( cmd, "invweapon" ) ) {
+		// the inventory took a weapon in hand, or dropped the one held: the
+		// client picks the weapon held (g_inventory.c)
+		int weapon = atoi( CG_Argv( start + 1 ) );
+
+		for ( i = 0; i < CG_MaxSplitView(); i++ ) {
+			if ( cg.localPlayers[i].playerNum == -1 || ( localPlayerBits != -1 && !( localPlayerBits & ( 1 << i ) ) ) ) {
+				continue;
+			}
+			if ( weapon > 0 && weapon < MAX_WEAPONS ) {
+				cg.localPlayers[i].weaponSelectTime = cg.time;
+				cg.localPlayers[i].weaponSelect = weapon;
+			} else {
+				CG_OutOfAmmoChange( i );
+			}
+		}
+		return;
+	}
+
 	if ( !strcmp( cmd, "eev" ) ) {
 		// Doom 3's entity network event
 		CG_QueueNetEvent( start + 1 );

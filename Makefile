@@ -1079,6 +1079,7 @@ $(Q3ASM): $(Q3ASMOBJ)
 Q3CGOBJ = \
   $(B)/$(BASEGAME)/cgame/cg_main.o \
   $(B)/$(BASEGAME)/cgame/bg_misc.o \
+  $(B)/$(BASEGAME)/cgame/bg_inventory.o \
   $(B)/$(BASEGAME)/cgame/bg_pmove.o \
   $(B)/$(BASEGAME)/cgame/bg_slidemove.o \
   $(B)/$(BASEGAME)/cgame/bg_lib.o \
@@ -1182,6 +1183,7 @@ $(B)/$(BASEGAME)/vm/$(VM_PREFIX)cgame.qvm: $(Q3CGVMOBJ) $(GDIR)/bg_syscalls.asm 
 MPCGOBJ = \
   $(B)/$(MISSIONPACK)/cgame/cg_main.o \
   $(B)/$(MISSIONPACK)/cgame/bg_misc.o \
+  $(B)/$(MISSIONPACK)/cgame/bg_inventory.o \
   $(B)/$(MISSIONPACK)/cgame/bg_pmove.o \
   $(B)/$(MISSIONPACK)/cgame/bg_slidemove.o \
   $(B)/$(MISSIONPACK)/cgame/bg_lib.o \
@@ -1312,6 +1314,7 @@ Q3GOBJ = \
   $(B)/$(BASEGAME)/game/ai_weight.o \
   $(B)/$(BASEGAME)/game/ai_vcmd.o \
   $(B)/$(BASEGAME)/game/bg_misc.o \
+  $(B)/$(BASEGAME)/game/bg_inventory.o \
   $(B)/$(BASEGAME)/game/bg_pmove.o \
   $(B)/$(BASEGAME)/game/bg_slidemove.o \
   $(B)/$(BASEGAME)/game/bg_lib.o \
@@ -1324,6 +1327,8 @@ Q3GOBJ = \
   $(B)/$(BASEGAME)/game/g_cmds.o \
   $(B)/$(BASEGAME)/game/g_combat.o \
   $(B)/$(BASEGAME)/game/g_items.o \
+  $(B)/$(BASEGAME)/game/g_inventory.o \
+  $(B)/$(BASEGAME)/game/g_frob.o \
   $(B)/$(BASEGAME)/game/g_misc.o \
   $(B)/$(BASEGAME)/game/g_missile.o \
   $(B)/$(BASEGAME)/game/g_mover.o \
@@ -1391,6 +1396,7 @@ MPGOBJ = \
   $(B)/$(MISSIONPACK)/game/ai_weight.o \
   $(B)/$(MISSIONPACK)/game/ai_vcmd.o \
   $(B)/$(MISSIONPACK)/game/bg_misc.o \
+  $(B)/$(MISSIONPACK)/game/bg_inventory.o \
   $(B)/$(MISSIONPACK)/game/bg_pmove.o \
   $(B)/$(MISSIONPACK)/game/bg_slidemove.o \
   $(B)/$(MISSIONPACK)/game/bg_lib.o \
@@ -1403,6 +1409,8 @@ MPGOBJ = \
   $(B)/$(MISSIONPACK)/game/g_cmds.o \
   $(B)/$(MISSIONPACK)/game/g_combat.o \
   $(B)/$(MISSIONPACK)/game/g_items.o \
+  $(B)/$(MISSIONPACK)/game/g_inventory.o \
+  $(B)/$(MISSIONPACK)/game/g_frob.o \
   $(B)/$(MISSIONPACK)/game/g_misc.o \
   $(B)/$(MISSIONPACK)/game/g_missile.o \
   $(B)/$(MISSIONPACK)/game/g_mover.o \

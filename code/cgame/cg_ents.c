@@ -694,6 +694,13 @@ static void CG_Item( centity_t *cent ) {
 	// add to refresh list
 	CG_AddRefEntityWithMinLight(&ent);
 
+	// looked at, and can be taken: lit up (The Dark Mod's frob highlight)
+	if ( cgs.media.frobShader && cg.cur_ps && cg.cur_ps->stats[STAT_FROB_ENTITY] == es->number ) {
+		refEntity_t	shell = ent;
+
+		shell.customShader = cgs.media.frobShader;
+		trap_R_AddRefEntityToScene( &shell );
+	}
 
 	// accompanying rings / spheres for powerups
 	if ( !cg_simpleItems.integer ) 

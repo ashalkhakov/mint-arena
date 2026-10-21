@@ -89,6 +89,8 @@ vmCvar_t	g_unlimitedSaves;
 vmCvar_t	g_debugScript;
 vmCvar_t	g_disasm;
 vmCvar_t	g_weaponRespawn;
+vmCvar_t	g_touchPickup;
+vmCvar_t	g_debugFrob;
 vmCvar_t	g_weaponTeamRespawn;
 vmCvar_t	g_motd;
 vmCvar_t	g_synchronousClients;
@@ -167,6 +169,9 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_knockback, "g_knockback", "1000", 0, GCF_TRACK_CHANGE, RANGE_ALL },
 	{ &g_quadfactor, "g_quadfactor", "3", 0, GCF_TRACK_CHANGE, RANGE_ALL },
 	{ &g_weaponRespawn, "g_weaponrespawn", "5", 0, GCF_TRACK_CHANGE, RANGE_ALL },
+	// items are taken by looking at them and pressing use (g_frob.c), not by walking over them
+	{ &g_touchPickup, "g_touchPickup", "0", CVAR_SERVERINFO, 0, RANGE_BOOL },
+	{ &g_debugFrob, "g_debugFrob", "0", 0, 0, RANGE_BOOL },
 	{ &g_weaponTeamRespawn, "g_weaponTeamRespawn", "30", 0, GCF_TRACK_CHANGE, RANGE_ALL },
 	{ &g_forcerespawn, "g_forcerespawn", "20", 0, GCF_TRACK_CHANGE, RANGE_ALL },
 	{ &g_inactivity, "g_inactivity", "0", 0, GCF_TRACK_CHANGE, RANGE_BOOL },
@@ -1990,7 +1995,7 @@ void G_RunThink (gentity_t *ent) {
 	
 	ent->nextthink = 0;
 	if (!ent->think) {
-		G_Error ( "NULL ent->think");
+		G_Error( "NULL ent->think: entity %d, %s", ent->s.number, ent->classname ? ent->classname : "" );
 	}
 	ent->think (ent);
 }

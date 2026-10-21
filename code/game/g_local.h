@@ -263,6 +263,9 @@ struct gentity_s {
 	int			missileFlags;	// MISSILE_*, from the projectile def
 
 	int			count;
+	float		frobDistance;	// how far a player reaches to use it, "frob_distance" (g_frob.c)
+	qboolean	frobable;		// players use it by looking at it, "frobable"
+	int			invValue;		// a dropped item's own state, an armor suit's points (g_inventory.c)
 
 	gentity_t	*chain;
 	gentity_t	*enemy;
@@ -392,7 +395,7 @@ typedef struct {
 	int			teamVoteCount;		// to prevent people from constantly calling votes
 	qboolean	teamInfo;			// send team overlay updates?
 	// the campaign's
-	playerInventory_t	inventory;		// Doom 3's idInventory's items
+	int				invFlags[MAX_INV_SLOTS];	// Daikatana's key flags of the inventory's slots (KEY_USE_ONCE...)
 	qboolean	persistantLoaded;		// what the last map gave them is theirs (G_LoadPersistant)
 	int			persistantWeapon;		// the weapon they had up there
 } playerPersistant_t;
@@ -467,6 +470,9 @@ struct gplayer_s {
 	int			rewardTime;			// clear the EF_AWARD_IMPRESSIVE, etc when time > this
 
 	int			airOutTime;
+
+	int			invRefuseTime;		// "no room" said again from then on (g_inventory.c)
+	int			invBotTime;			// a bot looks in its inventory again then
 
 	int			lastKillTime;		// for multiple kill rewards
 
@@ -886,7 +892,31 @@ gentity_t	*G_CampaignSpawnPoint( vec3_t origin, vec3_t angles );
 void		G_CampaignUseTargets( gentity_t *ent, gentity_t *activator );
 qboolean	G_CampaignKeyCheck( gentity_t *self, gentity_t *activator );
 int			G_InventoryCount( const gentity_t *ent, const char *item );
-void		G_InventoryAdd( gentity_t *ent, const char *item, int count, int flags );
+int			G_InventoryAdd( gentity_t *ent, const char *item, int count, int flags );
+
+//
+// g_inventory.c
+//
+extern qboolean g_itemFrobbed;		// g_items.c
+#define INV_TAKEN_SOME		-1000	// G_InventoryTakeItem took some of a stack, the rest stays
+
+void		G_InventorySpawn( gentity_t *ent, const int *savedItem, const int *savedCount,
+							const int *savedCell, const int *savedValue );
+void		G_InventorySync( gentity_t *ent );
+int			G_InventoryTakeItem( gentity_t *ent, gentity_t *other );
+void		G_InventoryRefuse( gentity_t *other, gitem_t *item );
+qboolean	G_InventoryUse( gentity_t *ent, int slot );
+qboolean	G_InventoryWear( gentity_t *ent, int slot );
+qboolean	G_InventoryTakeOff( gentity_t *ent );
+qboolean	G_InventoryDrop( gentity_t *ent, int slot, int count );
+qboolean	G_InventoryDropWorn( gentity_t *ent );
+void		G_InventoryBotThink( gentity_t *ent );
+void		Cmd_Inventory_f( gentity_t *ent, const char *cmd );
+
+//
+// g_frob.c
+//
+void		G_FrobThink( gentity_t *ent );
 void		G_InventoryRemove( gentity_t *ent, const char *item, int count );
 void		G_ChangeLevel( const char *map, const char *target );
 void		SP_info_player_coop( gentity_t *ent );
@@ -1045,6 +1075,8 @@ extern	vmCvar_t	g_skill;
 extern	vmCvar_t	g_spawnTarget;
 extern	vmCvar_t	g_unlimitedSaves;
 extern	vmCvar_t	g_weaponRespawn;
+extern	vmCvar_t	g_touchPickup;
+extern	vmCvar_t	g_debugFrob;
 extern	vmCvar_t	g_weaponTeamRespawn;
 extern	vmCvar_t	g_synchronousClients;
 extern	vmCvar_t	g_motd;

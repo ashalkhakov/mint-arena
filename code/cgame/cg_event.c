@@ -715,6 +715,12 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		trap_S_StartSound (NULL, es->number, CHAN_AUTO, CG_CustomSound( es->number, "*gasp.wav" ) );
 		break;
 
+	case EV_INVENTORY_FULL:
+		DEBUGNAME("EV_INVENTORY_FULL");
+		// no room for it (g_inventory.c)
+		trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.noAmmoSound );
+		break;
+
 	case EV_ITEM_PICKUP:
 		DEBUGNAME("EV_ITEM_PICKUP");
 		{

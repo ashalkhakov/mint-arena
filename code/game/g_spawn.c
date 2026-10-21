@@ -116,6 +116,8 @@ field_t fields[] = {
 	{"random", FOFS(random), F_FLOAT},
 	{"count", FOFS(count), F_INT},
 	{"health", FOFS(health), F_INT},
+	{"frobable", FOFS(frobable), F_INT},				// used by looking at it (g_frob.c)
+	{"frob_distance", FOFS(frobDistance), F_FLOAT},
 	{"dmg", FOFS(damage), F_INT},
 	{"angles", FOFS(s.angles), F_VECTOR},
 	{"angle", FOFS(s.angles), F_ANGLEHACK},

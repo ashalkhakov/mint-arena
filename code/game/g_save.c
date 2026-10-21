@@ -29,7 +29,32 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 
 #define PERSISTANT_FILE		"save/current.psw"
 #define PERSISTANT_MAGIC	0x50534b44		// "DKSP"
-#define PERSISTANT_VERSION	1
+#define PERSISTANT_VERSION	2		// 2: the inventory grid
+
+// what a player carries (bg_inventory.c)
+typedef struct {
+	int		item[MAX_INV_SLOTS];
+	int		count[MAX_INV_SLOTS];
+	int		cell[MAX_INV_SLOTS];
+	int		value[MAX_INV_SLOTS];
+	int		flags[MAX_INV_SLOTS];
+} savedInventory_t;
+
+static void G_SaveInventory( const gplayer_t *player, savedInventory_t *inv ) {
+	memcpy( inv->item, player->ps.invItem, sizeof( inv->item ) );
+	memcpy( inv->count, player->ps.invCount, sizeof( inv->count ) );
+	memcpy( inv->cell, player->ps.invCell, sizeof( inv->cell ) );
+	memcpy( inv->value, player->ps.invValue, sizeof( inv->value ) );
+	memcpy( inv->flags, player->pers.invFlags, sizeof( inv->flags ) );
+}
+
+static void G_RestoreInventory( gplayer_t *player, const savedInventory_t *inv ) {
+	memcpy( player->ps.invItem, inv->item, sizeof( inv->item ) );
+	memcpy( player->ps.invCount, inv->count, sizeof( inv->count ) );
+	memcpy( player->ps.invCell, inv->cell, sizeof( inv->cell ) );
+	memcpy( player->ps.invValue, inv->value, sizeof( inv->value ) );
+	memcpy( player->pers.invFlags, inv->flags, sizeof( inv->flags ) );
+}
 
 // what a player takes along
 typedef struct {
@@ -39,7 +64,7 @@ typedef struct {
 	int		ammo[MAX_WEAPONS];
 	int		ammoClip[MAX_WEAPONS];
 	int		weapon;
-	playerInventory_t	inventory;
+	savedInventory_t	inventory;
 } persistantPlayer_t;
 
 typedef struct {
@@ -81,7 +106,7 @@ qboolean G_SavePersistant( const char *nextmap ) {
 		memcpy( p->ammo, player->ps.ammo, sizeof( p->ammo ) );
 		memcpy( p->ammoClip, player->ps.ammoClip, sizeof( p->ammoClip ) );
 		p->weapon = player->ps.weapon;
-		p->inventory = player->pers.inventory;
+		G_SaveInventory( player, &p->inventory );
 	}
 
 	if ( trap_FS_FOpenFile( PERSISTANT_FILE, &f, FS_WRITE ) < 0 ) {
@@ -143,7 +168,7 @@ qboolean G_LoadPersistant( gentity_t *ent ) {
 	}
 	memcpy( player->ps.ammo, p->ammo, sizeof( p->ammo ) );
 	memcpy( player->ps.ammoClip, p->ammoClip, sizeof( p->ammoClip ) );
-	player->pers.inventory = p->inventory;
+	G_RestoreInventory( player, &p->inventory );
 	if ( BG_HasWeapon( &player->ps, p->weapon ) ) {
 		player->pers.persistantWeapon = p->weapon;
 	}
@@ -174,7 +199,7 @@ typedef struct {
 #include "g_funcs.h"		// made by code/tools/extractfuncs.py
 
 #define SAVEGAME_MAGIC		0x47534b44		// "DKSG"
-#define SAVEGAME_VERSION	2		// 2: the scripts' (g_script.c)
+#define SAVEGAME_VERSION	3		// 2: the scripts' (g_script.c), 3: the inventory grid
 #define MAX_SAVEGAME_SIZE	( 8 << 20 )
 
 typedef enum {
@@ -243,7 +268,7 @@ typedef struct {
 	int			ammoClip[MAX_WEAPONS];
 	int			powerups[MAX_POWERUPS];
 	int			weapon;
-	playerInventory_t	inventory;
+	savedInventory_t	inventory;
 } savePlayer_t;
 
 // the engine's loadgame (sv_ccmds.c) reads the first five: keep them first
@@ -458,7 +483,7 @@ qboolean G_SaveGame( const char *name ) {
 		memcpy( sp->ammoClip, player->ps.ammoClip, sizeof( sp->ammoClip ) );
 		memcpy( sp->powerups, player->ps.powerups, sizeof( sp->powerups ) );
 		sp->weapon = player->ps.weapon;
-		sp->inventory = player->pers.inventory;
+		G_SaveInventory( player, &sp->inventory );
 	}
 
 	g_saveBuf = trap_HeapMalloc( MAX_SAVEGAME_SIZE );
@@ -713,7 +738,7 @@ qboolean G_LoadGame( void ) {
 		memcpy( player->ps.powerups, sp->powerups, sizeof( sp->powerups ) );
 		player->ps.weapon = sp->weapon;
 		player->ps.weaponstate = WEAPON_READY;
-		player->pers.inventory = sp->inventory;
+		G_RestoreInventory( player, &sp->inventory );
 		player->ps.eFlags ^= EF_TELEPORT_BIT;
 		G_LinkEntity( ent );
 	}

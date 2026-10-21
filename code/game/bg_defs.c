@@ -297,6 +297,53 @@ static char *BG_DefString( const dict_t *dict, const char *key ) {
 
 /*
 ================
+BG_ItemInventoryFromDef
+
+How an item is carried: the cells it takes ("inv_size w h", one by
+default), how many a slot holds ("inv_stack"), its category ("inv_category",
+by its kind when not given), whether it can be dropped ("inv_droppable"),
+and an armor suit's share of the damage it takes ("armor_absorb").
+================
+*/
+static void BG_ItemInventoryFromDef( const dict_t *dict, gitem_t *item ) {
+	const char *value;
+	int i, stack = 1;
+	invCategory_t category = INVCAT_MISC;
+
+	item->invSize[0] = item->invSize[1] = 1;
+	if ( DictGetString( dict, "inv_size", "", &value ) && value[0] ) {
+		sscanf( value, "%d %d", &item->invSize[0], &item->invSize[1] );
+		item->invSize[0] = Com_Clamp( 1, ( 1 << INV_GRID_BITS ) - 1, item->invSize[0] );
+		item->invSize[1] = Com_Clamp( 1, ( 1 << INV_GRID_BITS ) - 1, item->invSize[1] );
+	}
+
+	switch ( item->giType ) {
+	case IT_WEAPON:		category = INVCAT_WEAPONS; break;
+	case IT_AMMO:		category = INVCAT_AMMO; stack = 100; break;
+	case IT_ARMOR:		category = INVCAT_ARMOR; break;
+	case IT_HEALTH:		category = INVCAT_HEALTH; stack = 5; break;
+	case IT_POWERUP:
+	case IT_PERSISTANT_POWERUP:
+	case IT_HOLDABLE:	category = INVCAT_ARTIFACTS; stack = 3; break;
+	case IT_INVENTORY:	category = INVCAT_QUEST; stack = MAX( 1, DictGetInt( dict, "inv_max", "1" ) ); break;
+	default:			break;
+	}
+	if ( DictGetString( dict, "inv_category", "", &value ) && value[0] ) {
+		for ( i = 0; i < INVCAT_NUM; i++ ) {
+			if ( !Q_stricmp( value, bg_invCategoryNames[i] ) ) {
+				category = i;
+				break;
+			}
+		}
+	}
+	item->invCategory = category;
+	item->invStack = MAX( 1, DictGetInt( dict, "inv_stack", va( "%d", stack ) ) );
+	item->invDroppable = DictGetBool( dict, "inv_droppable", "1" );
+	item->armorAbsorb = Com_Clamp( 0.0f, 1.0f, DictGetFloat( dict, "armor_absorb", "0.66" ) );
+}
+
+/*
+================
 BG_ItemFromDef
 ================
 */
@@ -358,6 +405,7 @@ static qboolean BG_ItemFromDef( const dict_t *dict, gitem_t *item ) {
 		return qfalse;
 	}
 	item->giTag = tag;
+	BG_ItemInventoryFromDef( dict, item );
 	return qtrue;
 }
 

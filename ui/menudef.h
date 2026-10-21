@@ -114,6 +114,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_SHOW_ARMOROK                   0x00200000
 #define CG_SHOW_AMMOLOW                   0x00400000	// 5 or less for a weapon that uses ammo
 #define CG_SHOW_AMMOOK                    0x00800000
+#define CG_SHOW_FROB_ROOM                 0x01000000	// what's looked at can be taken (or used)
+#define CG_SHOW_FROB_NOROOM               0x02000000	// what's looked at won't fit in the inventory
 #define CG_SHOW_2DONLY										0x10000000
 
 
@@ -130,6 +132,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_SHOW_NETANYNONTEAMGAME	 				0x00000400
 #define UI_SHOW_NETANYTEAMGAME		 				0x00000800
 #define UI_SHOW_NOTFAVORITESERVERS				0x00001000
+#define UI_SHOW_INV_SELECTED              0x00002000	// the inventory screen has an item selected (ui_inventory.c)
+#define UI_SHOW_INV_USABLE                0x00004000	// it can be used
+#define UI_SHOW_INV_WEARABLE              0x00008000	// it can be worn
+#define UI_SHOW_INV_DROPPABLE             0x00010000	// it can be dropped
+#define UI_SHOW_INV_WORN                  0x00020000	// armor is worn
 
 
 
@@ -214,12 +221,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_1STPLACE 67
 #define CG_2NDPLACE 68
 #define CG_CAPTURES 69
-#define CG_PLAYER_FACE 70				// the item's text names the pictures: %m model, %c state (a-e health, f dead, g invulnerable, h invisible)
+#define CG_PLAYER_FACE 70				// the item's ownerDrawParam names the pictures: %m model, %c state (a-e health, f dead, g invulnerable, h invisible)
 #define CG_WEAPON_ICON 71				// the weapon numbered by the item's special: its model turning, or its icon
 #define CG_WEAPON_AMMO 72				// that weapon's ammo
 #define CG_WEAPON_SELECTED 73			// the item's background when that weapon is selected
 #define CG_CENTERPRINT 74				// the centre print, a line at a time from the top of the rect
 #define CG_LEVEL_TIME 75				// the time since the level started, hh:mm:ss
+#define CG_FROB_HINT 76					// what use does to what's looked at; the item's ownerDrawParam says it: %k the key, %a the action, %n the thing
 
 
 
@@ -282,6 +290,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_PREVIEWCINEMATIC 254
 #define UI_STARTMAPCINEMATIC 255
 #define UI_MAPS_SELECTION 256
+#define UI_INV_GRID 257					// the inventory grid; its background is each cell's picture (ui_inventory.c)
+#define UI_INV_SELNAME 258				// the selected item's name
+#define UI_INV_SELDESC 259				// its description, "inv_desc", wrapped
+#define UI_INV_SELINFO 260				// its count, points, ammo
+#define UI_INV_WORN 261					// the armor worn
+#define UI_INV_ROOM 262					// the grid's cells used
 
 #define VOICECHAT_GETFLAG			"getflag"				// command someone to get the flag
 #define VOICECHAT_OFFENSE			"offense"				// command someone to go on offense

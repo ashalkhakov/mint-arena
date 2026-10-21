@@ -1580,6 +1580,17 @@ static void CG_CallTeamVoteComplete( int localPlayerNum, char *args, int argNum 
 	}
 }
 
+/*
+=================
+CG_Inventory_f
+
+The inventory screen (ui_inventory.c); its key closes it again.
+=================
+*/
+static void CG_Inventory_f( int localPlayerNum ) {
+	UI_SetActiveMenu( UIMENU_INVENTORY );
+}
+
 static consoleCommand_t	cg_commands[] = {
 	{ "+vstr", CG_VstrDown_f, 0, CG_VstrComplete },
 	{ "-vstr", CG_VstrUp_f, 0, CG_VstrComplete },
@@ -1781,6 +1792,16 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "teamvote", CG_ForwardToServer_f, CMD_INGAME, CG_VoteComplete },
 	{ "setviewpos", CG_ForwardToServer_f, CMD_INGAME },
 	{ "contents", CG_ForwardToServer_f, CMD_INGAME },
+	{ "spawnitem", CG_ForwardToServer_f, CMD_INGAME },
+	{ "hurt", CG_ForwardToServer_f, CMD_INGAME },
+	{ "inventory", CG_Inventory_f, CMD_INGAME },
+	{ "invuse", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invwear", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invremove", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invdrop", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invdropworn", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invquick", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invlist", CG_ForwardToServer_f, CMD_INGAME },
 	{ "stats", CG_ForwardToServer_f, CMD_INGAME },
 	// physics props, see g_physics.c
 	{ "prop", CG_ForwardToServer_f, CMD_INGAME, CG_PropShapeComplete },

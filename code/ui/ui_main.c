@@ -1645,6 +1645,11 @@ static void UI_OwnerDraw(float x, float y, float w, float h, float text_x, float
   rect.w = w;
   rect.h = h;
 
+  // the inventory screen's (ui_inventory.c)
+  if ( UI_InventoryOwnerDraw( ownerDraw, &rect, scale, color, shader, textStyle ) ) {
+    return;
+  }
+
   switch (ownerDraw) {
     case UI_HANDICAP:
       UI_DrawHandicap(&rect, scale, color, textStyle);
@@ -1806,6 +1811,11 @@ static void UI_OwnerDraw(float x, float y, float w, float h, float text_x, float
 
 static qboolean UI_OwnerDrawVisible(int flags) {
 	qboolean vis = qtrue;
+
+	// the inventory screen's (ui_inventory.c)
+	if ( !UI_InventoryVisible( &flags ) ) {
+		vis = qfalse;
+	}
 
 	while (flags) {
 
@@ -2311,6 +2321,9 @@ static qboolean UI_SelectedPlayer_HandleKey(int flags, float *special, int key) 
 
 
 static qboolean UI_OwnerDrawHandleKey(int ownerDraw, int flags, float *special, int key) {
+  if ( UI_InventoryHandleKey( ownerDraw, key ) ) {
+    return qtrue;
+  }
   switch (ownerDraw) {
     case UI_HANDICAP:
       return UI_Handicap_HandleKey(flags, special, key);
@@ -3057,6 +3070,11 @@ static void UI_RunMenuScript(char **args) {
 			UI_StartSkirmish(qfalse);
 		} else if (Q_stricmp(name, "closeingame") == 0) {
 			UI_ForceMenuOff();
+		} else if (Q_stricmp(name, "InvCommand") == 0) {
+			// the inventory screen's commands (ui_inventory.c)
+			if (String_Parse(args, &name2)) {
+				UI_InventoryCommand(name2);
+			}
 		} else if (Q_stricmp(name, "voteMap") == 0) {
 			if (ui_currentNetMap.integer >=0 && ui_currentNetMap.integer < uiInfo.mapCount) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va("callvote map %s\n",uiInfo.mapList[ui_currentNetMap.integer].mapLoadName) );
@@ -4887,6 +4905,16 @@ void UI_KeyEvent( int key, qboolean down ) {
 			}
 		}
 		if (menu) {
+			char binding[MAX_STRING_CHARS];
+
+			// the key that opens the inventory closes it
+			if ( down && !Q_stricmp( menu->window.name, "inventory" ) ) {
+				trap_Key_GetBindingBuf( key, binding, sizeof( binding ) );
+				if ( !Q_stricmp( binding, "inventory" ) ) {
+					UI_ForceMenuOff();
+					return;
+				}
+			}
 			if (key == K_ESCAPE && down && !Menus_AnyFullScreenVisible()) {
 				Menus_CloseAll();
 			} else {
@@ -5045,6 +5073,9 @@ void UI_SetActiveMenu( uiMenuCommand_t menu ) {
 			UI_BuildPlayerList();
 			Menus_CloseAll();
 			Menus_ActivateByName("ingame");
+			return;
+		case UIMENU_INVENTORY:
+			UI_InventoryOpen();
 			return;
 		default:
 			Com_Printf( "UI_SetActiveMenu: unknown enum %d\n", menu );

@@ -4870,6 +4870,12 @@ qboolean ItemParse_focusSound( itemDef_t *item, int handle ) {
 
 
 // text <string>
+// ownerDrawParam <string>: a string for the item's owner draw (a picture
+// name pattern, a hint's wording), not drawn as its text
+qboolean ItemParse_ownerDrawParam( itemDef_t *item, int handle ) {
+	return PC_String_Parse(handle, &item->ownerDrawParam);
+}
+
 qboolean ItemParse_text( itemDef_t *item, int handle ) {
 	if (!PC_String_Parse(handle, &item->text)) {
 		return qfalse;
@@ -5680,6 +5686,7 @@ qboolean ItemParse_hideCvar( itemDef_t *item, int handle ) {
 keywordHash_t itemParseKeywords[] = {
 	{"name", ItemParse_name, NULL},
 	{"text", ItemParse_text, NULL},
+	{"ownerDrawParam", ItemParse_ownerDrawParam, NULL},
 	{"group", ItemParse_group, NULL},
 	{"asset_model", ItemParse_asset_model, NULL},
 	{"asset_shader", ItemParse_asset_shader, NULL},

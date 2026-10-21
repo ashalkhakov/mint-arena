@@ -325,6 +325,9 @@ typedef enum {
 
 #define	MAX_PS_EVENTS			2
 
+#define	MAX_INV_SLOTS			64		// item stacks in the inventory grid
+#define	INV_GRID_BITS			4		// cells per side up to 1 << INV_GRID_BITS
+
 #define PS_PMOVEFRAMECOUNTBITS	6
 
 // playerState_t is the information needed by both the client and server
@@ -427,6 +430,13 @@ typedef struct playerState_s {
 	int			powerups[MAX_POWERUPS];	// level.time that the powerup runs out
 	int			ammo[MAX_WEAPONS];
 	int			ammoClip[MAX_WEAPONS];	// of ammo, how much is loaded (a weapon with a "clipSize")
+
+	// the inventory grid (bg_inventory.c): what a player carries, each slot an
+	// item stack at a place of the grid, packed by the game
+	int			invItem[MAX_INV_SLOTS];		// item number, 0 for an empty slot
+	int			invCount[MAX_INV_SLOTS];	// how many in the stack
+	int			invCell[MAX_INV_SLOTS];		// its top left cell, x | y << 4
+	int			invValue[MAX_INV_SLOTS];	// the item's own state: an armor suit's points
 
 	int			tokens;			// harvester skulls
 	int			loopSound;
@@ -609,8 +619,11 @@ typedef enum {
 	STAT_DEAD_YAW,					// look this direction when dead (FIXME: get rid of?)
 	STAT_MAX_HEALTH,				// health / armor limit, changeable by handicap
 //#ifdef MISSIONPACK
-	STAT_PERSISTANT_POWERUP
+	STAT_PERSISTANT_POWERUP,
 //#endif
+	STAT_ARMOR_ITEM,				// the armor suit worn, its item number; STAT_ARMOR are its points
+	STAT_FROB_ENTITY,				// what the player looks at and can take or use, ENTITYNUM_NONE for nothing
+	STAT_INV_GRID					// the inventory grid's size, width | height << INV_GRID_BITS
 } statIndex_t;
 
 // the weapons a player has, a bit each in the STAT_WEAPONS stats
@@ -884,7 +897,9 @@ typedef enum {
 
 	EV_EXPLOSION,
 
-	EV_ALT_FIRE_WEAPON
+	EV_ALT_FIRE_WEAPON,
+
+	EV_INVENTORY_FULL		// no room for an item, eventParm (g_inventory.c)
 } entity_event_t;
 
 
@@ -1135,20 +1150,23 @@ typedef enum {
 	IT_SCRIPT				// its "scriptobject" gives it: the script's pickup( player ) (g_items.c)
 } itemType_t;
 
-// Doom 3's idInventory's items: what a player carries of the IT_INVENTORY
-// items, by def name (g_items.c, g_campaign.c)
-#define MAX_INVENTORY_ITEMS		32
 
-typedef struct {
-	char		item[48];			// the item's def (classname)
-	int			count;
-	int			flags;				// Daikatana's key flags (KEY_USE_ONCE...) of the one picked up
-} inventoryItem_t;
 
-typedef struct {
-	int				numItems;
-	inventoryItem_t	items[MAX_INVENTORY_ITEMS];
-} playerInventory_t;
+// the kinds of items in the inventory, Thief's / The Dark Mod's categories
+typedef enum {
+	INVCAT_MISC,
+	INVCAT_WEAPONS,
+	INVCAT_AMMO,
+	INVCAT_ARMOR,
+	INVCAT_HEALTH,
+	INVCAT_ARTIFACTS,
+	INVCAT_KEYS,
+	INVCAT_QUEST,
+
+	INVCAT_NUM
+} invCategory_t;
+
+extern const char *bg_invCategoryNames[INVCAT_NUM];
 
 #define MAX_ITEM_MODELS 4
 
@@ -1168,6 +1186,13 @@ typedef struct gitem_s {
 	char		*sounds;		// string of all sounds this item will use
 
 	const struct dict_s	*def;	// its entity def (bg_defs.c)
+
+	// in the inventory (bg_inventory.c)
+	int			invSize[2];		// cells it takes, "inv_size"
+	int			invStack;		// how many one slot holds, "inv_stack"
+	int			invCategory;	// invCategory_t, "inv_category"
+	qboolean	invDroppable;	// "inv_droppable"
+	float		armorAbsorb;	// an armor suit's share of the damage it takes, "armor_absorb"
 } gitem_t;
 
 // included in both the game dll and the client
@@ -1181,6 +1206,20 @@ gitem_t	*BG_FindItemByClassname( const char *classname );
 gitem_t	*BG_FindItemForWeapon( weapon_t weapon );
 gitem_t	*BG_FindItemForAmmo( weapon_t weapon );
 gitem_t	*BG_FindItemForPowerup( powerup_t pw );
+gitem_t	*BG_FindAmmoItemForWeapon( weapon_t weapon );
+
+// the inventory grid (bg_inventory.c)
+void	BG_InvGridSize( const playerState_t *ps, int *width, int *height );
+void	BG_InvSetGridSize( playerState_t *ps, int width, int height );
+void	BG_InvSlotRect( const playerState_t *ps, int slot, int *x, int *y, int *w, int *h );
+int		BG_InvCount( const playerState_t *ps, int itemNum );
+int		BG_InvFindSlot( const playerState_t *ps, int itemNum );
+int		BG_InvRoomFor( const playerState_t *ps, int itemNum, int count, int value );
+int		BG_InvAdd( playerState_t *ps, int itemNum, int count, int value );
+void	BG_InvRemoveSlot( playerState_t *ps, int slot, int count );
+int		BG_InvRemove( playerState_t *ps, int itemNum, int count );
+void	BG_InvClear( playerState_t *ps );
+qboolean BG_InvRepack( playerState_t *ps );
 gitem_t	*BG_FindItemForHoldable( holdable_t pw );
 #define	BG_NumItems() (bg_numItems)
 #define	BG_ItemForItemNum(x) (&bg_itemlist[(x)])

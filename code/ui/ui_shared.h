@@ -289,6 +289,7 @@ typedef struct itemDef_s {
   float textscale;               // scale percentage from 72pts
   int textStyle;                 // ( optional ) style, normal and shadowed are it for now
   const char *text;              // display text
+  const char *ownerDrawParam;    // ( optional ) what an owner draw is told to draw, "ownerDrawParam"
   void *parent;                  // menu owner
   qhandle_t asset;               // handle to asset
   const char *mouseEnterText;    // mouse enter script

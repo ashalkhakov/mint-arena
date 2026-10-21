@@ -393,68 +393,65 @@ void SP_trigger_changelevel( gentity_t *self ) {
 /*
 ===============================================================================
 
-	The inventory: Doom 3's idInventory's items, Daikatana's keys
+	The inventory: Doom 3's idInventory's items, Daikatana's keys, in the
+	inventory grid
 
 ===============================================================================
 */
 
-static inventoryItem_t *G_InventoryFind( const gentity_t *ent, const char *item ) {
-	playerInventory_t *inv;
-	int i;
+// an item's number by its def name, 0 for none
+static int G_InventoryItemNum( const char *item ) {
+	gitem_t *it = item ? BG_FindItemByClassname( item ) : NULL;
 
-	if ( !ent || !ent->player || !item ) {
-		return NULL;
-	}
-	inv = &ent->player->pers.inventory;
-	for ( i = 0; i < inv->numItems; i++ ) {
-		if ( !Q_stricmp( inv->items[i].item, item ) ) {
-			return &inv->items[i];
-		}
-	}
-	return NULL;
+	return it ? BG_ItemNumForItem( it ) : 0;
 }
 
+/*
+================
+G_InventoryCount / G_InventoryAdd / G_InventoryRemove
+
+What a player carries of an item, by its def name, in the inventory grid
+(bg_inventory.c). Daikatana's key flags go with the item's slots.
+================
+*/
 int G_InventoryCount( const gentity_t *ent, const char *item ) {
-	inventoryItem_t *it = G_InventoryFind( ent, item );
+	int itemNum = G_InventoryItemNum( item );
 
-	return it ? it->count : 0;
+	if ( !ent || !ent->player || !itemNum ) {
+		return 0;
+	}
+	return BG_InvCount( &ent->player->ps, itemNum );
 }
 
-void G_InventoryAdd( gentity_t *ent, const char *item, int count, int flags ) {
-	playerInventory_t *inv;
-	inventoryItem_t *it;
+int G_InventoryAdd( gentity_t *ent, const char *item, int count, int flags ) {
+	int itemNum = G_InventoryItemNum( item ), added, slot;
 
 	if ( !ent || !ent->player ) {
-		return;
+		return 0;
 	}
-	it = G_InventoryFind( ent, item );
-	if ( !it ) {
-		inv = &ent->player->pers.inventory;
-		if ( inv->numItems >= MAX_INVENTORY_ITEMS ) {
-			G_Printf( S_COLOR_YELLOW "G_InventoryAdd: %s's inventory is full\n", ent->player->pers.netname );
-			return;
+	if ( !itemNum ) {
+		G_Printf( S_COLOR_YELLOW "G_InventoryAdd: no item %s\n", item ? item : "" );
+		return 0;
+	}
+	added = BG_InvAdd( &ent->player->ps, itemNum, count, 0 );
+	for ( slot = 0; slot < MAX_INV_SLOTS; slot++ ) {
+		if ( ent->player->ps.invItem[slot] == itemNum ) {
+			ent->player->pers.invFlags[slot] = flags;
 		}
-		it = &inv->items[inv->numItems++];
-		memset( it, 0, sizeof( *it ) );
-		Q_strncpyz( it->item, item, sizeof( it->item ) );
 	}
-	it->count += count;
-	it->flags = flags;
+	if ( added < count ) {
+		G_Printf( "G_InventoryAdd: no room for %d %s of %s\n", count - added, item, ent->player->pers.netname );
+	}
+	return added;
 }
 
 void G_InventoryRemove( gentity_t *ent, const char *item, int count ) {
-	playerInventory_t *inv;
-	inventoryItem_t *it = G_InventoryFind( ent, item );
+	int itemNum = G_InventoryItemNum( item );
 
-	if ( !it ) {
+	if ( !ent || !ent->player || !itemNum ) {
 		return;
 	}
-	it->count -= count;
-	if ( it->count > 0 ) {
-		return;
-	}
-	inv = &ent->player->pers.inventory;
-	*it = inv->items[--inv->numItems];
+	BG_InvRemove( &ent->player->ps, itemNum, count );
 }
 
 static const char *G_ItemName( const char *classname ) {
@@ -474,7 +471,7 @@ targets, needing it no more. qtrue when it may go on.
 ================
 */
 qboolean G_CampaignKeyCheck( gentity_t *self, gentity_t *activator ) {
-	inventoryItem_t *key;
+	int keySlot, keyFlags;
 	gentity_t *t;
 
 	if ( !self->keyname || !self->keyname[0] ) {
@@ -483,8 +480,8 @@ qboolean G_CampaignKeyCheck( gentity_t *self, gentity_t *activator ) {
 	if ( !activator || !activator->player ) {
 		return qfalse;
 	}
-	key = G_InventoryFind( activator, self->keyname );
-	if ( !key ) {
+	keySlot = BG_InvFindSlot( &activator->player->ps, G_InventoryItemNum( self->keyname ) );
+	if ( keySlot < 0 ) {
 		if ( level.time >= self->pain_debounce_time ) {
 			self->pain_debounce_time = level.time + 2000;
 			trap_SendServerCommand( activator - g_entities, va( "cp \"%s %s\"",
@@ -493,7 +490,8 @@ qboolean G_CampaignKeyCheck( gentity_t *self, gentity_t *activator ) {
 		return qfalse;
 	}
 
-	if ( key->flags & KEY_UNLOCK ) {
+	keyFlags = activator->player->pers.invFlags[keySlot];
+	if ( keyFlags & KEY_UNLOCK ) {
 		// what it opens opens freely now
 		if ( self->target ) {
 			t = NULL;
@@ -503,8 +501,8 @@ qboolean G_CampaignKeyCheck( gentity_t *self, gentity_t *activator ) {
 		}
 		self->keyname = NULL;
 	}
-	if ( key->flags & KEY_USE_ONCE ) {
-		G_InventoryRemove( activator, key->item, 1 );
+	if ( keyFlags & KEY_USE_ONCE ) {
+		BG_InvRemoveSlot( &activator->player->ps, keySlot, 1 );
 	}
 	return qtrue;
 }

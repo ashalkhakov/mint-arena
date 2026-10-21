@@ -1050,6 +1050,7 @@ typedef struct {
 
 	// powerup shaders
 	qhandle_t	quadShader;
+	qhandle_t	frobShader;			// on what's looked at and can be used, "frobHighlight" (g_frob.c)
 	qhandle_t	redQuadShader;
 	qhandle_t	quadWeaponShader;
 	qhandle_t	invisShader;

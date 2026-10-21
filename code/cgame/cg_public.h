@@ -106,7 +106,8 @@ typedef enum {
 	UIMENU_MAIN,
 	UIMENU_INGAME,
 	UIMENU_TEAM,
-	UIMENU_POSTGAME
+	UIMENU_POSTGAME,
+	UIMENU_INVENTORY		// the inventory screen (ui_inventory.c)
 } uiMenuCommand_t;
 
 typedef struct {

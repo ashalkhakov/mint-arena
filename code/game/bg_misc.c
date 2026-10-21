@@ -210,6 +210,10 @@ vmNetField_t	bg_playerStateFields[] =
 { PSF(damagePitch), 8 },
 { PSF(damageCount), 8 },
 { PSF(tokens), 8 },
+{ PSA(invItem), 10 },
+{ PSA(invCount), 16 },
+{ PSA(invCell), 8 },
+{ PSA(invValue), 16 },
 { PSF(pm_type), 8 },					
 { PSF(delta_angles[0]), 16 },
 { PSF(delta_angles[2]), 16 },
@@ -385,6 +389,23 @@ BG_FindItemForWeapon
 
 ===============
 */
+gitem_t	*BG_FindAmmoItemForWeapon( weapon_t weapon ) {
+	gitem_t	*it;
+
+	for ( it = bg_itemlist + 1 ; it->classname ; it++) {
+		if ( it->giType == IT_AMMO && it->giTag == weapon ) {
+			return it;
+		}
+	}
+	return NULL;
+}
+
+/*
+===============
+BG_FindItemForWeapon
+
+===============
+*/
 gitem_t	*BG_FindItemForWeapon( weapon_t weapon ) {
 	gitem_t	*it;
 	
@@ -491,7 +512,6 @@ This needs to be the same for client side prediction and server use.
 */
 qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const playerState_t *ps ) {
 	gitem_t	*item;
-	int		upperBound;
 
 	if ( ent->modelindex < 1 || ent->modelindex >= BG_NumItems() ) {
 		Com_Error( ERR_DROP, "BG_CanItemBeGrabbed: index out of range" );
@@ -510,44 +530,8 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 		return qtrue;
 
 	case IT_ARMOR:
-#ifdef MISSIONPACK
-		if( BG_ItemForItemNum( ps->stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_SCOUT ) {
-			return qfalse;
-		}
-
-		if( BG_ItemForItemNum( ps->stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_GUARD ) {
-			upperBound = ps->stats[STAT_MAX_HEALTH];
-		}
-		else
-#endif
-		{
-			upperBound = ps->stats[STAT_MAX_HEALTH] * 2;
-		}
-
-		// we also clamp armor to the maxhealth for handicapping
-		if ( ps->stats[STAT_ARMOR] >= upperBound ) {
-			return qfalse;
-		}
-		return qtrue;
-
 	case IT_HEALTH:
-		// small and mega healths will go over the max, otherwise
-		// don't pick up if already at max
-#ifdef MISSIONPACK
-		if( BG_ItemForItemNum( ps->stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_GUARD ) {
-		}
-		else
-#endif
-		if ( item->quantity == 5 || item->quantity == 100 ) {
-			if ( ps->stats[STAT_HEALTH] >= ps->stats[STAT_MAX_HEALTH] * 2 ) {
-				return qfalse;
-			}
-			return qtrue;
-		}
-
-		if ( ps->stats[STAT_HEALTH] >= ps->stats[STAT_MAX_HEALTH] ) {
-			return qfalse;
-		}
+		// carried, worn or used later: the inventory's room decides (g_inventory.c)
 		return qtrue;
 
 	case IT_POWERUP:

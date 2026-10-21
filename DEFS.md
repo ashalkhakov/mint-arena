@@ -25,7 +25,7 @@ at most); none are built into the game. What an item gives:
 | Key | Gives |
 | --- | --- |
 | `inv_health` N | health |
-| `inv_armor` N | armor |
+| `inv_armor` N | an armor suit with N points, worn from the inventory; `armor_absorb` (0.66) is its share of the damage |
 | `inv_weapon` `<weapon def>` | that weapon, with `inv_ammo` N |
 | `inv_ammo` N, `ammo_type` `<weapon def>` | ammo for that weapon |
 | `inv_powerup` `<powerup>` | that powerup, for `time` seconds: `quad`, `battlesuit`, `haste`, `invis`, `regen`, `flight` (`bg_powerupNames`) |
@@ -35,6 +35,30 @@ at most); none are built into the game. What an item gives:
 Look: `model` (and `model2` to `model4`), `model_scale` (1), `icon`,
 `snd_acquire`, `inv_name`, `sounds` (more to precache). An empty value
 (`"model2" ""`) clears an inherited one.
+
+## The inventory
+
+Everything picked up goes into the inventory grid (`bg_inventory.c`,
+`g_inventory.c`), taken by looking at it and pressing use (`g_frob.c`);
+health, artifacts and holdables are used from it, armor is worn from it.
+The grid packs itself: an item goes in the first place it fits, and when
+there's none everything is packed again, biggest first.
+
+| Key | |
+| --- | --- |
+| `inv_size` "w h" | the cells it takes (1 1) |
+| `inv_stack` N | how many one slot holds (ammo 100, health 5, artifacts 3, others 1) |
+| `inv_category` | `weapons`, `ammo`, `armor`, `health`, `artifacts`, `keys`, `quest`, `misc` (by its kind) |
+| `inv_droppable` | 0: can't be dropped (1) |
+| `inv_desc` | what the inventory screen says of it |
+| `inv_icon_grid` | its picture in the grid (`inv_icon`, then `icon`) |
+| `inv_use` | the script function using it runs, the player as activator (items that give nothing themselves) |
+| `frob_distance` | how far a player reaches to take it (80) |
+| `frob_bias` | how much more it's preferred when several are looked at (1) |
+
+The `player` def's `inv_grid` "w h" is the grid's size (10 6). A map entity
+with `"frobable" "1"` is used by looking at it and pressing use (its
+script's `frob( player )`, its `use`, or its targets).
 
 ## Item physics
 

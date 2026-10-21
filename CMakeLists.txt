@@ -1122,6 +1122,7 @@ set(idlib_files
 set(Q3CGOBJ
   cgame/cg_main.c
   game/bg_misc.c
+  game/bg_inventory.c
   game/bg_pmove.c
   game/bg_slidemove.c
   game/bg_tracemap.c
@@ -1179,7 +1180,8 @@ list(APPEND Q3CGOBJ
   ui/ui_atoms.c
   ui/ui_gameinfo.c
   ui/ui_players.c
-  ui/ui_shared.c)
+  ui/ui_shared.c
+  ui/ui_inventory.c)
 
 list(TRANSFORM Q3CGOBJ PREPEND code/)
 
@@ -1342,6 +1344,7 @@ set(Q3GOBJ
   game/ai_weight.c
   game/ai_vcmd.c
   game/bg_misc.c
+  game/bg_inventory.c
   game/bg_pmove.c
   game/bg_slidemove.c
   game/bg_tracemap.c
@@ -1362,6 +1365,8 @@ set(Q3GOBJ
   game/g_cinematic.c
   game/g_combat.c
   game/g_items.c
+  game/g_inventory.c
+  game/g_frob.c
   game/g_misc.c
   game/g_missile.c
   game/g_mover.c
