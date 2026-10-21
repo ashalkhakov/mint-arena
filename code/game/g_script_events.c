@@ -228,6 +228,15 @@ static void Event_GetWorldOrigin( gentity_t *self, const intptr_t *args ) {
 }
 
 static void Event_SetWorldOrigin( gentity_t *self, const intptr_t *args ) {
+	if ( self->player ) {
+		// moved there at once (a teleport with no effect)
+		VectorCopy( EVARG_VECTOR( 0 ), self->player->ps.origin );
+		VectorClear( self->player->ps.velocity );
+		self->player->ps.eFlags ^= EF_TELEPORT_BIT;
+		G_SetOrigin( self, EVARG_VECTOR( 0 ) );
+		G_LinkEntity( self );
+		return;
+	}
 	G_SetOrigin( self, EVARG_VECTOR( 0 ) );
 	if ( self->r.linked ) {
 		trap_LinkEntity( self );
@@ -256,6 +265,10 @@ static void Event_SetAngles( gentity_t *self, const intptr_t *args ) {
 }
 
 static void Event_GetLinearVelocity( gentity_t *self, const intptr_t *args ) {
+	if ( G_IsMonster( self ) ) {
+		Thread_ReturnVector( self->monster.velocity );
+		return;
+	}
 	if ( self->player ) {
 		Thread_ReturnVector( self->player->ps.velocity );
 	} else {
@@ -264,6 +277,14 @@ static void Event_GetLinearVelocity( gentity_t *self, const intptr_t *args ) {
 }
 
 static void Event_SetLinearVelocity( gentity_t *self, const intptr_t *args ) {
+	if ( G_IsMonster( self ) ) {
+		// thrown: off the ground
+		VectorCopy( EVARG_VECTOR( 0 ), self->monster.velocity );
+		if ( self->monster.velocity[2] > 0 ) {
+			self->monster.flags &= ~MONF_ONGROUND;
+		}
+		return;
+	}
 	if ( self->player ) {
 		VectorCopy( EVARG_VECTOR( 0 ), self->player->ps.velocity );
 		return;
@@ -477,6 +498,337 @@ static void Event_CenterPrint( gentity_t *self, const intptr_t *args ) {
 
 /***********************************************************************
 
+  a monster's (Doom 3's idAI's and idActor's): g_monster.c
+
+***********************************************************************/
+
+#define MONSTER_OR_RETURN( ret )	if ( !G_IsMonster( self ) ) { ret; return; }
+
+static void Event_SetState( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	G_MonsterSetState( self, EVARG_STRING( 0 ) );
+}
+
+static void Event_GetState( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnString( "" ) );
+	Thread_ReturnString( self->monster.state );
+}
+
+static void Event_FindEnemy( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnEntity( NULL ) );
+	Thread_ReturnEntity( G_MonsterFindEnemy( self, EVARG_INT( 0 ) ) );
+}
+
+static void Event_SetEnemy( gentity_t *self, const intptr_t *args ) {
+	gentity_t *enemy = EVARG_ENTITY( 0 );
+
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.enemy = enemy ? enemy->s.number : ENTITYNUM_NONE;
+	if ( enemy ) {
+		VectorCopy( enemy->r.currentOrigin, self->monster.lastEnemyPos );
+		self->monster.lastEnemySeen = level.time;
+	}
+}
+
+static void Event_ClearEnemy( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.enemy = ENTITYNUM_NONE;
+}
+
+static void Event_GetEnemy( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnEntity( NULL ) );
+	Thread_ReturnEntity( G_MonsterEnemy( self ) );
+}
+
+static void Event_EnemyRange( gentity_t *self, const intptr_t *args ) {
+	gentity_t *enemy;
+
+	MONSTER_OR_RETURN( Thread_ReturnFloat( MAX_WORLD_COORD ) );
+	enemy = G_MonsterEnemy( self );
+	Thread_ReturnFloat( enemy ? Distance( enemy->r.currentOrigin, self->r.currentOrigin ) : MAX_WORLD_COORD );
+}
+
+static void Event_EnemyRange2D( gentity_t *self, const intptr_t *args ) {
+	gentity_t	*enemy;
+	vec3_t		d;
+
+	MONSTER_OR_RETURN( Thread_ReturnFloat( MAX_WORLD_COORD ) );
+	enemy = G_MonsterEnemy( self );
+	if ( !enemy ) {
+		Thread_ReturnFloat( MAX_WORLD_COORD );
+		return;
+	}
+	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, d );
+	d[2] = 0;
+	Thread_ReturnFloat( VectorLength( d ) );
+}
+
+static void Event_GetEnemyPos( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnVector( vec3_origin ) );
+	Thread_ReturnVector( self->monster.lastEnemyPos );
+}
+
+static void Event_CanSee( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	Thread_ReturnInt( G_MonsterCanSee( self, EVARG_ENTITY( 0 ) ) );
+}
+
+static void StartMove( gentity_t *self, int command ) {
+	self->monster.moveCommand = command;
+	self->monster.moveStatus = MOVE_STATUS_MOVING;
+	self->monster.flags &= ~MONF_BLOCKED;
+	if ( self->monster.faceCommand == FACE_NONE ) {
+		self->monster.faceCommand = FACE_MOVE;
+	}
+}
+
+static void Event_MoveToEnemy( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	if ( !G_MonsterEnemy( self ) ) {
+		self->monster.moveStatus = MOVE_STATUS_DEST_NOT_FOUND;
+		return;
+	}
+	StartMove( self, MOVE_TO_ENEMY );
+}
+
+static void Event_MoveToPosition( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	VectorCopy( EVARG_VECTOR( 0 ), self->monster.moveDest );
+	StartMove( self, MOVE_TO_POSITION );
+}
+
+static void Event_MoveToEntity( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.moveEntity = EVARG_ENTITY( 0 )->s.number;
+	StartMove( self, MOVE_TO_ENTITY );
+}
+
+static void Event_Wander( gentity_t *self, const intptr_t *args ) {
+	vec3_t	dir, dest;
+	trace_t	tr;
+	float	yaw;
+
+	MONSTER_OR_RETURN( (void)0 );
+	// somewhere it can go in a straight line, a way off
+	yaw = random() * 360;
+	dir[0] = cos( DEG2RAD( yaw ) );
+	dir[1] = sin( DEG2RAD( yaw ) );
+	dir[2] = ( self->monster.flags & MONF_FLY ) ? crandom() * 0.3f : 0;
+	VectorMA( self->r.currentOrigin, 256 + random() * 256, dir, dest );
+	G_TraceBox( &tr, self->r.currentOrigin, self->s.mins, self->s.maxs, dest, self->s.number, MASK_PLAYERSOLID | CONTENTS_MONSTERCLIP );
+	VectorCopy( tr.endpos, self->monster.moveDest );
+	StartMove( self, MOVE_WANDER );
+}
+
+static void Event_StopMove( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.moveCommand = MOVE_NONE;
+	self->monster.moveStatus = MOVE_STATUS_DONE;
+}
+
+static void Event_MoveStatus( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( MOVE_STATUS_DONE ) );
+	if ( self->monster.moveStatus == MOVE_STATUS_MOVING && ( self->monster.flags & MONF_BLOCKED ) ) {
+		Thread_ReturnInt( MOVE_STATUS_BLOCKED_BY_WALL );
+		return;
+	}
+	Thread_ReturnInt( self->monster.moveStatus );
+}
+
+static void Event_SetMoveSpeed( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.moveSpeed = EVARG_FLOAT( 0 );
+}
+
+static void Event_FaceEnemy( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.faceCommand = FACE_ENEMY;
+}
+
+static void Event_FaceEntity( gentity_t *self, const intptr_t *args ) {
+	gentity_t *ent = EVARG_ENTITY( 0 );
+
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.faceCommand = ent ? FACE_ENTITY : FACE_MOVE;
+	self->monster.faceEntity = ent ? ent->s.number : -1;
+}
+
+static void Event_TurnTo( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.faceCommand = FACE_NONE;
+	self->monster.idealYaw = AngleMod( EVARG_FLOAT( 0 ) );
+}
+
+static void Event_TurnToPos( gentity_t *self, const intptr_t *args ) {
+	vec3_t dir;
+
+	MONSTER_OR_RETURN( (void)0 );
+	VectorSubtract( EVARG_VECTOR( 0 ), self->r.currentOrigin, dir );
+	self->monster.faceCommand = FACE_NONE;
+	self->monster.idealYaw = vectoyaw( dir );
+}
+
+static void Event_GetCurrentYaw( gentity_t *self, const intptr_t *args ) {
+	Thread_ReturnFloat( self->r.currentAngles[YAW] );
+}
+
+static void Event_FacingIdeal( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( 1 ) );
+	Thread_ReturnInt( fabs( AngleSubtract( self->monster.idealYaw, self->r.currentAngles[YAW] ) ) < 5 );
+}
+
+static void Event_SetFlySpeed( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.flySpeed = EVARG_FLOAT( 0 );
+}
+
+static void Event_SetFlyOffset( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.flyOffset = EVARG_INT( 0 );
+}
+
+static void Event_EnableGravity( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.flags &= ~MONF_NOGRAVITY;
+}
+
+static void Event_DisableGravity( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.flags |= MONF_NOGRAVITY;
+}
+
+static void Event_AllowMovement( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	if ( EVARG_FLOAT( 0 ) ) {
+		self->monster.flags &= ~MONF_NOMOVE;
+	} else {
+		self->monster.flags |= MONF_NOMOVE;
+	}
+}
+
+/*
+================
+DamageFromDef
+
+a damage def's ("damage", and "damage_random" more at most, Daikatana's)
+================
+*/
+static int DamageFromDef( const char *name ) {
+	const dict_t *def = BG_FindDef( name );
+
+	if ( !def ) {
+		G_Printf( S_COLOR_YELLOW "WARNING: no damage def %s\n", name );
+		return 0;
+	}
+	return DictGetInt( def, "damage", "0" ) + (int)( random() * DictGetInt( def, "damage_random", "0" ) );
+}
+
+static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
+	gentity_t	*enemy;
+	const dict_t *def;
+	vec3_t		dir, point;
+	float		range, dist;
+
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	enemy = G_MonsterEnemy( self );
+	def = BG_FindDef( EVARG_STRING( 0 ) );
+	if ( !enemy || !def ) {
+		Thread_ReturnInt( 0 );
+		return;
+	}
+
+	// in reach (box to box), in front, and seen
+	range = DictGetFloat( def, "range", G_ScriptGetSpawnArg( self, "melee_range", "64" ) );
+	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
+	dist = VectorNormalize( dir ) - self->s.maxs[0] - enemy->s.maxs[0];
+	if ( dist > range || fabs( AngleSubtract( vectoyaw( dir ), self->r.currentAngles[YAW] ) ) > 60 || !G_MonsterCanSee( self, enemy ) ) {
+		Thread_ReturnInt( 0 );
+		return;
+	}
+
+	VectorMA( self->r.currentOrigin, self->s.maxs[0], dir, point );
+	G_Damage( enemy, self, self, dir, point, DamageFromDef( EVARG_STRING( 0 ) ), 0, MOD_UNKNOWN );
+	Thread_ReturnInt( 1 );
+}
+
+static void Event_DirectDamage( gentity_t *self, const intptr_t *args ) {
+	gentity_t	*target = EVARG_ENTITY( 0 );
+	vec3_t		dir;
+
+	VectorSubtract( target->r.currentOrigin, self->r.currentOrigin, dir );
+	VectorNormalize( dir );
+	G_Damage( target, self, self, dir, target->r.currentOrigin, DamageFromDef( EVARG_STRING( 1 ) ), 0, MOD_UNKNOWN );
+}
+
+static int AnimChannel( int channel ) {
+	return channel == ANIMCHANNEL_TORSO ? ANIMCHANNEL_TORSO : ANIMCHANNEL_LEGS;
+}
+
+static void Event_PlayAnim( gentity_t *self, const intptr_t *args ) {
+	int anim;
+
+	if ( self->s.eType != ET_CHARACTER || !BG_ValidModel( self->s.modelindex2 ) ) {
+		Thread_ReturnInt( 0 );
+		return;
+	}
+	anim = BG_ModelAnimForName( &bg_models[ self->s.modelindex2 ], EVARG_STRING( 1 ) );
+	if ( anim < 0 ) {
+		G_DPrintf( "%s has no animation %s\n", self->classname, EVARG_STRING( 1 ) );
+		Thread_ReturnInt( 0 );
+		return;
+	}
+	G_CharacterSetAnim( self, AnimChannel( EVARG_INT( 0 ) ), anim );
+	Thread_ReturnInt( 1 );
+}
+
+static void Event_AnimDone( gentity_t *self, const intptr_t *args ) {
+	const bgAnim_t	*anim;
+	int				num, start;
+
+	if ( self->s.eType != ET_CHARACTER || !BG_ValidModel( self->s.modelindex2 ) ) {
+		Thread_ReturnInt( 1 );
+		return;
+	}
+	if ( AnimChannel( EVARG_INT( 0 ) ) == ANIMCHANNEL_TORSO ) {
+		num = self->s.torsoAnim - 1;
+		start = self->s.time2;
+	} else {
+		num = self->s.legsAnim;
+		start = self->s.time;
+	}
+	if ( num < 0 || num >= bg_models[ self->s.modelindex2 ].numAnims ) {
+		Thread_ReturnInt( 1 );
+		return;
+	}
+	anim = &bg_models[ self->s.modelindex2 ].anims[ num ];
+	Thread_ReturnInt( !anim->loop && level.time - start >= ( anim->numFrames - EVARG_INT( 1 ) ) * 1000.0f / anim->fps );
+}
+
+static void Event_HasAnim( gentity_t *self, const intptr_t *args ) {
+	if ( self->s.eType != ET_CHARACTER || !BG_ValidModel( self->s.modelindex2 ) ) {
+		Thread_ReturnFloat( 0 );
+		return;
+	}
+	Thread_ReturnFloat( BG_ModelAnimForName( &bg_models[ self->s.modelindex2 ], EVARG_STRING( 1 ) ) >= 0 );
+}
+
+static void Event_StartSound( gentity_t *self, const intptr_t *args ) {
+	const bgSoundShader_t	*shader;
+	const char				*value, *file;
+	int						channel = EVARG_INT( 1 );
+
+	// a key naming a sound shader (Doom 3's "snd_*"), or the shader itself
+	value = G_ScriptGetSpawnArg( self, EVARG_STRING( 0 ), EVARG_STRING( 0 ) );
+	shader = BG_FindSoundShader( value );
+	file = shader ? BG_SoundShaderFile( shader ) : value;
+	if ( file && file[0] && Q_stricmpn( file, "snd_", 4 ) ) {
+		G_Sound( self, channel ? channel : CHAN_AUTO, G_SoundIndex( (char *)file ) );
+	}
+	Thread_ReturnFloat( 0 );
+}
+
+/***********************************************************************
+
   idMover_Binary's (Quake 3's doors, plats and buttons)
 
 ***********************************************************************/
@@ -571,6 +923,42 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "removeInventoryItem", "s",		0,		Event_RemoveInventoryItem },
 	{ "hasInventoryItem",	"s",		'f',	Event_HasInventoryItem },
 	{ "centerPrint",		"s",		0,		Event_CenterPrint },
+
+	{ "setState",			"s",		0,		Event_SetState },
+	{ "getState",			NULL,		's',	Event_GetState },
+	{ "findEnemy",			"d",		'e',	Event_FindEnemy },
+	{ "setEnemy",			"E",		0,		Event_SetEnemy },
+	{ "clearEnemy",			NULL,		0,		Event_ClearEnemy },
+	{ "getEnemy",			NULL,		'e',	Event_GetEnemy },
+	{ "enemyRange",			NULL,		'f',	Event_EnemyRange },
+	{ "enemyRange2D",		NULL,		'f',	Event_EnemyRange2D },
+	{ "getEnemyPos",		NULL,		'v',	Event_GetEnemyPos },
+	{ "canSee",				"E",		'd',	Event_CanSee },
+	{ "moveToEnemy",		NULL,		0,		Event_MoveToEnemy },
+	{ "moveToPosition",		"v",		0,		Event_MoveToPosition },
+	{ "moveToEntity",		"e",		0,		Event_MoveToEntity },
+	{ "wander",				NULL,		0,		Event_Wander },
+	{ "stopMove",			NULL,		0,		Event_StopMove },
+	{ "moveStatus",			NULL,		'd',	Event_MoveStatus },
+	{ "setMoveSpeed",		"f",		0,		Event_SetMoveSpeed },
+	{ "faceEnemy",			NULL,		0,		Event_FaceEnemy },
+	{ "faceEntity",			"E",		0,		Event_FaceEntity },
+	{ "turnTo",				"f",		0,		Event_TurnTo },
+	{ "turnToPos",			"v",		0,		Event_TurnToPos },
+	{ "getCurrentYaw",		NULL,		'f',	Event_GetCurrentYaw },
+	{ "facingIdeal",		NULL,		'd',	Event_FacingIdeal },
+	{ "setFlySpeed",		"f",		0,		Event_SetFlySpeed },
+	{ "setFlyOffset",		"d",		0,		Event_SetFlyOffset },
+	{ "enableGravity",		NULL,		0,		Event_EnableGravity },
+	{ "disableGravity",		NULL,		0,		Event_DisableGravity },
+	{ "allowMovement",		"f",		0,		Event_AllowMovement },
+	{ "attackMelee",		"s",		'd',	Event_AttackMelee },
+	{ "directDamage",		"es",		0,		Event_DirectDamage },
+	{ "playAnim",			"ds",		'd',	Event_PlayAnim },
+	{ "playCycle",			"ds",		'd',	Event_PlayAnim },
+	{ "animDone",			"dd",		'd',	Event_AnimDone },
+	{ "hasAnim",			"ds",		'f',	Event_HasAnim },
+	{ "startSound",			"sdd",		'f',	Event_StartSound },
 
 	{ "open",				NULL,		0,		Event_Open },
 	{ "close",				NULL,		0,		Event_Close },

@@ -81,6 +81,81 @@ typedef struct gplayer_s gplayer_t;
 
 #include "g_script.h"
 
+// a monster's (g_monster.c), Doom 3's idAI's
+#define MONF_MONSTER			0x0001
+#define MONF_FLY				0x0002
+#define MONF_ONGROUND			0x0004
+#define MONF_PAIN				0x0008		// hurt since its last think
+#define MONF_DEAD				0x0010
+#define MONF_ENEMY_VISIBLE		0x0020
+#define MONF_ENEMY_IN_FOV		0x0040
+#define MONF_BLOCKED			0x0080		// its move got nowhere
+#define MONF_IMPACT				0x0100		// hit the world hard since its last think
+#define MONF_NOGRAVITY			0x0200
+#define MONF_NOMOVE				0x0400		// allowMovement( 0 )
+
+typedef enum {
+	MOVE_NONE,
+	MOVE_TO_ENEMY,
+	MOVE_TO_ENTITY,
+	MOVE_TO_POSITION,
+	MOVE_WANDER
+} monsterMove_t;
+
+// Doom 3's moveStatus_t, as scripts know them
+typedef enum {
+	MOVE_STATUS_DONE,
+	MOVE_STATUS_MOVING,
+	MOVE_STATUS_WAITING,
+	MOVE_STATUS_DEST_NOT_FOUND,
+	MOVE_STATUS_DEST_UNREACHABLE,
+	MOVE_STATUS_BLOCKED_BY_WALL,
+	MOVE_STATUS_BLOCKED_BY_OBJECT,
+	MOVE_STATUS_BLOCKED_BY_ENEMY,
+	MOVE_STATUS_BLOCKED_BY_MONSTER
+} monsterMoveStatus_t;
+
+typedef enum {
+	FACE_NONE,			// the ideal yaw (turnTo...)
+	FACE_MOVE,			// where it goes
+	FACE_ENEMY,
+	FACE_ENTITY
+} monsterFace_t;
+
+typedef struct {
+	int			flags;				// MONF_*
+	int			moveCommand;		// monsterMove_t
+	int			moveStatus;			// monsterMoveStatus_t
+	vec3_t		moveDest;
+	int			moveEntity;			// -1 none
+	float		moveSpeed;
+	int			faceCommand;		// monsterFace_t
+	int			faceEntity;			// -1 none
+	float		idealYaw;
+	float		turnRate;			// degrees a second
+	vec3_t		velocity;
+	int			enemy;				// ENTITYNUM_NONE none
+	vec3_t		lastEnemyPos;
+	int			lastEnemySeen;
+	float		fov;
+	float		sightRange;
+	int			thread;				// its script's (its states)
+	char		state[MAX_QPATH];
+	char		idealState[MAX_QPATH];
+	int			blockedBy;			// what its move last ran into
+	int			painTime;
+	float		impactSpeed;		// hitting the world faster hurts it
+	float		impactDamage;		// per 100 u/s above that
+	float		impactBounce;
+	int			impactTime;
+	float		pendingImpactDamage;
+	float		flySpeed;
+	float		flyAccel;
+	float		flyOffset;
+	float		flyBob;
+	float		roll;				// a flyer's banking
+} monsterState_t;
+
 struct gentity_s {
 	entityShared_t	r;				// shared by both the server system and game
 	entityState_t	s;				// communicated by server to clients
@@ -225,6 +300,7 @@ struct gentity_s {
 	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
 
 	scriptObject_t	scriptObject;		// its "scriptobject" (g_script.c): its type's fields
+	monsterState_t	monster;			// a monster's (g_monster.c)
 };
 
 
@@ -800,6 +876,19 @@ qboolean	G_SavePersistant( const char *nextmap );
 qboolean	G_LoadPersistant( gentity_t *ent );
 qboolean	G_SaveGame( const char *name );
 struct characterHistory_s *G_AllocCharacterHistory( void );		// g_character.c
+
+// g_monster.c
+void		SP_monster( gentity_t *ent );
+qboolean	G_IsMonster( const gentity_t *ent );
+gentity_t	*G_MonsterEnemy( gentity_t *ent );
+gentity_t	*G_MonsterFindEnemy( gentity_t *ent, qboolean useFov );
+qboolean	G_MonsterCanSee( gentity_t *ent, gentity_t *other );
+void		G_MonsterEye( const gentity_t *ent, vec3_t eye );
+void		G_MonsterSetState( gentity_t *ent, const char *name );
+void		G_MonsterThink( gentity_t *ent );
+void		G_MonsterPain( gentity_t *self, gentity_t *attacker, int damage );
+void		G_MonsterDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath );
+void		G_MonsterTouch( gentity_t *self, gentity_t *other, trace_t *trace );
 
 // g_save.c: what a saved game is written with and read from
 void		G_SaveBytes( const void *data, int len );

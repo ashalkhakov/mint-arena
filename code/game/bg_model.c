@@ -28,6 +28,8 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //		"anim idle"			"idle"				// the IQM's animation of the name
 //		"anim walk"			"walk"
 //		"anim wave"			"0 20 10 loop"		// or frames: first, count, fps, loop
+//		"anim run"			"runa 15 loop"		// an MD3's frames of that name (runa1, runa2...),
+//												// with the fps and loop if not the file's
 //		"hitbox Head"		"-4.5 -4 0 4.5 4 10 head"	// mins, maxs in the joint's space, zone
 //		"damage_scale head"	"2"					// Doom 3's
 //		"frame walk 3"		"sound sounds/global/p_step1.wav"
@@ -82,6 +84,68 @@ BG_IQMAnims
 The animations an IQM names, for "anim <name>" "<IQM animation>".
 ================
 */
+/*
+================
+BG_MD3Anims
+
+An MD3's animations, for "anim <name>" "<frames' name>": its frames named
+alike but for their numbers (Daikatana's "walka1", "walka2"...), at 10 fps.
+================
+*/
+static int BG_MD3Anims( const char *meshName, bgAnim_t *anims, int max ) {
+	struct {
+		char	ident[4];
+		int		version;
+		char	name[MAX_QPATH];
+		int		flags;
+		int		numFrames, numTags, numSurfaces, numSkins;
+		int		ofsFrames;
+	} header;
+	char frame[56], name[MAX_QPATH];
+	fileHandle_t f;
+	int length, i, n, num = 0;
+
+	if ( Q_stricmp( COM_GetExtension( meshName ), "md3" ) ) {
+		return 0;
+	}
+	length = trap_FS_FOpenFile( meshName, &f, FS_READ );
+	if ( length < (int)sizeof( header ) ) {
+		if ( f ) {
+			trap_FS_FCloseFile( f );
+		}
+		return 0;
+	}
+	trap_FS_Read( &header, sizeof( header ), f );
+	if ( memcmp( header.ident, "IDP3", 4 ) || LittleLong( header.ofsFrames ) + LittleLong( header.numFrames ) * 56 > length ) {
+		trap_FS_FCloseFile( f );
+		return 0;
+	}
+	trap_FS_Seek( f, LittleLong( header.ofsFrames ), FS_SEEK_SET );
+	for ( i = 0; i < LittleLong( header.numFrames ); i++ ) {
+		// bounds, local origin, radius, then the name
+		trap_FS_Read( frame, sizeof( frame ), f );
+		Q_strncpyz( name, frame + 40, MIN( 17, (int)sizeof( name ) ) );
+		for ( n = strlen( name ); n > 0 && name[n - 1] >= '0' && name[n - 1] <= '9'; n-- ) {
+		}
+		name[n] = 0;
+		if ( num > 0 && !Q_stricmp( anims[num - 1].name, name ) ) {
+			anims[num - 1].numFrames++;
+			continue;
+		}
+		if ( num == max ) {
+			break;
+		}
+		Q_strncpyz( anims[num].name, name, sizeof( anims[num].name ) );
+		anims[num].firstFrame = i;
+		anims[num].numFrames = 1;
+		anims[num].fps = 10;
+		anims[num].loop = qfalse;
+		num++;
+	}
+	trap_FS_FCloseFile( f );
+	return num;
+}
+
 static int BG_IQMAnims( const char *meshName, bgAnim_t *anims, int max, bgModel_t *model ) {
 	static char text[65536];
 	iqmHeader_t header;
@@ -286,6 +350,9 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->name = name;
 	Q_strncpyz( model->mesh, DictGetStringReference( def, "mesh", "" ), sizeof( model->mesh ) );
 	numIqmAnims = BG_IQMAnims( model->mesh, iqmAnims, MAX_MODEL_ANIMS, model );
+	if ( !numIqmAnims ) {
+		numIqmAnims = BG_MD3Anims( model->mesh, iqmAnims, MAX_MODEL_ANIMS );
+	}
 	BG_ZoneNum( model, "body" );	// zone 0: what isn't in another
 
 	for ( i = 0; i < DictGetNumKeyVals( def ); i++ ) {
@@ -309,12 +376,18 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 				anim->fps = fps;
 				anim->loop = !Q_stricmp( loop, "loop" );
 			} else {
+				// a name, then maybe the fps and "loop" instead of the file's
+				char animName[MAX_QPATH], rest[2][16];
+				int words;
+
+				rest[0][0] = rest[1][0] = 0;
+				words = sscanf( value, "%63s %15s %15s", animName, rest[0], rest[1] );
 				for ( j = 0; j < numIqmAnims; j++ ) {
-					if ( !Q_stricmp( iqmAnims[j].name, value ) ) {
+					if ( !Q_stricmp( iqmAnims[j].name, animName ) ) {
 						break;
 					}
 				}
-				if ( j == numIqmAnims ) {
+				if ( words < 1 || j == numIqmAnims ) {
 					Com_Printf( S_COLOR_YELLOW "WARNING: model %s: %s has no animation %s\n", name, model->mesh, value );
 					continue;
 				}
@@ -322,6 +395,13 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 				anim->numFrames = iqmAnims[j].numFrames;
 				anim->fps = iqmAnims[j].fps;
 				anim->loop = iqmAnims[j].loop;
+				for ( n = 0; n < 2; n++ ) {
+					if ( !Q_stricmp( rest[n], "loop" ) ) {
+						anim->loop = qtrue;
+					} else if ( atof( rest[n] ) > 0 ) {
+						anim->fps = atof( rest[n] );
+					}
+				}
 			}
 			if ( anim->numFrames < 1 ) {
 				anim->numFrames = 1;

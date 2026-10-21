@@ -98,7 +98,7 @@ G_CharacterRecord
 Keeps the character's animation and position of this frame.
 ================
 */
-static void G_CharacterRecord( gentity_t *ent ) {
+void G_CharacterRecord( gentity_t *ent ) {
 	struct characterHistory_s *h = ent->characterHistory;
 	characterState_t *st;
 
