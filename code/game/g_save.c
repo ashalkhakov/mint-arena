@@ -200,6 +200,7 @@ static const saveField_t g_entityFields[] = {
 	{ SFOFS( map ), SF_STRING },
 	{ SFOFS( killtarget ), SF_STRING },
 	{ SFOFS( keyname ), SF_STRING },
+	{ SFOFS( pathtarget ), SF_STRING },
 	{ SFOFS( target ), SF_STRING },
 	{ SFOFS( targetname ), SF_STRING },
 	{ SFOFS( team ), SF_STRING },

@@ -217,12 +217,14 @@ struct gentity_s {
 	gentity_t	*nextTrain;
 	gentity_t	*prevTrain;
 	vec3_t		pos1, pos2;
+	vec3_t		trainOffset;		// a func_train without an origin brush: minus its first corner
 
 	char		*message;
 	char		*map;				// trigger_changelevel's next map
 	char		*killtarget;		// Quake 2's: removed when its targets are used
 	float		delay;				// Quake 2's: seconds before its targets are used
 	char		*keyname;			// Daikatana's: the item it needs (an inventory item's classname)
+	char		*pathtarget;		// Quake 2's: what a path_corner uses when a train reaches it
 
 	int			timestamp;		// body queue sinking, etc
 

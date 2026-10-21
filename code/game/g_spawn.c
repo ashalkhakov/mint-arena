@@ -110,6 +110,7 @@ field_t fields[] = {
 	{"killtarget", FOFS(killtarget), F_STRING},
 	{"delay", FOFS(delay), F_FLOAT},
 	{"keyname", FOFS(keyname), F_STRING},
+	{"pathtarget", FOFS(pathtarget), F_STRING},
 	{"team", FOFS(team), F_STRING},
 	{"wait", FOFS(wait), F_FLOAT},
 	{"random", FOFS(random), F_FLOAT},

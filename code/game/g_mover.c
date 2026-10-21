@@ -1101,16 +1101,13 @@ NOMONSTER	monsters will not trigger this door
 "light"		constantLight radius
 "health"	if set, the door must be shot open
 */
-void SP_func_door (gentity_t *ent) {
-	vec3_t	abs_movedir;
-	float	distance;
-	vec3_t	size;
-	float	lip;
+static void G_DoorSounds( gentity_t *ent ) {
 	char	*sound;
 
 	ent->sound1to2 = ent->sound2to1 = G_SoundIndex("sound/movers/doors/dr1_strt.wav");
 	ent->soundPos1 = ent->soundPos2 = G_SoundIndex("sound/movers/doors/dr1_end.wav");
 
+	// Daikatana's
 	if ( G_SpawnString( "sound_open_finish", "", &sound ) ) {
 		ent->soundPos1 = G_SoundIndex( sound );
 	}
@@ -1123,6 +1120,15 @@ void SP_func_door (gentity_t *ent) {
 	if ( G_SpawnString( "sound_closing", "", &sound ) ) {
 		ent->sound2to1 = G_SoundIndex( sound );
 	}
+}
+
+void SP_func_door (gentity_t *ent) {
+	vec3_t	abs_movedir;
+	float	distance;
+	vec3_t	size;
+	float	lip;
+
+	G_DoorSounds( ent );
 
 	ent->blocked = Blocked_Door;
 
@@ -1251,8 +1257,7 @@ check either the X_AXIS or Y_AXIS box to change that.
 */
 
 void SP_func_door_rotating ( gentity_t *ent ) {
-	ent->sound1to2 = ent->sound2to1 = G_SoundIndex("sound/movers/doors/dr1_strt.wav");
-	ent->soundPos1 = ent->soundPos2 = G_SoundIndex("sound/movers/doors/dr1_end.wav");
+	G_DoorSounds( ent );
 
 	ent->blocked = Blocked_Door;
 
@@ -1589,32 +1594,24 @@ void Think_BeginMoving( gentity_t *ent ) {
 
 /*
 ===============
-Reached_Train
+Train_MoveFrom
+
+Off from the corner to the one after it
 ===============
 */
-void Reached_Train( gentity_t *ent ) {
-	gentity_t		*next;
+static void Train_MoveFrom( gentity_t *ent, gentity_t *corner ) {
 	float			speed;
 	vec3_t			move;
 	float			length;
 
-	// copy the appropriate values
-	next = ent->nextTrain;
-	if ( !next || !next->nextTrain ) {
-		return;		// just stop
-	}
-
-	// fire all other targets
-	G_UseTargets( next, NULL );
-
 	// set the new trajectory
-	ent->nextTrain = next->nextTrain;
-	VectorCopy( next->s.origin, ent->pos1 );
-	VectorCopy( next->nextTrain->s.origin, ent->pos2 );
+	ent->nextTrain = corner->nextTrain;
+	VectorAdd( corner->s.origin, ent->trainOffset, ent->pos1 );
+	VectorAdd( corner->nextTrain->s.origin, ent->trainOffset, ent->pos2 );
 
 	// if the path_corner has a speed, use that
-	if ( next->speed ) {
-		speed = next->speed;
+	if ( corner->speed ) {
+		speed = corner->speed;
 	} else {
 		// otherwise use the train's speed
 		speed = ent->speed;
@@ -1648,18 +1645,89 @@ void Reached_Train( gentity_t *ent ) {
 		ent->r.svFlags |= SVF_NOCLIENT;
 	}
 
-	// looping sound
-	ent->s.loopSound = next->soundLoop;
+	// the train's looping sound, the corner's starting one
+	ent->s.loopSound = ent->soundLoop;
+	if ( corner->sound1to2 ) {
+		G_AddEvent( ent, EV_GENERAL_SOUND, corner->sound1to2 );
+	}
 
 	// start it going
 	SetMoverState( ent, MOVER_1TO2, level.time );
 
 	// if there is a "wait" value on the target, don't start moving yet
-	if ( next->wait ) {
-		ent->nextthink = level.time + next->wait * 1000;
+	if ( corner->wait > 0 ) {
+		ent->nextthink = level.time + corner->wait * 1000;
 		ent->think = Think_BeginMoving;
 		ent->s.pos.trType = TR_STATIONARY;
 	}
+}
+
+/*
+===============
+Train_Stop
+
+Stands at the corner until used (Daikatana's WAITFORTRIGGER)
+===============
+*/
+static void Train_Stop( gentity_t *ent, gentity_t *corner ) {
+	ent->nextTrain = corner;
+	VectorAdd( corner->s.origin, ent->trainOffset, ent->pos1 );
+	SetMoverState( ent, MOVER_POS1, level.time );
+	ent->s.loopSound = 0;
+}
+
+/*
+===============
+Reached_Train
+===============
+*/
+void Reached_Train( gentity_t *ent ) {
+	gentity_t		*next;
+	char			*target;
+
+	// copy the appropriate values
+	next = ent->nextTrain;
+	if ( !next || !next->nextTrain ) {
+		return;		// just stop
+	}
+
+	if ( next->soundPos2 ) {
+		G_AddEvent( ent, EV_GENERAL_SOUND, next->soundPos2 );
+	}
+
+	// fire all other targets
+	G_UseTargets( next, NULL );
+
+	// and its "pathtarget" (Quake 2's)
+	if ( next->pathtarget ) {
+		target = next->target;
+		next->target = next->pathtarget;
+		G_UseTargets( next, ent->activator );
+		next->target = target;
+	}
+
+	// a "wait" of -1 stops the train there until it's used again
+	if ( next->wait < 0 ) {
+		Train_Stop( ent, next );
+		return;
+	}
+
+	Train_MoveFrom( ent, next );
+}
+
+/*
+===============
+Use_Train
+
+A train standing at a corner goes on
+===============
+*/
+void Use_Train( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
+	if ( ent->moverState != MOVER_POS1 || !ent->nextTrain || !ent->nextTrain->nextTrain ) {
+		return;
+	}
+	ent->activator = activator;
+	Train_MoveFrom( ent, ent->nextTrain );
 }
 
 
@@ -1708,7 +1776,18 @@ void Think_SetupTrainTargets( gentity_t *ent ) {
 		path->nextTrain = next;
 	}
 
-	// start the train moving from the first corner
+	// a train without an origin brush (Daikatana's) has its brushes where its
+	// first corner is: it moves by how far the corners are from that one
+	if ( VectorCompare( ent->s.origin, vec3_origin ) ) {
+		VectorNegate( ent->nextTrain->s.origin, ent->trainOffset );
+	}
+
+	// a train something uses, or one whose first corner waits, stands there
+	// until used, unless it starts on (Daikatana's); others start moving
+	if ( ( ent->targetname || ent->nextTrain->wait < 0 ) && !( ent->spawnflags & TRAIN_START_ON ) ) {
+		Train_Stop( ent, ent->nextTrain );
+		return;
+	}
 	Reached_Train( ent );
 }
 
@@ -1718,13 +1797,25 @@ void Think_SetupTrainTargets( gentity_t *ent ) {
 Train path corners.
 Target: next path corner and other targets to fire
 "speed" speed to move to the next corner
-"wait" seconds to wait before behining move to next corner
+"wait" seconds to wait before behining move to next corner; -1 stops the
+train there until it's used again
+"pathtarget" what to use when a train gets there
+"sound", "sound_stop" played as a train leaves it, and as one gets there
 */
 void SP_path_corner( gentity_t *self ) {
+	char	*sound;
+
 	if ( !self->targetname ) {
 		G_Printf ("path_corner with no targetname at %s\n", vtos(self->s.origin));
 		G_FreeEntity( self );
 		return;
+	}
+	// Daikatana's: played as a train leaves it, and as one gets there
+	if ( G_SpawnString( "sound", "", &sound ) ) {
+		self->sound1to2 = G_SoundIndex( sound );
+	}
+	if ( G_SpawnString( "sound_stop", "", &sound ) ) {
+		self->soundPos2 = G_SoundIndex( sound );
 	}
 	// path corners don't need to be linked in
 }
@@ -1733,8 +1824,10 @@ void SP_path_corner( gentity_t *self ) {
 
 /*QUAKED func_train (0 .5 .8) ? START_ON TOGGLE BLOCK_STOPS
 A train is a mover that moves between path_corner target points.
-Trains MUST HAVE AN ORIGIN BRUSH.
-The train spawns at the first target it is pointing at.
+Without an origin brush, its brushes must be at its first corner.
+The train spawns at the first target it is pointing at. One with a
+targetname, or whose first corner waits, stands there until used unless
+START_ON; used, a train standing at a corner goes on.
 "model2"	.md3 model to also draw
 "speed"		default 100
 "dmg"		default	2
@@ -1768,6 +1861,7 @@ void SP_func_train (gentity_t *self) {
 	InitMover( self );
 
 	self->reached = Reached_Train;
+	self->use = Use_Train;
 
 	// start trains on the second frame, to make sure their targets have had
 	// a chance to spawn
