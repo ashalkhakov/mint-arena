@@ -3314,7 +3314,7 @@ void Item_Multi_Paint(itemDef_t *item) {
 
 
 typedef struct {
-	char	*command;
+	const char	*command;
 	int		defaultbind1;
 	int		defaultbind2;
 	int		bind1;
@@ -3391,14 +3391,22 @@ static bind_t g_bindings[] =
 };
 
 
-static const int g_bindCount = ARRAY_LEN(g_bindings);
+// the commands above, then any other a menu's bind item names (a mod's
+// commands), added as the items first ask for them
+#define MAX_BINDINGS	256
+static bind_t	g_moreBindings[MAX_BINDINGS];
+static char		g_moreCommands[MAX_BINDINGS][MAX_QPATH];
+static int		g_numMoreBindings;
+
+#define g_bindCount		( (int)ARRAY_LEN( g_bindings ) + g_numMoreBindings )
+#define G_BINDING( i )	( (i) < (int)ARRAY_LEN( g_bindings ) ? &g_bindings[i] : &g_moreBindings[(i) - ARRAY_LEN( g_bindings )] )
 
 /*
 =================
 Controls_GetKeyAssignment
 =================
 */
-static void Controls_GetKeyAssignment (char *command, int *twokeys)
+static void Controls_GetKeyAssignment (const char *command, int *twokeys)
 {
 	int		key;
 	int		i;
@@ -3432,10 +3440,10 @@ void Controls_GetConfig( void )
 	for (i=0; i < g_bindCount; i++)
 	{
 
-		Controls_GetKeyAssignment(g_bindings[i].command, twokeys);
+		Controls_GetKeyAssignment(G_BINDING(i)->command, twokeys);
 
-		g_bindings[i].bind1 = twokeys[0];
-		g_bindings[i].bind2 = twokeys[1];
+		G_BINDING(i)->bind1 = twokeys[0];
+		G_BINDING(i)->bind2 = twokeys[1];
 	}
 
 	//s_controls.invertmouse.curvalue  = DC->getCVarValue( "m_pitch" ) < 0;
@@ -3461,12 +3469,12 @@ void Controls_SetConfig(qboolean restart)
 	for (i=0; i < g_bindCount; i++)
 	{
 
-		if (g_bindings[i].bind1 != -1)
+		if (G_BINDING(i)->bind1 != -1)
 		{	
-			DC->setBinding( g_bindings[i].bind1, g_bindings[i].command );
+			DC->setBinding( G_BINDING(i)->bind1, G_BINDING(i)->command );
 
-			if (g_bindings[i].bind2 != -1)
-				DC->setBinding( g_bindings[i].bind2, g_bindings[i].command );
+			if (G_BINDING(i)->bind2 != -1)
+				DC->setBinding( G_BINDING(i)->bind2, G_BINDING(i)->command );
 		}
 	}
 
@@ -3498,8 +3506,8 @@ void Controls_SetDefaults( void )
 	// iterate each command, set its default binding
   for (i=0; i < g_bindCount; i++)
 	{
-		g_bindings[i].bind1 = g_bindings[i].defaultbind1;
-		g_bindings[i].bind2 = g_bindings[i].defaultbind2;
+		G_BINDING(i)->bind1 = G_BINDING(i)->defaultbind1;
+		G_BINDING(i)->bind2 = G_BINDING(i)->defaultbind2;
 	}
 
 	//s_controls.invertmouse.curvalue  = Controls_GetCvarDefault( "m_pitch" ) < 0;
@@ -3513,14 +3521,29 @@ void Controls_SetDefaults( void )
 }
 
 int BindingIDFromName(const char *name) {
-	int i;
+	int i, twokeys[2];
+	bind_t *bind;
+
   for (i=0; i < g_bindCount; i++)
 	{
-		if (Q_stricmp(name, g_bindings[i].command) == 0) {
+		if (Q_stricmp(name, G_BINDING(i)->command) == 0) {
 			return i;
 		}
 	}
-	return -1;
+
+	// one more, with the keys bound to it now and none by default
+	if ( !name || !name[0] || g_numMoreBindings >= MAX_BINDINGS ) {
+		return -1;
+	}
+	Q_strncpyz( g_moreCommands[g_numMoreBindings], name, sizeof( g_moreCommands[0] ) );
+	bind = &g_moreBindings[g_numMoreBindings];
+	bind->command = g_moreCommands[g_numMoreBindings];
+	bind->defaultbind1 = bind->defaultbind2 = -1;
+	Controls_GetKeyAssignment( bind->command, twokeys );
+	bind->bind1 = twokeys[0];
+	bind->bind2 = twokeys[1];
+	g_numMoreBindings++;
+	return g_bindCount - 1;
 }
 
 char g_nameBind1[32];
@@ -3529,29 +3552,23 @@ char g_nameBind2[32];
 void BindingFromName(const char *cvar) {
 	int	i, b1, b2;
 
-	// iterate each command, set its default binding
-	for (i=0; i < g_bindCount; i++)
-	{
-		if (Q_stricmp(cvar, g_bindings[i].command) == 0) {
-			b1 = g_bindings[i].bind1;
-			if (b1 == -1) {
-				break;
-			}
-				DC->keynumToStringBuf( b1, g_nameBind1, 32 );
-				Q_strupr(g_nameBind1);
-
-				b2 = g_bindings[i].bind2;
-				if (b2 != -1)
-				{
-					DC->keynumToStringBuf( b2, g_nameBind2, 32 );
-					Q_strupr(g_nameBind2);
-					strcat( g_nameBind1, " or " );
-					strcat( g_nameBind1, g_nameBind2 );
-				}
-			return;
-		}
+	i = BindingIDFromName( cvar );
+	b1 = i >= 0 ? G_BINDING(i)->bind1 : -1;
+	if ( b1 == -1 ) {
+		strcpy(g_nameBind1, "???");
+		return;
 	}
-	strcpy(g_nameBind1, "???");
+	DC->keynumToStringBuf( b1, g_nameBind1, 32 );
+	Q_strupr(g_nameBind1);
+
+	b2 = G_BINDING(i)->bind2;
+	if (b2 != -1)
+	{
+		DC->keynumToStringBuf( b2, g_nameBind2, 32 );
+		Q_strupr(g_nameBind2);
+		strcat( g_nameBind1, " or " );
+		strcat( g_nameBind1, g_nameBind2 );
+	}
 }
 
 void Item_Slider_Paint(itemDef_t *item) {
@@ -3658,13 +3675,13 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 			case K_BACKSPACE:
 				id = BindingIDFromName(item->cvar);
 				if (id != -1) {
-					if( g_bindings[id].bind1 != -1 ) {
-						DC->setBinding( g_bindings[id].bind1, "" );
-						g_bindings[id].bind1 = -1;
+					if( G_BINDING(id)->bind1 != -1 ) {
+						DC->setBinding( G_BINDING(id)->bind1, "" );
+						G_BINDING(id)->bind1 = -1;
 					}
-					if( g_bindings[id].bind2 != -1 ) {
-						DC->setBinding( g_bindings[id].bind2, "" );
-						g_bindings[id].bind2 = -1;
+					if( G_BINDING(id)->bind2 != -1 ) {
+						DC->setBinding( G_BINDING(id)->bind2, "" );
+						G_BINDING(id)->bind2 = -1;
 					}
 				}
 				Controls_SetConfig(qtrue);
@@ -3683,14 +3700,14 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 		for (i=0; i < g_bindCount; i++)
 		{
 
-			if (g_bindings[i].bind2 == key) {
-				g_bindings[i].bind2 = -1;
+			if (G_BINDING(i)->bind2 == key) {
+				G_BINDING(i)->bind2 = -1;
 			}
 
-			if (g_bindings[i].bind1 == key)
+			if (G_BINDING(i)->bind1 == key)
 			{
-				g_bindings[i].bind1 = g_bindings[i].bind2;
-				g_bindings[i].bind2 = -1;
+				G_BINDING(i)->bind1 = G_BINDING(i)->bind2;
+				G_BINDING(i)->bind2 = -1;
 			}
 		}
 	}
@@ -3700,26 +3717,26 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 
 	if (id != -1) {
 		if (key == -1) {
-			if( g_bindings[id].bind1 != -1 ) {
-				DC->setBinding( g_bindings[id].bind1, "" );
-				g_bindings[id].bind1 = -1;
+			if( G_BINDING(id)->bind1 != -1 ) {
+				DC->setBinding( G_BINDING(id)->bind1, "" );
+				G_BINDING(id)->bind1 = -1;
 			}
-			if( g_bindings[id].bind2 != -1 ) {
-				DC->setBinding( g_bindings[id].bind2, "" );
-				g_bindings[id].bind2 = -1;
+			if( G_BINDING(id)->bind2 != -1 ) {
+				DC->setBinding( G_BINDING(id)->bind2, "" );
+				G_BINDING(id)->bind2 = -1;
 			}
 		}
-		else if (g_bindings[id].bind1 == -1) {
-			g_bindings[id].bind1 = key;
+		else if (G_BINDING(id)->bind1 == -1) {
+			G_BINDING(id)->bind1 = key;
 		}
-		else if (g_bindings[id].bind1 != key && g_bindings[id].bind2 == -1) {
-			g_bindings[id].bind2 = key;
+		else if (G_BINDING(id)->bind1 != key && G_BINDING(id)->bind2 == -1) {
+			G_BINDING(id)->bind2 = key;
 		}
 		else {
-			DC->setBinding( g_bindings[id].bind1, "" );
-			DC->setBinding( g_bindings[id].bind2, "" );
-			g_bindings[id].bind1 = key;
-			g_bindings[id].bind2 = -1;
+			DC->setBinding( G_BINDING(id)->bind1, "" );
+			DC->setBinding( G_BINDING(id)->bind2, "" );
+			G_BINDING(id)->bind1 = key;
+			G_BINDING(id)->bind2 = -1;
 		}						
 	}
 
