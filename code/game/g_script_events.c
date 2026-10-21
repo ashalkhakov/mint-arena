@@ -698,6 +698,16 @@ static void Event_DisableGravity( gentity_t *self, const intptr_t *args ) {
 	self->monster.flags |= MONF_NOGRAVITY;
 }
 
+static void Event_Perch( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	Thread_ReturnInt( G_MonsterPerch( self, EVARG_VECTOR( 0 ), EVARG_VECTOR( 1 ) ) );
+}
+
+static void Event_IsPerched( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	Thread_ReturnInt( ( self->monster.flags & MONF_PERCHED ) != 0 );
+}
+
 /*
 ================
 Event_GetJumpVelocity
@@ -1032,6 +1042,8 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "getCurrentYaw",		NULL,		'f',	Event_GetCurrentYaw },
 	{ "facingIdeal",		NULL,		'd',	Event_FacingIdeal },
 	{ "setFlySpeed",		"f",		0,		Event_SetFlySpeed },
+	{ "perch",				"vv",		'd',	Event_Perch },
+	{ "isPerched",			NULL,		'd',	Event_IsPerched },
 	{ "setFlyOffset",		"d",		0,		Event_SetFlyOffset },
 	{ "enableGravity",		NULL,		0,		Event_EnableGravity },
 	{ "disableGravity",		NULL,		0,		Event_DisableGravity },

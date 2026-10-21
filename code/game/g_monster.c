@@ -136,6 +136,11 @@ G_MonsterEye
 ================
 */
 void G_MonsterEye( const gentity_t *ent, vec3_t eye ) {
+	if ( ent->monster.flags & MONF_PERCHED ) {
+		// out from what it's on (a ceiling's under it)
+		VectorMA( ent->r.currentOrigin, ent->monster.moveMaxs[2] * 0.75f, ent->monster.perchNormal, eye );
+		return;
+	}
 	VectorCopy( ent->r.currentOrigin, eye );
 	eye[2] += ent->monster.moveMaxs[2] * 0.75f;
 }
@@ -181,8 +186,8 @@ static qboolean G_MonsterInFov( const gentity_t *ent, const vec3_t pos ) {
 	vec3_t	dir;
 	float	yaw, delta;
 
-	if ( ent->monster.fov >= 360.0f ) {
-		return qtrue;
+	if ( ent->monster.fov >= 360.0f || ( ent->monster.flags & MONF_PERCHED ) ) {
+		return qtrue;		// (perched, it sees what's off its wall, wherever its head points)
 	}
 	VectorSubtract( pos, ent->r.currentOrigin, dir );
 	yaw = vectoyaw( dir );
@@ -629,6 +634,127 @@ static void G_MonsterFlySteer( gentity_t *ent, const vec3_t origin, const vec3_t
 
 /*
 ================
+G_MonsterPerchBox
+
+a box turned by the axis it's perched with: the box that holds it
+================
+*/
+static void G_MonsterPerchBox( vec3_t axis[3], const vec3_t mins, const vec3_t maxs, vec3_t outMins, vec3_t outMaxs ) {
+	vec3_t	p;
+	int		i, k;
+
+	ClearBounds( outMins, outMaxs );
+	for ( i = 0; i < 8; i++ ) {
+		VectorClear( p );
+		for ( k = 0; k < 3; k++ ) {
+			VectorMA( p, ( i & ( 1 << k ) ) ? maxs[k] : mins[k], axis[k], p );
+		}
+		AddPointToBounds( p, outMins, outMaxs );
+	}
+}
+
+/*
+================
+G_MonsterPerch
+
+a flyer lands at pos on what faces normal (a wall, a ceiling, the floor):
+its belly to it, its head up a wall (somewhat to one side) or as it faced,
+its boxes turned with it. qfalse if there's no room for it there
+================
+*/
+qboolean G_MonsterPerch( gentity_t *ent, const vec3_t pos, const vec3_t normal ) {
+	monsterState_t	*m = &ent->monster;
+	vec3_t			axis[3], n, origin, mins, maxs, hitMins, hitMaxs, up = { 0, 0, 1 }, side;
+	trace_t			tr;
+	float			a;
+	int				i;
+
+	if ( !( m->flags & MONF_FLY ) || ( m->flags & ( MONF_DEAD | MONF_PERCHED ) ) ) {
+		return qfalse;
+	}
+	VectorNormalize2( normal, n );
+
+	// forward along the surface: up it on a wall, as it faced on a floor or a ceiling
+	if ( fabs( n[2] ) < 0.7f ) {
+		CrossProduct( up, n, side );
+		VectorNormalize( side );
+		VectorMA( up, -DotProduct( up, n ), n, axis[0] );
+		VectorNormalize( axis[0] );
+		a = DEG2RAD( crandom() * 35 );
+		VectorScale( axis[0], cos( a ), axis[0] );
+		VectorMA( axis[0], sin( a ), side, axis[0] );
+	} else {
+		AngleVectors( ent->r.currentAngles, axis[0], NULL, NULL );
+		VectorMA( axis[0], -DotProduct( axis[0], n ), n, axis[0] );
+		if ( VectorNormalize( axis[0] ) < 0.01f ) {
+			PerpendicularVector( axis[0], n );
+		}
+	}
+	VectorCopy( n, axis[2] );
+	CrossProduct( axis[2], axis[0], axis[1] );
+
+	// a little off the surface, as far as its turned box needs
+	G_MonsterPerchBox( axis, m->moveMins, m->moveMaxs, mins, maxs );
+	VectorMA( pos, 0.5f, n, origin );
+	for ( i = 0; i < 8; i++ ) {
+		G_TraceBox( &tr, origin, mins, maxs, origin, ent->s.number, ent->clipmask );
+		if ( !tr.startsolid ) {
+			break;
+		}
+		VectorMA( origin, 2, n, origin );
+	}
+	if ( tr.startsolid ) {
+		return qfalse;
+	}
+
+	// its angles from its axis: forward, left, up
+	m->perchAngles[YAW] = RAD2DEG( atan2( axis[0][1], axis[0][0] ) );
+	m->perchAngles[PITCH] = RAD2DEG( atan2( -axis[0][2], sqrt( axis[0][0] * axis[0][0] + axis[0][1] * axis[0][1] ) ) );
+	m->perchAngles[ROLL] = RAD2DEG( atan2( axis[1][2], axis[2][2] ) );
+	VectorCopy( n, m->perchNormal );
+
+	VectorCopy( m->hitMins, m->flyHitMins );
+	VectorCopy( m->hitMaxs, m->flyHitMaxs );
+	G_MonsterPerchBox( axis, m->hitMins, m->hitMaxs, hitMins, hitMaxs );
+	VectorCopy( hitMins, m->hitMins );
+	VectorCopy( hitMaxs, m->hitMaxs );
+	VectorCopy( mins, ent->s.mins );
+	VectorCopy( maxs, ent->s.maxs );
+
+	m->flags |= MONF_PERCHED;
+	VectorClear( m->velocity );
+	m->roll = 0;
+	m->moveStatus = MOVE_STATUS_DONE;
+	G_SetOrigin( ent, origin );
+	trap_LinkEntity( ent );
+	return qtrue;
+}
+
+/*
+================
+G_MonsterTakeOff
+
+off what it's perched on, pushing away from it
+================
+*/
+static void G_MonsterTakeOff( gentity_t *ent ) {
+	monsterState_t	*m = &ent->monster;
+	vec3_t			origin;
+
+	m->flags &= ~MONF_PERCHED;
+	VectorCopy( m->moveMins, ent->s.mins );
+	VectorCopy( m->moveMaxs, ent->s.maxs );
+	VectorCopy( m->flyHitMins, m->hitMins );
+	VectorCopy( m->flyHitMaxs, m->hitMaxs );
+	VectorScale( m->perchNormal, 120, m->velocity );
+	VectorCopy( ent->r.currentOrigin, origin );
+	G_MonsterUnstick( ent, origin );
+	G_SetOrigin( ent, origin );
+	trap_LinkEntity( ent );
+}
+
+/*
+================
 G_MonsterFlyMove
 
 flying as a drone does: it wants a velocity toward where it goes (above it
@@ -641,6 +767,14 @@ static void G_MonsterFlyMove( gentity_t *ent, float dt ) {
 	vec3_t			origin, vel, goal, dir, wish, change, right;
 	float			dist, speed, accel, len, lateral, roll;
 	int				mask = MASK_PLAYERSOLID | CONTENTS_MONSTERCLIP;
+
+	if ( m->flags & MONF_PERCHED ) {
+		// it stays, until it's told to go somewhere (or thrown)
+		if ( m->moveStatus != MOVE_STATUS_MOVING && VectorLengthSquared( m->velocity ) < 1 ) {
+			return;
+		}
+		G_MonsterTakeOff( ent );
+	}
 
 	VectorCopy( ent->r.currentOrigin, origin );
 	VectorCopy( m->velocity, vel );
@@ -731,6 +865,15 @@ static void G_MonsterTurn( gentity_t *ent, float dt ) {
 			break;
 		default:
 			break;
+	}
+
+	if ( m->flags & MONF_PERCHED ) {
+		// its belly to what it's on
+		VectorCopy( m->perchAngles, angles );
+		VectorCopy( angles, ent->r.currentAngles );
+		VectorCopy( angles, ent->s.apos.trBase );
+		VectorCopy( angles, ent->s.angles );
+		return;
 	}
 
 	VectorCopy( ent->r.currentAngles, angles );
@@ -880,7 +1023,7 @@ void G_MonsterThink( gentity_t *ent ) {
 	m->flags &= ~( MONF_PAIN | MONF_IMPACT | MONF_LEAP_HIT );
 
 	// in something (another monster flew into it, a mover closed on it): out
-	if ( !( m->flags & MONF_DEAD ) ) {
+	if ( !( m->flags & ( MONF_DEAD | MONF_PERCHED ) ) ) {
 		vec3_t origin;
 
 		VectorCopy( ent->r.currentOrigin, origin );

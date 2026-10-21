@@ -97,6 +97,7 @@ typedef struct gplayer_s gplayer_t;
 #define MONF_LEAPING			0x0800		// thrown (setLinearVelocity up), until it lands: it hurts what it hits
 #define MONF_LEAP_HIT			0x1000		// its leap hit someone since its last think
 #define MONF_HIT_REACH			0x2000		// its model reaches past its box (hitMins/hitMaxs): shots look for it
+#define MONF_PERCHED			0x4000		// landed on a wall, a ceiling or the floor (a flyer): it stays, until it's told to move
 
 typedef enum {
 	MOVE_NONE,
@@ -165,6 +166,9 @@ typedef struct {
 	vec3_t		routeGoal;			// what the route goes to
 	vec3_t		moveMins, moveMaxs;	// the box it moves with, its entity's
 	vec3_t		hitMins, hitMaxs;	// as far as its model reaches (MONF_HIT_REACH), what shots meet
+	vec3_t		perchNormal;		// what it's perched on faces this way (MONF_PERCHED)
+	vec3_t		perchAngles;		// its belly to it
+	vec3_t		flyHitMins, flyHitMaxs;	// its hit box when it isn't perched
 } monsterState_t;
 
 struct gentity_s {
@@ -897,6 +901,7 @@ void		G_AirNavShutdown( void );
 // g_monster.c
 void		SP_monster( gentity_t *ent );
 qboolean	G_IsMonster( const gentity_t *ent );
+qboolean	G_MonsterPerch( gentity_t *ent, const vec3_t pos, const vec3_t normal );
 gentity_t	*G_MonsterEnemy( gentity_t *ent );
 gentity_t	*G_MonsterFindEnemy( gentity_t *ent, qboolean useFov );
 qboolean	G_MonsterCanSee( gentity_t *ent, gentity_t *other );
