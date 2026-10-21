@@ -1902,6 +1902,8 @@ int CG_PropTraceModels( const entityState_t *s1, traceModel_t *trms );
 // cg_character.c
 //
 void CG_Character( centity_t *cent );
+void CG_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
+				   int skipNumber, int mask );
 void CG_RegisterModelSounds( int modelNum );
 sfxHandle_t CG_ModelSound( int modelNum, const char *key );
 qboolean CG_StartModelSound( vec3_t origin, int entityNum, int channel, int modelNum, const char *key, float scale );

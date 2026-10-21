@@ -1566,7 +1566,7 @@ static void CG_HitscanShot( int weapon, vec3_t start, vec3_t end, int skipNum ) 
 	trace_t		tr;
 	int sourceContentType, destContentType;
 
-	CG_Trace( &tr, start, NULL, NULL, end, skipNum, MASK_SHOT );
+	CG_TraceShot( &tr, start, NULL, NULL, end, skipNum, MASK_SHOT );
 
 	sourceContentType = CG_PointContents( start, 0 );
 	destContentType = CG_PointContents( tr.endpos, 0 );
@@ -1593,7 +1593,8 @@ static void CG_HitscanShot( int weapon, vec3_t start, vec3_t end, int skipNum ) 
 		return;
 	}
 
-	if ( cg_entities[tr.entityNum].currentState.eType == ET_PLAYER ) {
+	if ( cg_entities[tr.entityNum].currentState.eType == ET_PLAYER
+		 || cg_entities[tr.entityNum].currentState.eType == ET_CHARACTER ) {
 		CG_MissileHitPlayer( weapon, tr.endpos, tr.plane.normal, tr.entityNum );
 	} else if ( tr.surfaceFlags & SURF_METALSTEPS ) {
 		CG_MissileHitWall( weapon, 0, tr.endpos, tr.plane.normal, IMPACTSOUND_METAL );

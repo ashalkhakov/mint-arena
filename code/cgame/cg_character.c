@@ -369,6 +369,163 @@ static void CG_CharacterFrameCommands( centity_t *cent, int modelNum, int channe
 }
 
 /*
+===============================================================================
+
+	Hitboxes as drawn: the effects of shots hit where the game's did
+	(G_TraceShot), on the body part, not the box about the body
+
+===============================================================================
+*/
+
+#define MAX_HITBOX_ENTITIES		64
+#define HITBOX_KEEP_MSEC		250			// a pose this old is no use
+
+typedef struct {
+	int				entityNum;
+	int				time;
+	int				num;
+	bgHitboxPose_t	poses[MAX_MODEL_HITBOXES];
+} cgHitboxes_t;
+
+static cgHitboxes_t		cg_hitboxes[MAX_HITBOX_ENTITIES];
+
+static cgHitboxes_t *CG_FindHitboxes( int entityNum ) {
+	int i;
+
+	for ( i = 0; i < MAX_HITBOX_ENTITIES; i++ ) {
+		if ( cg_hitboxes[i].time && cg_hitboxes[i].entityNum == entityNum ) {
+			return &cg_hitboxes[i];
+		}
+	}
+	return NULL;
+}
+
+/*
+================
+CG_StoreHitboxes
+
+An entity's hitboxes on the pose it's drawn in, kept for the shots' effects.
+================
+*/
+static void CG_StoreHitboxes( centity_t *cent, const bgModel_t *model, const float *joints, int numJoints, const refEntity_t *ent ) {
+	cgHitboxes_t *h = CG_FindHitboxes( cent->currentState.number );
+	int i;
+
+	if ( numJoints <= 0 || ( ent->renderfx & RF_ONLY_MIRROR ) ) {
+		return;
+	}
+	if ( !h ) {
+		// a free one, or the oldest
+		h = &cg_hitboxes[0];
+		for ( i = 0; i < MAX_HITBOX_ENTITIES; i++ ) {
+			if ( cg_hitboxes[i].time < h->time ) {
+				h = &cg_hitboxes[i];
+			}
+		}
+	}
+	h->entityNum = cent->currentState.number;
+	h->time = cg.time ? cg.time : 1;
+	h->num = BG_ModelHitboxes( model, joints, numJoints, ent->origin, (const vec3_t *)ent->axis, h->poses );
+}
+
+/*
+================
+CG_TraceHitboxes
+
+The move against an entity's hitboxes as last drawn; qfalse when it misses
+them all, or there are none, and *had qfalse when there are none.
+================
+*/
+static qboolean CG_TraceHitboxes( int entityNum, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
+								  trace_t *results, qboolean *had ) {
+	cgHitboxes_t *h = CG_FindHitboxes( entityNum );
+	traceModel_t boxTrm, shotTrm;
+	cm_trace_t tr, best;
+	vec3_t bounds[2];
+	int i, bestBox = -1;
+
+	*had = qfalse;
+	if ( !h || !h->num || cg.time - h->time > HITBOX_KEEP_MSEC || cg.time < h->time ) {
+		return qfalse;
+	}
+	*had = qtrue;
+
+	// the shot as a trace model, a point for hitscan
+	shotTrm.type = TRM_INVALID;
+	if ( mins && maxs && ( !VectorCompare( mins, vec3_origin ) || !VectorCompare( maxs, vec3_origin ) ) ) {
+		VectorCopy( mins, bounds[0] );
+		VectorCopy( maxs, bounds[1] );
+		TraceModelSetupBox( &shotTrm, bounds );
+	}
+
+	memset( &best, 0, sizeof( best ) );
+	best.fraction = 1.0f;
+	for ( i = 0; i < h->num; i++ ) {
+		VectorCopy( h->poses[i].mins, bounds[0] );
+		VectorCopy( h->poses[i].maxs, bounds[1] );
+		boxTrm.type = TRM_INVALID;
+		TraceModelSetupBox( &boxTrm, bounds );
+		trap_CM_Translation( &tr, start, end, shotTrm.type == TRM_INVALID ? NULL : &shotTrm, axisDefault, -1,
+							 trap_CM_TempTraceModel( &boxTrm, CONTENTS_BODY ), h->poses[i].origin, (const vec3_t *)h->poses[i].axis );
+		if ( tr.fraction < best.fraction ) {
+			best = tr;
+			bestBox = i;
+		}
+	}
+	if ( bestBox < 0 ) {
+		return qfalse;
+	}
+
+	memset( results, 0, sizeof( *results ) );
+	results->fraction = best.fraction;
+	VectorCopy( best.endpos, results->endpos );
+	VectorCopy( best.c.normal, results->plane.normal );
+	results->plane.dist = DotProduct( results->plane.normal, results->endpos );
+	results->entityNum = entityNum;
+	results->contents = CONTENTS_BODY;
+	return qtrue;
+}
+
+/*
+================
+CG_TraceShot
+
+G_TraceShot's trace on the client: a skeletal character is hit on its
+hitboxes as drawn, and missed past them.
+================
+*/
+void CG_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
+				   int skipNumber, int mask ) {
+	centity_t *skipped[8];
+	int skippedContents[8], numSkipped = 0, i;
+	qboolean had;
+
+	for ( ;; ) {
+		CG_Trace( results, start, mins, maxs, end, skipNumber, mask );
+		if ( results->fraction == 1.0f || results->entityNum < 0 || results->entityNum >= ENTITYNUM_MAX_NORMAL ) {
+			break;
+		}
+		if ( CG_TraceHitboxes( results->entityNum, start, mins, maxs, end, results, &had ) || !had ) {
+			break;
+		}
+		// missed its boxes: on through its bounding box
+		if ( numSkipped == ARRAY_LEN( skipped ) ) {
+			results->fraction = 1.0f;
+			VectorCopy( end, results->endpos );
+			results->entityNum = ENTITYNUM_NONE;
+			break;
+		}
+		skipped[numSkipped] = &cg_entities[results->entityNum];
+		skippedContents[numSkipped] = skipped[numSkipped]->currentState.contents;
+		skipped[numSkipped]->currentState.contents = 0;
+		numSkipped++;
+	}
+	for ( i = 0; i < numSkipped; i++ ) {
+		skipped[i]->currentState.contents = skippedContents[i];
+	}
+}
+
+/*
 ================
 CG_Character
 
@@ -414,6 +571,7 @@ void CG_Character( centity_t *cent ) {
 	}
 	if ( numJoints > 0 ) {
 		ent.skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
+		CG_StoreHitboxes( cent, model, joints, numJoints, &ent );
 	}
 	if ( cg_drawSkeleton.integer < 2 ) {
 		// (2: the skeleton alone)
@@ -549,6 +707,9 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 							s1->groundEntityNum != ENTITYNUM_NONE && !( s1->eFlags & EF_DEAD ), s1->number, cg.time, &cent->ik );
 		}
 		legs->skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
+	}
+	if ( numJoints > 0 ) {
+		CG_StoreHitboxes( cent, model, joints, numJoints, legs );
 	}
 	if ( cg_drawSkeleton.integer < 2 ) {
 		CG_AddRefEntityWithPowerups( legs, &cent->currentState );
