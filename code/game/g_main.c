@@ -664,6 +664,7 @@ void G_ShutdownGame( int restart ) {
 	}
 
 	G_ScriptShutdown();
+	G_AirNavShutdown();
 
     ClipFree( &g_clip );
 

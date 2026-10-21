@@ -55,6 +55,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 #define MONSTER_REACHED			16		// a move is done this close to where it goes
 
 void	G_CharacterRecord( gentity_t *ent );		// g_character.c
+static qboolean G_MonsterUnstick( gentity_t *ent, vec3_t origin );
 
 /*
 ================
@@ -503,6 +504,59 @@ static void G_MonsterGroundMove( gentity_t *ent, float dt ) {
 
 /*
 ================
+G_MonsterFlySteer
+
+where a flyer heads for, to get to goal: there if it flies there in a line,
+else the next waypoint of its route through the air (planned again when the
+goal moved, or a while on), the farthest it sees on it
+================
+*/
+static void G_MonsterFlySteer( gentity_t *ent, const vec3_t origin, const vec3_t goal, vec3_t steer ) {
+	monsterState_t	*m = &ent->monster;
+	int				n;
+
+	if ( G_AirClear( origin, goal, ent->s.mins, ent->s.maxs, ent->s.number ) ) {
+		m->routeLen = 0;
+		VectorCopy( goal, steer );
+		return;
+	}
+
+	if ( m->routeLen <= 0 || m->routeIndex >= m->routeLen || level.time - m->routeTime > 2000
+		|| Distance( goal, m->routeGoal ) > 96 ) {
+		n = G_AirRoute( origin, goal, ent->s.mins, ent->s.maxs, ent->s.number, m->route, MONSTER_ROUTE );
+		if ( n >= 0 ) {
+			// (-1: the searches of the frame are done; this one's next frame)
+			m->routeLen = n;
+			m->routeIndex = 0;
+			m->routeTime = level.time;
+			VectorCopy( goal, m->routeGoal );
+			if ( g_debugMove.integer ) {
+				int k;
+
+				G_Printf( "%s %d: a route of %d to %s:", ent->classname, ent->s.number, n, vtos( goal ) );
+				for ( k = 0; k < n; k++ ) {
+					G_Printf( " %s", vtos( m->route[k] ) );
+				}
+				G_Printf( "\n" );
+			}
+		}
+	}
+	if ( m->routeLen <= 0 ) {
+		VectorCopy( goal, steer );		// no way: at it, and bounce
+		return;
+	}
+
+	// on to the farthest waypoint it sees
+	while ( m->routeIndex < m->routeLen - 1
+			&& ( Distance( origin, m->route[m->routeIndex] ) < MONSTER_REACHED * 2
+				 || G_AirClear( origin, m->route[m->routeIndex + 1], ent->s.mins, ent->s.maxs, ent->s.number ) ) ) {
+		m->routeIndex++;
+	}
+	VectorCopy( m->route[m->routeIndex], steer );
+}
+
+/*
+================
 G_MonsterFlyMove
 
 flying as a drone does: it wants a velocity toward where it goes (above it
@@ -521,12 +575,17 @@ static void G_MonsterFlyMove( gentity_t *ent, float dt ) {
 
 	VectorClear( wish );
 	if ( !( m->flags & ( MONF_DEAD | MONF_NOMOVE ) ) && m->moveStatus == MOVE_STATUS_MOVING && G_MonsterMoveGoal( ent, goal ) ) {
+		vec3_t steer;
+
 		goal[2] += m->flyOffset + sin( level.time * 0.003f + ent->s.number ) * m->flyBob;
-		VectorSubtract( goal, origin, dir );
-		dist = VectorNormalize( dir );
+		dist = Distance( goal, origin );
 		if ( dist < MONSTER_REACHED && m->moveCommand != MOVE_TO_ENEMY ) {
 			m->moveStatus = MOVE_STATUS_DONE;
 		} else {
+			// straight there, or along its way through the air
+			G_MonsterFlySteer( ent, origin, goal, steer );
+			VectorSubtract( steer, origin, dir );
+			VectorNormalize( dir );
 			// at its speed, slowing to arrive
 			speed = MIN( m->flySpeed, dist * 2 );
 			VectorScale( dir, speed, wish );
@@ -552,6 +611,13 @@ static void G_MonsterFlyMove( gentity_t *ent, float dt ) {
 		m->flags |= MONF_BLOCKED;
 	} else {
 		m->flags &= ~MONF_BLOCKED;
+	}
+	if ( g_debugMove.integer && ( level.framenum % 20 ) == ( ent->s.number % 20 ) ) {
+		trace_t tr;
+
+		G_TraceBox( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, mask );
+		G_Printf( "fly %d: at %s wish %s vel %s status %d route %d/%d%s\n", ent->s.number, vtos( origin ), vtos( wish ), vtos( vel ),
+				  m->moveStatus, m->routeIndex, m->routeLen, tr.startsolid ? " IN SOLID" : "" );
 	}
 	VectorCopy( vel, m->velocity );
 	m->flags &= ~MONF_ONGROUND;
@@ -741,6 +807,16 @@ void G_MonsterThink( gentity_t *ent ) {
 	// a frame's impact is seen by the next one
 	m->flags &= ~( MONF_PAIN | MONF_IMPACT );
 
+	// in something (another monster flew into it, a mover closed on it): out
+	if ( !( m->flags & MONF_DEAD ) ) {
+		vec3_t origin;
+
+		VectorCopy( ent->r.currentOrigin, origin );
+		if ( G_MonsterUnstick( ent, origin ) ) {
+			G_SetOrigin( ent, origin );
+		}
+	}
+
 	if ( m->flags & MONF_FLY && !( m->flags & MONF_DEAD ) ) {
 		G_MonsterFlyMove( ent, dt );
 	} else {
@@ -850,6 +926,43 @@ static void G_MonsterStartThread( gentity_t *ent ) {
 
 /*
 ================
+G_MonsterUnstick
+
+out of what it's in (a map's monster a little in a wall or the floor): the
+nearest place its box fits, up to 32 away
+================
+*/
+static qboolean G_MonsterUnstick( gentity_t *ent, vec3_t origin ) {
+	static const float	dirs[][3] = { { 0, 0, 1 }, { 0, 0, -1 }, { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 },
+									  { 1, 1, 1 }, { -1, 1, 1 }, { 1, -1, 1 }, { -1, -1, 1 } };
+	trace_t				tr;
+	vec3_t				p;
+	int					d, i;
+
+	int					in;
+
+	G_TraceBox( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, ent->clipmask );
+	if ( !tr.startsolid ) {
+		return qfalse;
+	}
+	in = tr.entityNum;
+	for ( d = 2; d <= 32; d += 2 ) {
+		for ( i = 0; i < (int)ARRAY_LEN( dirs ); i++ ) {
+			VectorMA( origin, d, dirs[i], p );
+			G_TraceBox( &tr, p, ent->s.mins, ent->s.maxs, p, ent->s.number, ent->clipmask );
+			if ( !tr.startsolid ) {
+				G_DPrintf( "%s %d moved %d out of %s at %s\n", ent->classname, ent->s.number, d,
+						   in >= 0 && in < ENTITYNUM_MAX_NORMAL ? g_entities[in].classname : "the world", vtos( origin ) );
+				VectorCopy( p, origin );
+				return qtrue;
+			}
+		}
+	}
+	return qfalse;
+}
+
+/*
+================
 SP_monster
 
 a monster of its def ("spawnclass" "monster")
@@ -914,6 +1027,9 @@ void SP_monster( gentity_t *ent ) {
 		m->flyBob = G_MonsterFloat( ent, "fly_bob", "8" );
 	}
 	m->idealYaw = ent->s.angles[YAW];
+	if ( G_MonsterUnstick( ent, ent->s.origin ) ) {
+		G_SetOrigin( ent, ent->s.origin );
+	}
 
 	// Daikatana's skill: tougher and faster on hard ("skill_scale" none: 0)
 	if ( g_gametype.integer == GT_CAMPAIGN && G_MonsterFloat( ent, "skill_scale", "1" ) ) {

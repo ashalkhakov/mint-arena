@@ -82,6 +82,7 @@ typedef struct gplayer_s gplayer_t;
 #include "g_script.h"
 
 // a monster's (g_monster.c), Doom 3's idAI's
+#define MONSTER_ROUTE			12			// a flyer's route's waypoints
 #define MONF_MONSTER			0x0001
 #define MONF_FLY				0x0002
 #define MONF_ONGROUND			0x0004
@@ -154,6 +155,11 @@ typedef struct {
 	float		flyOffset;
 	float		flyBob;
 	float		roll;				// a flyer's banking
+	vec3_t		route[MONSTER_ROUTE];	// a flyer's way through the air (g_airnav.c), when it can't fly straight
+	int			routeLen;
+	int			routeIndex;
+	int			routeTime;
+	vec3_t		routeGoal;			// what the route goes to
 } monsterState_t;
 
 struct gentity_s {
@@ -876,6 +882,12 @@ qboolean	G_SavePersistant( const char *nextmap );
 qboolean	G_LoadPersistant( gentity_t *ent );
 qboolean	G_SaveGame( const char *name );
 struct characterHistory_s *G_AllocCharacterHistory( void );		// g_character.c
+
+// g_airnav.c
+int			G_AirRoute( const vec3_t start, const vec3_t goal, const vec3_t mins, const vec3_t maxs, int passEntityNum,
+						vec3_t *route, int max );
+qboolean	G_AirClear( const vec3_t start, const vec3_t end, const vec3_t mins, const vec3_t maxs, int passEntityNum );
+void		G_AirNavShutdown( void );
 
 // g_monster.c
 void		SP_monster( gentity_t *ent );

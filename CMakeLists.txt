@@ -1431,6 +1431,7 @@ set(Q3GOBJ
   game/g_ragdoll.c
   game/g_campaign.c
   game/g_save.c
+  game/g_airnav.c
   game/g_monster.c
   game/g_script.c
   game/g_script_compiler.c
