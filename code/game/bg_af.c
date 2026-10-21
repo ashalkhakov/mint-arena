@@ -2649,6 +2649,13 @@ static void AF_SetupCollisionForBody( afPhysics_t *af, afBody_t *body ) {
 	// don't let the body collide with itself
 	body->clipDisabled = qtrue;
 
+	// nor with those near it in the figure (AF_ExcludeNearBodies)
+	for ( i = 0; i < af->numBodies; i++ ) {
+		if ( body->noCollide & ( 1u << i ) ) {
+			af->bodies[i].clipDisabled = qtrue;
+		}
+	}
+
 	// disable any bodies attached with constraints
 	for ( i = 0; i < body->numConstraints; i++ ) {
 		if ( !body->constraints[i]->noCollision ) {
@@ -2700,7 +2707,10 @@ AF_SelfMotion
 The body moved from where it is to end (origin and axis) against the
 figure's other bodies, those before it where they're going (they've moved:
 Doom 3 relinks each as it goes), the rest where they are; qtrue on a
-collision, its entityNum -1 and its id the other body.
+collision, its entityNum -1 and its id the other body. A body already
+touching another isn't held where it is (Doom 3 stopped it there each step
+while its joint dragged it on, and small bodies twitched for ever): the
+contacts between them keep it from going further in.
 ================
 */
 static qboolean AF_SelfMotion( afPhysics_t *af, afBody_t *body, cm_trace_t *results, const vec3_t endOrigin, const vec3_t endAxis[3] ) {
@@ -2728,7 +2738,7 @@ static qboolean AF_SelfMotion( afPhysics_t *af, afBody_t *body, cm_trace_t *resu
 			trap_CM_Translation( &trace, body->current->worldOrigin, endOrigin, &body->trm, (const vec3_t *)body->current->worldAxis,
 								body->clipMask, af->clip.trmModel( af->clip.ctx, &other->trm ), state->worldOrigin,
 								(const vec3_t *)state->worldAxis );
-			if ( trace.fraction < best.fraction ) {
+			if ( trace.fraction < best.fraction && trace.fraction > 0.0f ) {
 				best = trace;
 				best.c.entityNum = -1;
 				best.c.id = other->id;
@@ -2758,7 +2768,7 @@ static qboolean AF_SelfMotion( afPhysics_t *af, afBody_t *body, cm_trace_t *resu
 			trap_CM_Rotation( &trace, reached, &rotation, &body->trm, (const vec3_t *)body->current->worldAxis,
 							  body->clipMask, af->clip.trmModel( af->clip.ctx, &other->trm ), state->worldOrigin,
 							  (const vec3_t *)state->worldAxis );
-			if ( trace.fraction < best.fraction ) {
+			if ( trace.fraction < best.fraction && trace.fraction > 0.0f ) {
 				best = trace;
 				best.c.entityNum = -1;
 				best.c.id = other->id;
@@ -2994,6 +3004,100 @@ static void AF_SwapStates( afPhysics_t *af ) {
 		swap = body->current;
 		body->current = body->next;
 		body->next = swap;
+	}
+}
+
+/*
+================
+AF_ExcludeNearBodies
+
+Bodies two joints apart or nearer don't collide with each other: a body's
+grandparent and its siblings (two limbs off the same body, the throat and
+the head) meet at the joints between them, always touching. Doom 3 only
+leaves out the bodies a joint holds together (noCollision); colliding, the
+others keep striking each other where they meet and a figure of small
+bodies (the frog's) never comes to rest.
+================
+*/
+void AF_ExcludeNearBodies( afPhysics_t *af ) {
+	int dist[AF_MAX_BODIES][AF_MAX_BODIES];
+	afConstraint_t *c;
+	int i, j, k, a, b;
+
+	for ( i = 0; i < af->numBodies; i++ ) {
+		af->bodies[i].noCollide = 0;
+		for ( j = 0; j < af->numBodies; j++ ) {
+			dist[i][j] = i == j ? 0 : AF_MAX_BODIES;
+		}
+	}
+	for ( i = 0; i < af->numConstraints; i++ ) {
+		c = &af->constraints[i];
+		if ( !c->body1 || !c->body2 ) {
+			continue;
+		}
+		a = c->body1 - af->bodies;
+		b = c->body2 - af->bodies;
+		dist[a][b] = dist[b][a] = 1;
+	}
+	// how many joints apart (Floyd-Warshall, a figure is small)
+	for ( k = 0; k < af->numBodies; k++ ) {
+		for ( i = 0; i < af->numBodies; i++ ) {
+			for ( j = 0; j < af->numBodies; j++ ) {
+				if ( dist[i][k] + dist[k][j] < dist[i][j] ) {
+					dist[i][j] = dist[i][k] + dist[k][j];
+				}
+			}
+		}
+	}
+	for ( i = 0; i < af->numBodies; i++ ) {
+		for ( j = 0; j < af->numBodies; j++ ) {
+			if ( i != j && dist[i][j] <= 2 ) {
+				af->bodies[i].noCollide |= 1u << j;
+			}
+		}
+	}
+}
+
+/*
+================
+AF_ExcludeTouchingBodies
+
+Bodies in each other or touching where the figure starts don't collide
+with each other either (a compact figure's, the frog's tail against its
+hind leg): colliding, they would strike each other where they meet.
+================
+*/
+#define AF_TOUCH_MARGIN		2.0f		// as near as contacts are looked for (AF_SelfContacts)
+
+void AF_ExcludeTouchingBodies( afPhysics_t *af ) {
+	vec3_t dir, end;
+	cm_trace_t tr;
+	afBody_t *a, *b;
+	int i, j;
+
+	if ( !af->clip.trmModel ) {
+		return;
+	}
+	for ( i = 0; i < af->numBodies; i++ ) {
+		a = &af->bodies[i];
+		for ( j = i + 1; j < af->numBodies; j++ ) {
+			b = &af->bodies[j];
+			if ( a->noCollide & ( 1u << j ) ) {
+				continue;
+			}
+			// a moved toward b's middle by the margin meets it (in it, it stops at once)
+			VectorSubtract( b->current->worldOrigin, a->current->worldOrigin, dir );
+			VectorNormalize( dir );
+			VectorMA( a->current->worldOrigin, AF_TOUCH_MARGIN, dir, end );
+			trap_CM_Translation( &tr, a->current->worldOrigin, end, &a->trm,
+								 (const vec3_t *)a->current->worldAxis, a->clipMask | a->contents,
+								 af->clip.trmModel( af->clip.ctx, &b->trm ), b->current->worldOrigin,
+								 (const vec3_t *)b->current->worldAxis );
+			if ( tr.fraction < 1.0f ) {
+				a->noCollide |= 1u << j;
+				b->noCollide |= 1u << i;
+			}
+		}
 	}
 }
 

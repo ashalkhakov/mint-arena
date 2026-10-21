@@ -1139,6 +1139,7 @@ qboolean BG_AFLoad( afFigure_t *af, const afDecl_t *decl, const bgModel_t *model
 	for ( i = 0; i < decl->numConstraints; i++ ) {
 		AF_LoadConstraint( af, &decl->constraints[i] );
 	}
+	AF_ExcludeNearBodies( &af->physics );
 
 	af->physics.forceTotalMass = decl->totalMass;
 	af->physics.changedAF = qtrue;
@@ -1247,6 +1248,9 @@ void BG_AFTestSolid( afFigure_t *af ) {
 			VectorMA( body->current->worldOrigin, depth + 8.0f, trace.c.normal, body->current->worldOrigin );
 		}
 	}
+
+	// and in each other: those bodies don't collide
+	AF_ExcludeTouchingBodies( phys );
 }
 
 /*

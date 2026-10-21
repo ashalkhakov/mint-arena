@@ -158,6 +158,7 @@ typedef struct afBody_s {
 	qboolean				useFrictionDir, useContactMotorDir;
 	qboolean				isZero;
 	qboolean				clipDisabled;	// while another body moves, for self collision
+	unsigned int			noCollide;		// the bodies (bits by index) it doesn't collide with: near it in the figure
 	vec3_t					frictionDir;
 	vec3_t					contactMotorDir;
 	float					contactMotorVelocity, contactMotorForce;
@@ -280,6 +281,8 @@ void		AF_SetNoLimit( afConstraint_t *c );
 
 qboolean	AF_Evaluate( afPhysics_t *af, int timeStepMSec, int endTimeMSec );
 void		AF_Activate( afPhysics_t *af );
+void		AF_ExcludeNearBodies( afPhysics_t *af );
+void		AF_ExcludeTouchingBodies( afPhysics_t *af );
 void		AF_Rest( afPhysics_t *af );
 qboolean	AF_IsAtRest( const afPhysics_t *af );
 void		AF_ApplyImpulse( afPhysics_t *af, int id, const vec3_t point, const vec3_t impulse );
