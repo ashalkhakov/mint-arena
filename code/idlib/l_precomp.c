@@ -915,6 +915,19 @@ void PC_ConvertPath(char *path)
 	} //end while
 } //end of the function PC_ConvertPath
 //============================================================================
+// a file a source includes, from the folder the source's own files are in:
+// the base folder is the lexer's (l_script.c) and other sources have theirs
+//============================================================================
+static script_t *PC_LoadIncludeFile(source_t *source, const char *path)
+{
+	script_t *script;
+
+	PS_SetBaseFolder(source->basefolder[0] ? source->basefolder : NULL);
+	script = LoadScriptFile(path);
+	PS_SetBaseFolder(NULL);
+	return script;
+} //end of the function PC_LoadIncludeFile
+//============================================================================
 //
 // Parameter:				-
 // Returns:					-
@@ -942,12 +955,12 @@ int PC_Directive_include(source_t *source)
 	{
 		StripDoubleQuotes(token.string);
 		PC_ConvertPath(token.string);
-		script = LoadScriptFile(token.string);
+		script = PC_LoadIncludeFile(source, token.string);
 		if (!script)
 		{
 			Q_strncpyz(path, source->includepath, sizeof(path));
 			Q_strcat(path, sizeof(path), token.string);
-			script = LoadScriptFile(path);
+			script = PC_LoadIncludeFile(source, path);
 		} //end if
 	} //end if
 	else if (token.type == TT_PUNCTUATION && *token.string == '<')
@@ -973,7 +986,7 @@ int PC_Directive_include(source_t *source)
 			return qfalse;
 		} //end if
 		PC_ConvertPath(path);
-		script = LoadScriptFile(path);
+		script = PC_LoadIncludeFile(source, path);
 	} //end if
 	else
 	{
@@ -3084,8 +3097,11 @@ int PC_LoadSourceHandle(const char *filename, const char *basepath, const define
 		return 0;
 	PS_SetBaseFolder(basepath);
 	source = LoadSourceFile(filename, globaldefines);
+	PS_SetBaseFolder(NULL);
 	if (!source)
 		return 0;
+	if (basepath)
+		Q_strncpyz(source->basefolder, basepath, sizeof(source->basefolder));
 	sourceFiles[i] = source;
 	return i;
 } //end of the function PC_LoadSourceHandle

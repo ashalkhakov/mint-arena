@@ -100,6 +100,7 @@ typedef struct source_s
 {
 	char filename[1024];					//file name of the script
 	char includepath[1024];					//path to include files
+	char basefolder[MAX_QPATH];				//the folder its files are in (PC_LoadSourceHandle's basepath)
 	punctuation_t *punctuations;			//punctuations to use
 	script_t *scriptstack;					//stack with scripts of the source
 	token_t *tokens;						//tokens to read first
