@@ -37,8 +37,8 @@ Suite 120, Rockville, Maryland 20850 USA.
 // major > 0 means each major is an API break and each minor extends API.
 // ZTM: FIXME: There is no way for the VM to know what the engine support API is
 //             so there is no way to add more system calls.
-#define CG_API_MAJOR_VERSION	1
-#define CG_API_MINOR_VERSION	2
+#define CG_API_MAJOR_VERSION	2
+#define CG_API_MINOR_VERSION	0
 
 
 #define	CMD_BACKUP			64	
@@ -410,7 +410,6 @@ typedef enum {
 	CG_CM_TEMPTRACEMODEL,	// ( const traceModel_t *trm, int contents );
 	// like CG_CM_TEMPBOXMODEL for any trace model, e.g. physics props
 
-	CG_R_BLENDSKELETON,		// ( qhandle_t model, const skeletonBlend_t *blends, int numBlends, float *jointMats, int maxJoints );
 	CG_R_ADDSKELETONTOSCENE,	// ( const float *jointMats, int numJoints ); returns the refEntity_t skeleton
 	CG_S_STARTSOUNDVOLUME,		// ( vec3_t origin, int entityNum, int entchannel, sfxHandle_t sfx, float volume );
 

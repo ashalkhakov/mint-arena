@@ -497,10 +497,6 @@ int		trap_R_ModelBounds( clipHandle_t model, vec3_t mins, vec3_t maxs, int start
 	return syscall( CG_R_MODELBOUNDS, model, mins, maxs, startFrame, endFrame, PASSFLOAT(frac) );
 }
 
-int		trap_R_BlendSkeleton( qhandle_t model, const skeletonBlend_t *blends, int numBlends, float *jointMats, int maxJoints ) {
-	return syscall( CG_R_BLENDSKELETON, model, blends, numBlends, jointMats, maxJoints );
-}
-
 int		trap_R_AddSkeletonToScene( const float *jointMats, int numJoints ) {
 	return syscall( CG_R_ADDSKELETONTOSCENE, jointMats, numJoints );
 }
