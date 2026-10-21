@@ -44,6 +44,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //		"impact_speed"	"300"				// hitting the world faster than this hurts it
 //		"impact_damage"	"5"					// per 100 u/s above impact_speed
 //		"impact_bounce"	"0.5"				// how much of its speed it bounces off with
+//		"leap_damage"	"damage_frog_leap"	// a damage def: what its leaps do to whom they hit ("push" them back)
 //		"skill_scale"	"1"					// Daikatana's: health and speeds x0.75 easy, x1.25 hard
 //		"snd_sight"		"monster_frog_sight"	// sound shaders, for startSound()
 //	}
@@ -117,6 +118,7 @@ static void G_MonsterUpdateFields( gentity_t *ent ) {
 	G_MonsterSetField( ent, "AI_MOVE_DONE", m->moveStatus != MOVE_STATUS_MOVING );
 	G_MonsterSetField( ent, "AI_BLOCKED", m->flags & MONF_BLOCKED );
 	G_MonsterSetField( ent, "AI_IMPACT", m->flags & MONF_IMPACT );
+	G_MonsterSetField( ent, "AI_LEAP_HIT", m->flags & MONF_LEAP_HIT );
 	G_MonsterSetField( ent, "AI_IN_WATER", ent->waterlevel > 1 );
 }
 
@@ -135,7 +137,7 @@ G_MonsterEye
 */
 void G_MonsterEye( const gentity_t *ent, vec3_t eye ) {
 	VectorCopy( ent->r.currentOrigin, eye );
-	eye[2] += ent->s.maxs[2] * 0.75f;
+	eye[2] += ent->monster.moveMaxs[2] * 0.75f;
 }
 
 static void G_TargetEye( const gentity_t *ent, vec3_t eye ) {
@@ -354,6 +356,53 @@ static qboolean G_MonsterClipVelocity( gentity_t *ent, vec3_t vel, const vec3_t 
 
 /*
 ================
+G_MonsterHitBody
+
+it ran into someone (a player, a monster): no crash for it, but a leap
+hurts them ("leap_damage", once a leap) and knocks them back, and it
+bounces off; qfalse if it isn't a body
+================
+*/
+static qboolean G_MonsterHitBody( gentity_t *ent, gentity_t *other, vec3_t vel, const vec3_t normal ) {
+	monsterState_t	*m = &ent->monster;
+	const char		*damageDef;
+	vec3_t			dir;
+	float			into, speed;
+	int				damage;
+
+	if ( !other->inuse || !( other->player || G_IsMonster( other ) || other->s.eType == ET_CHARACTER ) ) {
+		return qfalse;
+	}
+	into = -DotProduct( vel, normal );
+	speed = VectorLength( vel );
+
+	if ( ( m->flags & MONF_LEAPING ) && speed > 150 && other->takedamage && !G_IsMonster( other ) ) {
+		damageDef = G_ScriptGetSpawnArg( ent, "leap_damage", "" );
+		if ( damageDef[0] && BG_FindDef( damageDef ) ) {
+			const dict_t *def = BG_FindDef( damageDef );
+
+			damage = DictGetInt( def, "damage", "0" ) + (int)( random() * DictGetInt( def, "damage_random", "0" ) );
+			VectorNormalize2( vel, dir );
+			G_Damage( other, ent, ent, dir, ent->r.currentOrigin, damage, DAMAGE_NO_KNOCKBACK, MOD_UNKNOWN );
+			if ( other->player ) {
+				// knocked back by its weight
+				VectorMA( other->player->ps.velocity, DictGetFloat( def, "push", "150" ), dir, other->player->ps.velocity );
+				other->player->ps.velocity[2] += 50;
+			}
+			m->flags = ( m->flags & ~MONF_LEAPING ) | MONF_LEAP_HIT;
+		}
+	}
+
+	// off them, losing most of its speed
+	if ( into > 0 ) {
+		VectorMA( vel, into * 1.3f, normal, vel );
+		VectorScale( vel, 0.5f, vel );
+	}
+	return qtrue;
+}
+
+/*
+================
 G_MonsterSlideMove
 
 as far as it goes this frame, sliding along (or bouncing off) what it hits;
@@ -369,7 +418,7 @@ static qboolean G_MonsterSlideMove( gentity_t *ent, vec3_t origin, vec3_t vel, f
 
 	for ( bump = 0; bump < 4 && left > 0; bump++ ) {
 		VectorMA( origin, left, vel, end );
-		G_TraceBox( &tr, origin, ent->s.mins, ent->s.maxs, end, ent->s.number, mask );
+		G_TraceBox( &tr, origin, ent->monster.moveMins, ent->monster.moveMaxs, end, ent->s.number, mask );
 		if ( tr.allsolid ) {
 			// stuck: it stays
 			vel[2] = MAX( vel[2], 0 );
@@ -383,6 +432,9 @@ static qboolean G_MonsterSlideMove( gentity_t *ent, vec3_t origin, vec3_t vel, f
 		blocked = qtrue;
 		if ( tr.entityNum < ENTITYNUM_MAX_NORMAL ) {
 			ent->monster.blockedBy = tr.entityNum;
+			if ( G_MonsterHitBody( ent, &g_entities[ tr.entityNum ], vel, tr.plane.normal ) ) {
+				continue;
+			}
 		}
 		G_MonsterClipVelocity( ent, vel, tr.plane.normal );
 	}
@@ -404,7 +456,24 @@ static void G_MonsterGroundCheck( gentity_t *ent, const vec3_t origin, int mask 
 	}
 	VectorCopy( origin, end );
 	end[2] -= 0.5f;
-	G_TraceBox( &tr, origin, ent->s.mins, ent->s.maxs, end, ent->s.number, mask );
+	G_TraceBox( &tr, origin, ent->monster.moveMins, ent->monster.moveMaxs, end, ent->s.number, mask );
+	if ( tr.fraction < 1.0f && tr.entityNum < ENTITYNUM_MAX_NORMAL && ( g_entities[ tr.entityNum ].player || g_entities[ tr.entityNum ].s.eType == ET_CHARACTER ) ) {
+		// on someone's head (a leap that came down on them): off it, away from their middle
+		gentity_t	*under = &g_entities[ tr.entityNum ];
+		vec3_t		away;
+
+		VectorSubtract( origin, under->r.currentOrigin, away );
+		away[2] = 0;
+		if ( VectorNormalize( away ) < 1 ) {
+			VectorSet( away, crandom(), crandom(), 0 );
+			VectorNormalize( away );
+		}
+		if ( DotProduct( ent->monster.velocity, away ) < 150 ) {
+			VectorMA( ent->monster.velocity, 150, away, ent->monster.velocity );
+		}
+		ent->s.groundEntityNum = ENTITYNUM_NONE;
+		return;
+	}
 	if ( tr.fraction < 1.0f && tr.plane.normal[2] >= 0.7f ) {
 		ent->monster.flags |= MONF_ONGROUND;
 		ent->s.groundEntityNum = tr.entityNum;
@@ -436,7 +505,7 @@ static void G_MonsterGroundMove( gentity_t *ent, float dt ) {
 		VectorSubtract( goal, origin, dir );
 		dir[2] = 0;
 		dist = VectorNormalize( dir );
-		if ( dist < MONSTER_REACHED + ent->s.maxs[0] && m->moveCommand != MOVE_TO_ENEMY ) {
+		if ( dist < MONSTER_REACHED + ent->monster.moveMaxs[0] && m->moveCommand != MOVE_TO_ENEMY ) {
 			m->moveStatus = MOVE_STATUS_DONE;
 		} else if ( !( m->flags & MONF_NOMOVE ) ) {
 			// at its speed, slower as it gets there
@@ -466,13 +535,13 @@ static void G_MonsterGroundMove( gentity_t *ent, float dt ) {
 		VectorCopy( start, stepOrigin );
 		VectorCopy( start, down );
 		down[2] += MONSTER_STEPSIZE;
-		G_TraceBox( &tr, start, ent->s.mins, ent->s.maxs, down, ent->s.number, mask );
+		G_TraceBox( &tr, start, ent->monster.moveMins, ent->monster.moveMaxs, down, ent->s.number, mask );
 		if ( !tr.allsolid ) {
 			VectorCopy( tr.endpos, stepOrigin );
 			G_MonsterSlideMove( ent, stepOrigin, stepVel, dt, mask );
 			VectorCopy( stepOrigin, down );
 			down[2] -= MONSTER_STEPSIZE;
-			G_TraceBox( &tr, stepOrigin, ent->s.mins, ent->s.maxs, down, ent->s.number, mask );
+			G_TraceBox( &tr, stepOrigin, ent->monster.moveMins, ent->monster.moveMaxs, down, ent->s.number, mask );
 			if ( !tr.allsolid && tr.plane.normal[2] >= 0.7f
 				&& DistanceSquared( start, tr.endpos ) > DistanceSquared( start, origin ) + 1 ) {
 				// further that way
@@ -486,12 +555,15 @@ static void G_MonsterGroundMove( gentity_t *ent, float dt ) {
 
 	VectorCopy( vel, m->velocity );
 	G_MonsterGroundCheck( ent, origin, mask );
+	if ( m->flags & MONF_ONGROUND ) {
+		m->flags &= ~MONF_LEAPING;
+	}
 
 	// stay on the ground walking down slopes and steps
 	if ( !( m->flags & MONF_ONGROUND ) && moving && m->velocity[2] <= 0 ) {
 		VectorCopy( origin, down );
 		down[2] -= MONSTER_STEPSIZE;
-		G_TraceBox( &tr, origin, ent->s.mins, ent->s.maxs, down, ent->s.number, mask );
+		G_TraceBox( &tr, origin, ent->monster.moveMins, ent->monster.moveMaxs, down, ent->s.number, mask );
 		if ( !tr.allsolid && tr.fraction < 1.0f && tr.plane.normal[2] >= 0.7f ) {
 			VectorCopy( tr.endpos, origin );
 			m->flags |= MONF_ONGROUND;
@@ -515,7 +587,7 @@ static void G_MonsterFlySteer( gentity_t *ent, const vec3_t origin, const vec3_t
 	monsterState_t	*m = &ent->monster;
 	int				n;
 
-	if ( G_AirClear( origin, goal, ent->s.mins, ent->s.maxs, ent->s.number ) ) {
+	if ( G_AirClear( origin, goal, ent->monster.moveMins, ent->monster.moveMaxs, ent->s.number ) ) {
 		m->routeLen = 0;
 		VectorCopy( goal, steer );
 		return;
@@ -523,7 +595,7 @@ static void G_MonsterFlySteer( gentity_t *ent, const vec3_t origin, const vec3_t
 
 	if ( m->routeLen <= 0 || m->routeIndex >= m->routeLen || level.time - m->routeTime > 2000
 		|| Distance( goal, m->routeGoal ) > 96 ) {
-		n = G_AirRoute( origin, goal, ent->s.mins, ent->s.maxs, ent->s.number, m->route, MONSTER_ROUTE );
+		n = G_AirRoute( origin, goal, ent->monster.moveMins, ent->monster.moveMaxs, ent->s.number, m->route, MONSTER_ROUTE );
 		if ( n >= 0 ) {
 			// (-1: the searches of the frame are done; this one's next frame)
 			m->routeLen = n;
@@ -549,7 +621,7 @@ static void G_MonsterFlySteer( gentity_t *ent, const vec3_t origin, const vec3_t
 	// on to the farthest waypoint it sees
 	while ( m->routeIndex < m->routeLen - 1
 			&& ( Distance( origin, m->route[m->routeIndex] ) < MONSTER_REACHED * 2
-				 || G_AirClear( origin, m->route[m->routeIndex + 1], ent->s.mins, ent->s.maxs, ent->s.number ) ) ) {
+				 || G_AirClear( origin, m->route[m->routeIndex + 1], ent->monster.moveMins, ent->monster.moveMaxs, ent->s.number ) ) ) {
 		m->routeIndex++;
 	}
 	VectorCopy( m->route[m->routeIndex], steer );
@@ -615,7 +687,7 @@ static void G_MonsterFlyMove( gentity_t *ent, float dt ) {
 	if ( g_debugMove.integer && ( level.framenum % 20 ) == ( ent->s.number % 20 ) ) {
 		trace_t tr;
 
-		G_TraceBox( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, mask );
+		G_TraceBox( &tr, origin, ent->monster.moveMins, ent->monster.moveMaxs, origin, ent->s.number, mask );
 		G_Printf( "fly %d: at %s wish %s vel %s status %d route %d/%d%s\n", ent->s.number, vtos( origin ), vtos( wish ), vtos( vel ),
 				  m->moveStatus, m->routeIndex, m->routeLen, tr.startsolid ? " IN SOLID" : "" );
 	}
@@ -805,7 +877,7 @@ void G_MonsterThink( gentity_t *ent ) {
 	}
 
 	// a frame's impact is seen by the next one
-	m->flags &= ~( MONF_PAIN | MONF_IMPACT );
+	m->flags &= ~( MONF_PAIN | MONF_IMPACT | MONF_LEAP_HIT );
 
 	// in something (another monster flew into it, a mover closed on it): out
 	if ( !( m->flags & MONF_DEAD ) ) {
@@ -941,7 +1013,7 @@ static qboolean G_MonsterUnstick( gentity_t *ent, vec3_t origin ) {
 
 	int					in;
 
-	G_TraceBox( &tr, origin, ent->s.mins, ent->s.maxs, origin, ent->s.number, ent->clipmask );
+	G_TraceBox( &tr, origin, ent->monster.moveMins, ent->monster.moveMaxs, origin, ent->s.number, ent->clipmask );
 	if ( !tr.startsolid ) {
 		return qfalse;
 	}
@@ -949,7 +1021,7 @@ static qboolean G_MonsterUnstick( gentity_t *ent, vec3_t origin ) {
 	for ( d = 2; d <= 32; d += 2 ) {
 		for ( i = 0; i < (int)ARRAY_LEN( dirs ); i++ ) {
 			VectorMA( origin, d, dirs[i], p );
-			G_TraceBox( &tr, p, ent->s.mins, ent->s.maxs, p, ent->s.number, ent->clipmask );
+			G_TraceBox( &tr, p, ent->monster.moveMins, ent->monster.moveMaxs, p, ent->s.number, ent->clipmask );
 			if ( !tr.startsolid ) {
 				G_DPrintf( "%s %d moved %d out of %s at %s\n", ent->classname, ent->s.number, d,
 						   in >= 0 && in < ENTITYNUM_MAX_NORMAL ? g_entities[in].classname : "the world", vtos( origin ) );
@@ -996,11 +1068,35 @@ void SP_monster( gentity_t *ent ) {
 	ent->characterModel = trap_R_RegisterModel( model->mesh );
 	ent->characterHistory = G_AllocCharacterHistory();
 
-	sscanf( G_MonsterKey( ent, "mins", "-16 -16 -24" ), "%f %f %f", &ent->s.mins[0], &ent->s.mins[1], &ent->s.mins[2] );
-	sscanf( G_MonsterKey( ent, "maxs", "16 16 32" ), "%f %f %f", &ent->s.maxs[0], &ent->s.maxs[1], &ent->s.maxs[2] );
+	// the box it moves with: its own "mins" and "maxs" (the map's, its def's),
+	// else its model def's (what the rigger measured), scaled; and the one
+	// shots and others meet: as far as its model reaches ("hit_mins",
+	// "hit_maxs"), so its hitboxes are all inside it (a skeet's wings)
 	ent->s.origin2[0] = G_MonsterFloat( ent, "modelscale", "1" );
 	if ( ent->s.origin2[0] <= 0 ) {
 		ent->s.origin2[0] = 1;
+	}
+	if ( G_MonsterKey( ent, "mins", NULL ) && G_MonsterKey( ent, "maxs", NULL ) ) {
+		sscanf( G_MonsterKey( ent, "mins", "" ), "%f %f %f", &m->moveMins[0], &m->moveMins[1], &m->moveMins[2] );
+		sscanf( G_MonsterKey( ent, "maxs", "" ), "%f %f %f", &m->moveMaxs[0], &m->moveMaxs[1], &m->moveMaxs[2] );
+	} else {
+		DictGetVector( model->def, "mins", "-16 -16 -24", m->moveMins );
+		DictGetVector( model->def, "maxs", "16 16 32", m->moveMaxs );
+		VectorScale( m->moveMins, ent->s.origin2[0], m->moveMins );
+		VectorScale( m->moveMaxs, ent->s.origin2[0], m->moveMaxs );
+	}
+	VectorCopy( m->moveMins, ent->s.mins );
+	VectorCopy( m->moveMaxs, ent->s.maxs );
+	if ( DictFindKey( model->def, "hit_mins" ) && DictFindKey( model->def, "hit_maxs" ) ) {
+		vec3_t hitMins, hitMaxs;
+		int k;
+
+		DictGetVector( model->def, "hit_mins", "0 0 0", hitMins );
+		DictGetVector( model->def, "hit_maxs", "0 0 0", hitMaxs );
+		for ( k = 0; k < 3; k++ ) {
+			ent->s.mins[k] = MIN( m->moveMins[k], hitMins[k] * ent->s.origin2[0] );
+			ent->s.maxs[k] = MAX( m->moveMaxs[k], hitMaxs[k] * ent->s.origin2[0] );
+		}
 	}
 	ent->s.contents = CONTENTS_BODY;
 	ent->s.collisionType = CT_AABB;

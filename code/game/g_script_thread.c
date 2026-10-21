@@ -986,7 +986,12 @@ static void Event_Trace( scriptThread_t *thread, const intptr_t *args ) {
 static void Event_TracePoint( scriptThread_t *thread, const intptr_t *args ) {
 	gentity_t *pass = EVARG_ENTITY( 3 );
 
-	G_TraceBox( &trace, EVARG_VECTOR( 0 ), NULL, NULL, EVARG_VECTOR( 1 ), pass ? pass->s.number : ENTITYNUM_NONE, ScriptContents( EVARG_INT( 2 ) ) );
+	if ( EVARG_INT( 2 ) & ( 1 << 11 ) ) {
+		// Doom 3's CONTENTS_RENDERMODEL: what a shot meets, characters' hit boxes
+		G_TraceShot( &trace, EVARG_VECTOR( 0 ), NULL, NULL, EVARG_VECTOR( 1 ), pass ? pass->s.number : ENTITYNUM_NONE, ScriptContents( EVARG_INT( 2 ) ), NULL );
+	} else {
+		G_TraceBox( &trace, EVARG_VECTOR( 0 ), NULL, NULL, EVARG_VECTOR( 1 ), pass ? pass->s.number : ENTITYNUM_NONE, ScriptContents( EVARG_INT( 2 ) ) );
+	}
 	Thread_ReturnFloat( trace.fraction );
 }
 

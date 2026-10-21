@@ -278,10 +278,11 @@ static void Event_GetLinearVelocity( gentity_t *self, const intptr_t *args ) {
 
 static void Event_SetLinearVelocity( gentity_t *self, const intptr_t *args ) {
 	if ( G_IsMonster( self ) ) {
-		// thrown: off the ground
+		// thrown: off the ground, a leap until it lands
 		VectorCopy( EVARG_VECTOR( 0 ), self->monster.velocity );
 		if ( self->monster.velocity[2] > 0 ) {
 			self->monster.flags &= ~MONF_ONGROUND;
+			self->monster.flags |= MONF_LEAPING;
 		}
 		return;
 	}
@@ -615,7 +616,7 @@ static void Event_Wander( gentity_t *self, const intptr_t *args ) {
 	dir[1] = sin( DEG2RAD( yaw ) );
 	dir[2] = ( self->monster.flags & MONF_FLY ) ? crandom() * 0.3f : 0;
 	VectorMA( self->r.currentOrigin, 256 + random() * 256, dir, dest );
-	G_TraceBox( &tr, self->r.currentOrigin, self->s.mins, self->s.maxs, dest, self->s.number, MASK_PLAYERSOLID | CONTENTS_MONSTERCLIP );
+	G_TraceBox( &tr, self->r.currentOrigin, self->monster.moveMins, self->monster.moveMaxs, dest, self->s.number, MASK_PLAYERSOLID | CONTENTS_MONSTERCLIP );
 	VectorCopy( tr.endpos, self->monster.moveDest );
 	StartMove( self, MOVE_WANDER );
 }
@@ -697,6 +698,66 @@ static void Event_DisableGravity( gentity_t *self, const intptr_t *args ) {
 	self->monster.flags |= MONF_NOGRAVITY;
 }
 
+/*
+================
+Event_GetJumpVelocity
+
+the velocity that throws it to land at pos: going up at upSpeed (more if it
+must, to get that high), across no faster than maxSpeed (it falls short then);
+none if something's in the way of its arc, as Doom 3's (idAI's
+PredictTrajectory): no use leaping into a wall
+================
+*/
+static void Event_GetJumpVelocity( gentity_t *self, const intptr_t *args ) {
+	vec3_t	d, vel;
+	float	up = EVARG_FLOAT( 1 ), maxSpeed = EVARG_FLOAT( 2 ), g = g_gravity.value, h, dist, t, disc, speed;
+
+	VectorSubtract( EVARG_VECTOR( 0 ), self->r.currentOrigin, d );
+	h = d[2];
+	d[2] = 0;
+	dist = VectorNormalize( d );
+	if ( g <= 0 ) {
+		g = 800;
+	}
+	// up fast enough to get there, and a little over
+	if ( h > 0 && up * up < 2 * g * ( h + 8 ) ) {
+		up = sqrt( 2 * g * ( h + 8 ) );
+	}
+	// the time it comes down to the height: h = up t - g t^2 / 2
+	disc = up * up - 2 * g * h;
+	t = ( up + sqrt( MAX( disc, 0 ) ) ) / g;
+	speed = t > 0.05f ? dist / t : maxSpeed;
+	if ( speed > maxSpeed ) {
+		speed = maxSpeed;
+	}
+	VectorScale( d, speed, vel );
+	vel[2] = up;
+
+	// along its arc, a tenth of a second at a time, until it comes down to
+	// pos's height; it may come down on someone, not on the world short of it
+	if ( G_IsMonster( self ) ) {
+		vec3_t	from, to;
+		trace_t	tr;
+		float	s;
+
+		VectorCopy( self->r.currentOrigin, from );
+		for ( s = 0.1f; s < t + 0.1f && s < 3; s += 0.1f ) {
+			VectorMA( self->r.currentOrigin, s, vel, to );
+			to[2] -= 0.5f * g * s * s;
+			G_TraceBox( &tr, from, self->monster.moveMins, self->monster.moveMaxs, to, self->s.number, self->clipmask & ~CONTENTS_BODY );
+			if ( tr.startsolid || ( tr.fraction < 1 && Distance( tr.endpos, EVARG_VECTOR( 0 ) ) > 48 + self->monster.moveMaxs[0] ) ) {
+				VectorClear( vel );
+				break;
+			}
+			if ( tr.fraction < 1 ) {
+				break;
+			}
+			VectorCopy( to, from );
+		}
+	}
+	Thread_ReturnVector( vel );
+}
+
 static void Event_AllowMovement( gentity_t *self, const intptr_t *args ) {
 	MONSTER_OR_RETURN( (void)0 );
 	if ( EVARG_FLOAT( 0 ) ) {
@@ -740,13 +801,13 @@ static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
 	// in reach (box to box), in front, and seen
 	range = DictGetFloat( def, "range", G_ScriptGetSpawnArg( self, "melee_range", "64" ) );
 	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
-	dist = VectorNormalize( dir ) - self->s.maxs[0] - enemy->s.maxs[0];
+	dist = VectorNormalize( dir ) - self->monster.moveMaxs[0] - enemy->s.maxs[0];
 	if ( dist > range || fabs( AngleSubtract( vectoyaw( dir ), self->r.currentAngles[YAW] ) ) > 60 || !G_MonsterCanSee( self, enemy ) ) {
 		Thread_ReturnInt( 0 );
 		return;
 	}
 
-	VectorMA( self->r.currentOrigin, self->s.maxs[0], dir, point );
+	VectorMA( self->r.currentOrigin, self->monster.moveMaxs[0], dir, point );
 	G_Damage( enemy, self, self, dir, point, DamageFromDef( EVARG_STRING( 0 ) ), 0, MOD_UNKNOWN );
 	Thread_ReturnInt( 1 );
 }
@@ -952,6 +1013,7 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "enableGravity",		NULL,		0,		Event_EnableGravity },
 	{ "disableGravity",		NULL,		0,		Event_DisableGravity },
 	{ "allowMovement",		"f",		0,		Event_AllowMovement },
+	{ "getJumpVelocity",	"vff",		'v',	Event_GetJumpVelocity },
 	{ "attackMelee",		"s",		'd',	Event_AttackMelee },
 	{ "directDamage",		"es",		0,		Event_DirectDamage },
 	{ "playAnim",			"ds",		'd',	Event_PlayAnim },

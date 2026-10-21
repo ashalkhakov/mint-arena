@@ -94,6 +94,8 @@ typedef struct gplayer_s gplayer_t;
 #define MONF_IMPACT				0x0100		// hit the world hard since its last think
 #define MONF_NOGRAVITY			0x0200
 #define MONF_NOMOVE				0x0400		// allowMovement( 0 )
+#define MONF_LEAPING			0x0800		// thrown (setLinearVelocity up), until it lands: it hurts what it hits
+#define MONF_LEAP_HIT			0x1000		// its leap hit someone since its last think
 
 typedef enum {
 	MOVE_NONE,
@@ -160,6 +162,7 @@ typedef struct {
 	int			routeIndex;
 	int			routeTime;
 	vec3_t		routeGoal;			// what the route goes to
+	vec3_t		moveMins, moveMaxs;	// the box it moves with (its entity's is what shots meet: all of it)
 } monsterState_t;
 
 struct gentity_s {
