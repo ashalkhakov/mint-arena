@@ -1459,8 +1459,14 @@ list(TRANSFORM Q3GOBJ PREPEND code/)
 
 if(${BUILD_GAME_SO})
    if(${BUILD_BASEGAME})
+    # the game's callbacks by name, for saved games (code/tools/extractfuncs.py)
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/g_funcs.h
+        COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/code/tools/extractfuncs.py ${CMAKE_CURRENT_BINARY_DIR}/g_funcs.h ${Q3GOBJ}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/code/tools/extractfuncs.py ${Q3GOBJ}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     add_library("${VM_PREFIX}game_${SHLIBNAME}" SHARED
-        ${Q3GOBJ})
+        ${Q3GOBJ} ${CMAKE_CURRENT_BINARY_DIR}/g_funcs.h)
+    target_include_directories("${VM_PREFIX}game_${SHLIBNAME}" PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     set_target_properties("${VM_PREFIX}game_${SHLIBNAME}" PROPERTIES PREFIX "")
     target_compile_options("${VM_PREFIX}game_${SHLIBNAME}" PUBLIC ${BASE_CFLAGS} ${BASEGAME_CFLAGS} -DGAME ${SHLIBCFLAGS} ${OPTIMIZEVM})
   endif()

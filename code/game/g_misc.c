@@ -376,7 +376,7 @@ void Use_Shooter( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 }
 
 
-static void InitShooter_Finish( gentity_t *ent ) {
+void InitShooter_Finish( gentity_t *ent ) {
 	ent->enemy = G_PickTarget( ent->target );
 	ent->think = 0;
 	ent->nextthink = 0;
@@ -685,7 +685,7 @@ void SP_dlight( gentity_t *ent ) {
 }
 
 #ifdef MISSIONPACK
-static void PortalDie (gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod) {
+void PortalDie (gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod) {
 	G_FreeEntity( self );
 	//FIXME do something more interesting
 }
@@ -728,7 +728,7 @@ void DropPortalDestination( gentity_t *player ) {
 }
 
 
-static void PortalTouch( gentity_t *self, gentity_t *other, trace_t *trace) {
+void PortalTouch( gentity_t *self, gentity_t *other, trace_t *trace) {
 	gentity_t	*destination;
 
 	// see if we will even let other try to use it
@@ -765,7 +765,7 @@ static void PortalTouch( gentity_t *self, gentity_t *other, trace_t *trace) {
 }
 
 
-static void PortalEnable( gentity_t *self ) {
+void PortalEnable( gentity_t *self ) {
 	self->touch = PortalTouch;
 	self->think = G_FreeEntity;
 	self->nextthink = level.time + 2 * 60 * 1000;

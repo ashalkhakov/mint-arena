@@ -449,7 +449,7 @@ void SP_target_position( gentity_t *self ){
 	G_SetOrigin( self, self->s.origin );
 }
 
-static void target_location_linkup(gentity_t *ent)
+void target_location_linkup(gentity_t *ent)
 {
 	int i;
 	int n;

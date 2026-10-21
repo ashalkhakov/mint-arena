@@ -668,6 +668,7 @@ struct svcmd
   { "proplist", qfalse, Svcmd_PropList_f },
   { "propspawn", qfalse, Svcmd_PropSpawn_f },
   { "removeip", qfalse, Svcmd_RemoveIP_f },
+  { "savegame", qfalse, Svcmd_SaveGame_f },
   { "say", qtrue, Svcmd_Say_f },
   { "sectorlist", qfalse, Svcmd_SectorList_f, Svcmd_SectorListComplete },
   { "spawncharacter", qfalse, Svcmd_SpawnCharacter_f },

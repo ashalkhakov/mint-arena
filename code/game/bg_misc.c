@@ -852,6 +852,26 @@ gitem_t	*BG_FindItemForAmmo( weapon_t weapon ) {
 
 /*
 ===============
+BG_FindItemByClassname
+
+the item of a classname (its def's name), NULL for none
+===============
+*/
+gitem_t	*BG_FindItemByClassname( const char *classname ) {
+	int i;
+
+	for ( i = 1; i < BG_NumItems(); i++ ) {
+		gitem_t *it = BG_ItemForItemNum( i );
+
+		if ( it->classname && !Q_stricmp( it->classname, classname ) ) {
+			return it;
+		}
+	}
+	return NULL;
+}
+
+/*
+===============
 BG_FindItem
 
 ===============

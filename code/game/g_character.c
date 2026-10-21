@@ -79,6 +79,20 @@ static void G_ResetCharacterHistory( struct characterHistory_s *h ) {
 
 /*
 ================
+G_AllocCharacterHistory
+
+a character's history, new (a loaded game's characters)
+================
+*/
+struct characterHistory_s *G_AllocCharacterHistory( void ) {
+	struct characterHistory_s *h = trap_HeapMalloc( sizeof( *h ) );
+
+	G_ResetCharacterHistory( h );
+	return h;
+}
+
+/*
+================
 G_CharacterRecord
 
 Keeps the character's animation and position of this frame.
@@ -428,7 +442,7 @@ void G_PlayerCharacterFrame( gentity_t *ent ) {
 	G_CharacterRecord( ent );
 }
 
-static void G_CharacterThink( gentity_t *ent ) {
+void G_CharacterThink( gentity_t *ent ) {
 	const bgModel_t *model = &bg_models[ent->s.modelindex2];
 
 	if ( ent->ragdoll ) {
@@ -446,13 +460,13 @@ static void G_CharacterThink( gentity_t *ent ) {
 	ent->nextthink = level.time + 1;
 }
 
-static void G_CharacterPain( gentity_t *self, gentity_t *attacker, int damage ) {
+void G_CharacterPain( gentity_t *self, gentity_t *attacker, int damage ) {
 	if ( g_debugHitboxes.integer ) {
 		G_Printf( "%s %d took %d damage, %d health left\n", self->classname, self->s.number, damage, self->health );
 	}
 }
 
-static void G_CharacterDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+void G_CharacterDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
 	// Doom 3's idActor::Killed: limp, if its model has a figure
 	if ( G_StartRagdoll( self ) ) {
 		self->takedamage = qtrue;		// shots still push it

@@ -794,6 +794,10 @@ void		SP_func_wall( gentity_t *self );
 //
 qboolean	G_SavePersistant( const char *nextmap );
 qboolean	G_LoadPersistant( gentity_t *ent );
+qboolean	G_SaveGame( const char *name );
+struct characterHistory_s *G_AllocCharacterHistory( void );		// g_character.c
+void		Svcmd_SaveGame_f( void );
+qboolean	G_LoadGame( void );
 
 //
 // g_netevent.c
@@ -903,6 +907,7 @@ extern	vmCvar_t	g_debugHitboxes;
 extern	vmCvar_t	g_ragdollPush;
 extern	vmCvar_t	g_skill;
 extern	vmCvar_t	g_spawnTarget;
+extern	vmCvar_t	g_unlimitedSaves;
 extern	vmCvar_t	g_weaponRespawn;
 extern	vmCvar_t	g_weaponTeamRespawn;
 extern	vmCvar_t	g_synchronousClients;

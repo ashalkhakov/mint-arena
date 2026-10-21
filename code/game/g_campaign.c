@@ -145,7 +145,7 @@ gentity_t *G_CampaignSpawnPoint( vec3_t origin, vec3_t angles ) {
 ===============================================================================
 */
 
-static void G_CampaignDelayedUse( gentity_t *ent ) {
+void G_CampaignDelayedUse( gentity_t *ent ) {
 	G_CampaignUseTargets( ent->parent, ent->activator );
 	G_FreeEntity( ent );
 }
@@ -198,7 +198,7 @@ void G_CampaignUseTargets( gentity_t *ent, gentity_t *activator ) {
 Daikatana's (Quake 2's): when used, uses its targets, after "delay"
 seconds, with "message" and "killtarget".
 */
-static void Use_TriggerRelay( gentity_t *self, gentity_t *other, gentity_t *activator ) {
+void Use_TriggerRelay( gentity_t *self, gentity_t *other, gentity_t *activator ) {
 	G_CampaignUseTargets( self, activator );
 }
 
@@ -210,7 +210,7 @@ void SP_trigger_relay( gentity_t *self ) {
 Daikatana's (Quake 2's): uses its targets the "count"th time it's used
 (2 by default), saying how many are left before.
 */
-static void Use_TriggerCounter( gentity_t *self, gentity_t *other, gentity_t *activator ) {
+void Use_TriggerCounter( gentity_t *self, gentity_t *other, gentity_t *activator ) {
 	if ( self->count <= 0 ) {
 		return;
 	}
@@ -245,7 +245,7 @@ void SP_trigger_counter( gentity_t *self ) {
 /*QUAKED trigger_secret (.5 .5 .5) ?
 Daikatana's: a secret found when touched, once ("message", "sound").
 */
-static void Touch_TriggerSecret( gentity_t *self, gentity_t *other, trace_t *trace ) {
+void Touch_TriggerSecret( gentity_t *self, gentity_t *other, trace_t *trace ) {
 	if ( !other->player || other->health <= 0 ) {
 		return;
 	}
@@ -289,7 +289,7 @@ void SP_trigger_secret( gentity_t *self ) {
 ===============================================================================
 */
 
-static void Use_FuncWall( gentity_t *self, gentity_t *other, gentity_t *activator ) {
+void Use_FuncWall( gentity_t *self, gentity_t *other, gentity_t *activator ) {
 	if ( self->r.linked ) {
 		G_UnlinkEntity( self );
 	} else {
@@ -365,7 +365,7 @@ void G_ChangeLevel( const char *map, const char *target ) {
 Daikatana's: touched by a player, on to "map", starting at the spawn point
 whose targetname is "target".
 */
-static void Touch_TriggerChangelevel( gentity_t *self, gentity_t *other, trace_t *trace ) {
+void Touch_TriggerChangelevel( gentity_t *self, gentity_t *other, trace_t *trace ) {
 	if ( !other->player || other->health <= 0 || other->player->sess.sessionTeam == TEAM_SPECTATOR ) {
 		return;
 	}
@@ -458,7 +458,7 @@ void G_InventoryRemove( gentity_t *ent, const char *item, int count ) {
 }
 
 static const char *G_ItemName( const char *classname ) {
-	gitem_t *item = BG_FindItem( classname );
+	gitem_t *item = BG_FindItemByClassname( classname );
 
 	return item && item->pickup_name ? item->pickup_name : classname;
 }
@@ -512,13 +512,13 @@ qboolean G_CampaignKeyCheck( gentity_t *self, gentity_t *activator ) {
 /*QUAKED trigger_remove_inventory_item (.5 .5 .5) ?
 Daikatana's: takes the "item" from whoever touches it (or uses it).
 */
-static void Use_TriggerRemoveItem( gentity_t *self, gentity_t *other, gentity_t *activator ) {
+void Use_TriggerRemoveItem( gentity_t *self, gentity_t *other, gentity_t *activator ) {
 	if ( activator && activator->player && G_InventoryCount( activator, self->keyname ) ) {
 		G_InventoryRemove( activator, self->keyname, G_InventoryCount( activator, self->keyname ) );
 	}
 }
 
-static void Touch_TriggerRemoveItem( gentity_t *self, gentity_t *other, trace_t *trace ) {
+void Touch_TriggerRemoveItem( gentity_t *self, gentity_t *other, trace_t *trace ) {
 	Use_TriggerRemoveItem( self, other, other );
 }
 

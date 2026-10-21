@@ -1300,7 +1300,7 @@ qboolean G_PhysicsPushedByMover( gentity_t *prop, const vec3_t move, const vec3_
 G_PhysicsTouch
 ================
 */
-static void G_PhysicsTouch( gentity_t *self, gentity_t *other, trace_t *trace ) {
+void G_PhysicsTouch( gentity_t *self, gentity_t *other, trace_t *trace ) {
 	if ( other->player ) {
 		G_PhysicsPushedByPlayer( self, other );
 	}
@@ -1469,7 +1469,7 @@ A prop with health breaks: fires its targets, plays its "breaksound" and
 goes, waking up whatever rested on it.
 ================
 */
-static void G_PropDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+void G_PropDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
 	gentity_t *te;
 	vec3_t center;
 

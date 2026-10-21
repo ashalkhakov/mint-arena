@@ -85,6 +85,7 @@ vmCvar_t	g_debugHitboxes;
 vmCvar_t	g_ragdollPush;
 vmCvar_t	g_skill;
 vmCvar_t	g_spawnTarget;
+vmCvar_t	g_unlimitedSaves;
 vmCvar_t	g_weaponRespawn;
 vmCvar_t	g_weaponTeamRespawn;
 vmCvar_t	g_motd;
@@ -177,7 +178,8 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_debugHitboxes, "g_debugHitboxes", "0", 0, 0, RANGE_BOOL },
 	{ &g_ragdollPush, "g_ragdollPush", "200", 0, 0, RANGE_ALL },
 	{ &g_skill, "g_skill", "1", CVAR_ARCHIVE | CVAR_LATCH, 0, RANGE_INT( 0, 2 ) },	// the campaign's: 0 easy, 1 medium, 2 hard (Daikatana's skill)
-	{ &g_spawnTarget, "g_spawnTarget", "", 0, 0, RANGE_ALL },	// the campaign's: the spawn point the last changelevel named	// a hit's impulse on a ragdoll, per point of knockback
+	{ &g_spawnTarget, "g_spawnTarget", "", 0, 0, RANGE_ALL },
+	{ &g_unlimitedSaves, "g_unlimitedSaves", "0", CVAR_ARCHIVE, 0, RANGE_BOOL },	// Daikatana's unlimited_saves: saving costs no Save Gem	// the campaign's: the spawn point the last changelevel named	// a hit's impulse on a ragdoll, per point of knockback
 	{ &g_motd, "g_motd", "", 0, 0, RANGE_ALL },
 
 	{ &g_podiumDist, "g_podiumDist", "80", 0, 0, RANGE_ALL },

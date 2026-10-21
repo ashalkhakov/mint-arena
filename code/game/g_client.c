@@ -1057,6 +1057,11 @@ void PlayerBegin( int playerNum ) {
 
 	// Doom 3's saved entity events: the state a late joiner needs
 	G_SendSavedEvents( playerNum );
+
+	// a saved campaign: back as it was, once the first player is in (RTCW's)
+	if ( g_gametype.integer == GT_CAMPAIGN ) {
+		G_LoadGame();
+	}
 }
 
 /*

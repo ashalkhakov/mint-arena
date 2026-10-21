@@ -204,7 +204,7 @@ static gentity_t *SpawnModelOnVictoryPad( gentity_t *pad, vec3_t offset, gentity
 }
 
 
-static void CelebrateStop( gentity_t *player ) {
+void CelebrateStop( gentity_t *player ) {
 	int		anim;
 
 	if( BG_Weapon( player->s.weapon )->melee ) {
@@ -218,7 +218,7 @@ static void CelebrateStop( gentity_t *player ) {
 
 
 #define	TIMER_GESTURE	(34*66+50)
-static void CelebrateStart( gentity_t *player ) {
+void CelebrateStart( gentity_t *player ) {
 	player->s.torsoAnim = ( ( player->s.torsoAnim & ANIM_TOGGLEBIT ) ^ ANIM_TOGGLEBIT ) | TORSO_GESTURE;
 	player->nextthink = level.time + TIMER_GESTURE;
 	player->think = CelebrateStop;
@@ -236,7 +236,7 @@ static vec3_t	offsetFirst  = {0, 0, 74};
 static vec3_t	offsetSecond = {-10, 60, 54};
 static vec3_t	offsetThird  = {-19, -60, 45};
 
-static void PodiumPlacementThink( gentity_t *podium ) {
+void PodiumPlacementThink( gentity_t *podium ) {
 	vec3_t		vec;
 	vec3_t		origin;
 	vec3_t		f, r, u;
