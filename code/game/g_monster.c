@@ -1248,7 +1248,6 @@ void SP_monster( gentity_t *ent ) {
 	ent->s.eType = ET_CHARACTER;
 	ent->characterDef = ent->s.modelindex2;
 	ent->s.modelindex = G_ModelIndex( (char *)model->mesh );
-	ent->characterModel = trap_R_RegisterModel( model->mesh );
 	ent->characterHistory = G_AllocCharacterHistory();
 
 	// the box it moves with and others meet: its own "mins" and "maxs" (the

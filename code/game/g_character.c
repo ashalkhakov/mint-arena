@@ -186,13 +186,13 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 	float joints[MAX_MODEL_JOINTS * 12];
 	int numJoints;
 
-	if ( !BG_ValidModel( ent->characterDef ) || !ent->characterModel ) {
+	if ( !BG_ValidModel( ent->characterDef ) ) {
 		return 0;
 	}
 	model = &bg_models[ent->characterDef];
 	G_CharacterStateAt( ent, time, &st );
 	// the skeleton of its channels' animations blended, as the cgame draws it
-	numJoints = BG_ModelPose( model, ent->characterModel, st.channels, time, joints );
+	numJoints = BG_ModelPose( model, st.channels, time, joints );
 	if ( ent->player ) {
 		vec3_t legs, torso, head, torsoAxis[3], headAxis[3];
 		bgLadder_t ladder;
@@ -386,7 +386,7 @@ void G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const
 			break;
 		}
 		ent = &g_entities[results->entityNum];
-		if ( !ent->characterDef || !ent->characterModel || ent->ragdoll ) {
+		if ( !ent->characterDef || ent->ragdoll ) {
 			break;		// (a ragdoll's box is hit)
 		}
 		if ( G_TraceHitboxes( ent, start, mins, maxs, end, contentmask, results, &hitZone ) ) {
@@ -420,7 +420,7 @@ void G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const
 
 		ent = &g_entities[i];
 		if ( !ent->inuse || !( ent->monster.flags & MONF_HIT_REACH ) || ent->ragdoll || i == passEntityNum
-			|| i == results->entityNum || !ent->characterDef || !ent->characterModel || !( ent->s.contents & contentmask ) ) {
+			|| i == results->entityNum || !ent->characterDef || !( ent->s.contents & contentmask ) ) {
 			continue;
 		}
 		VectorAdd( ent->r.currentOrigin, ent->monster.hitMins, lo );
@@ -485,11 +485,10 @@ A player's model: a model def makes it a skeletal character, with hitboxes.
 void G_PlayerSetModel( gentity_t *ent, const char *modelName ) {
 	int m = BG_PlayerModelForName( modelName );
 
-	if ( m && m == ent->characterDef && ent->characterModel ) {
+	if ( m && m == ent->characterDef ) {
 		return;
 	}
 	ent->characterDef = m;
-	ent->characterModel = m ? trap_R_RegisterModel( bg_models[m].mesh ) : 0;
 	ent->characterHistory = &g_playerHistories[ent->s.number];
 	G_ResetCharacterHistory( ent->characterHistory );
 }
@@ -587,9 +586,8 @@ void SP_misc_character( gentity_t *ent ) {
 	ent->s.eType = ET_CHARACTER;
 	ent->characterDef = ent->s.modelindex2;
 	ent->s.modelindex = G_ModelIndex( (char *)model->mesh );
-	ent->characterModel = trap_R_RegisterModel( model->mesh );
-	if ( !ent->characterModel ) {
-		G_Printf( S_COLOR_YELLOW "WARNING: misc_character at %s: can't load %s\n", vtos( ent->s.origin ), model->mesh );
+	if ( !model->numJoints ) {
+		G_Printf( S_COLOR_YELLOW "WARNING: misc_character at %s: %s has no skeleton\n", vtos( ent->s.origin ), model->mesh );
 	}
 	ent->characterHistory = trap_HeapMalloc( sizeof( *ent->characterHistory ) );
 	G_ResetCharacterHistory( ent->characterHistory );

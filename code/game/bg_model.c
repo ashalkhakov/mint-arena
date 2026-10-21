@@ -36,9 +36,9 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //		"frame walk 3"		"sound sounds/global/p_step1.wav"
 //	}
 //
-// The game and the cgame number the models alike, pose the hitboxes from
-// the joints (trap_R_LerpTag) on the frame the animation is on, and so
-// agree where they are.
+// The game and the cgame number the models alike, pose the skeletons
+// themselves (BG_ModelPose: the IQM's frames, read here) and the hitboxes
+// from the joints, and so agree where they are.
 
 #ifdef CGAME
 #include "../cgame/cg_local.h"
@@ -732,20 +732,296 @@ int BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *chann
 }
 
 /*
+==============================================================================
+
+SKELETONS
+
+The game poses its characters itself, as Doom 3's game does (idAnimator on
+the animations idAnimManager reads): the IQM's frames are read the first time
+a model is posed and blended here, alike in the game and the cgame. No
+renderer is involved, so the server's poses (hitboxes, ragdolls) don't
+depend on a renderer's models; the cgame gives its renderer the joints to
+skin with.
+
+==============================================================================
+*/
+
+typedef struct {
+	int				parent;
+	unsigned int	mask;					// which channels the frames hold
+	float			channelOffset[10];		// translate, rotate (x y z w), scale
+	float			channelScale[10];
+} iqmPose_t;
+
+typedef struct {
+	vec3_t			translate;
+	vec4_t			rotate;
+	vec3_t			scale;
+} bgJointTransform_t;
+
+typedef struct {
+	qboolean		loaded;
+	int				numPoses, numFrames, numChannels;	// numChannels: a frame's
+	iqmPose_t		*poses;
+	int				*channelStart;			// where a pose's channels start in a frame
+	unsigned short	*frames;
+} bgSkeleton_t;
+
+static bgSkeleton_t	bg_skeletons[MAX_MODEL_DEFS];
+
+/*
+================
+BG_LoadSkeleton
+
+The model's IQM's poses and frames, read the first time; NULL if it has
+none to animate its joints (an MD3, an IQM without animations).
+================
+*/
+static const bgSkeleton_t *BG_LoadSkeleton( const bgModel_t *model ) {
+	bgSkeleton_t *sk = &bg_skeletons[model - bg_models];
+	iqmHeader_t header;
+	fileHandle_t f;
+	int length, i, k, numPoses, numFrames, numChannels, ch;
+
+	if ( sk->loaded ) {
+		return sk->frames ? sk : NULL;
+	}
+	sk->loaded = qtrue;
+	if ( !model->numJoints || Q_stricmp( COM_GetExtension( model->mesh ), "iqm" ) ) {
+		return NULL;
+	}
+	length = trap_FS_FOpenFile( model->mesh, &f, FS_READ );
+	if ( length < (int)sizeof( header ) ) {
+		if ( f ) {
+			trap_FS_FCloseFile( f );
+		}
+		return NULL;
+	}
+	trap_FS_Read( &header, sizeof( header ), f );
+	numPoses = LittleLong( header.num_poses );
+	numFrames = LittleLong( header.num_frames );
+	numChannels = LittleLong( header.num_framechannels );
+	if ( memcmp( header.magic, IQM_MAGIC, sizeof( IQM_MAGIC ) ) || LittleLong( header.version ) != IQM_VERSION
+		|| numPoses != model->numJoints || numFrames <= 0 || numChannels <= 0
+		|| LittleLong( header.ofs_poses ) + numPoses * sizeof( iqmPose_t ) > (unsigned)length
+		|| LittleLong( header.ofs_frames ) + numFrames * numChannels * sizeof( unsigned short ) > (unsigned)length ) {
+		trap_FS_FCloseFile( f );
+		return NULL;
+	}
+
+	sk->poses = trap_HeapMalloc( numPoses * sizeof( iqmPose_t ) );
+	sk->channelStart = trap_HeapMalloc( numPoses * sizeof( int ) );
+	trap_FS_Seek( f, LittleLong( header.ofs_poses ), FS_SEEK_SET );
+	trap_FS_Read( sk->poses, numPoses * sizeof( iqmPose_t ), f );
+	for ( i = 0, ch = 0; i < numPoses; i++ ) {
+		iqmPose_t *pose = &sk->poses[i];
+
+		pose->parent = LittleLong( pose->parent );
+		pose->mask = LittleLong( pose->mask );
+		for ( k = 0; k < 10; k++ ) {
+			pose->channelOffset[k] = LittleFloat( pose->channelOffset[k] );
+			pose->channelScale[k] = LittleFloat( pose->channelScale[k] );
+		}
+		sk->channelStart[i] = ch;
+		for ( k = 0; k < 10; k++ ) {
+			if ( pose->mask & ( 1 << k ) ) {
+				ch++;
+			}
+		}
+	}
+	if ( ch != numChannels ) {
+		trap_FS_FCloseFile( f );
+		return NULL;
+	}
+
+	sk->frames = trap_HeapMalloc( numFrames * numChannels * sizeof( unsigned short ) );
+	trap_FS_Seek( f, LittleLong( header.ofs_frames ), FS_SEEK_SET );
+	trap_FS_Read( sk->frames, numFrames * numChannels * sizeof( unsigned short ), f );
+	trap_FS_FCloseFile( f );
+	for ( i = 0; i < numFrames * numChannels; i++ ) {
+		sk->frames[i] = LittleShort( sk->frames[i] );
+	}
+	sk->numPoses = numPoses;
+	sk->numFrames = numFrames;
+	sk->numChannels = numChannels;
+	return sk;
+}
+
+/*
+================
+BG_SkeletonJoint
+
+A joint of a frame, relative to its parent (as the renderer reads IQM
+frames).
+================
+*/
+static void BG_SkeletonJoint( const bgSkeleton_t *sk, int frame, int joint, bgJointTransform_t *out ) {
+	const iqmPose_t *pose = &sk->poses[joint];
+	const unsigned short *data = &sk->frames[frame * sk->numChannels + sk->channelStart[joint]];
+	float v[10], len;
+	int k;
+
+	for ( k = 0; k < 10; k++ ) {
+		v[k] = pose->channelOffset[k];
+		if ( pose->mask & ( 1 << k ) ) {
+			v[k] += *data++ * pose->channelScale[k];
+		}
+	}
+	VectorCopy( &v[0], out->translate );
+	len = sqrt( v[3] * v[3] + v[4] * v[4] + v[5] * v[5] + v[6] * v[6] );
+	if ( len > 0.0f ) {
+		Vector4Scale( &v[3], 1.0f / len, out->rotate );
+	} else {
+		out->rotate[0] = out->rotate[1] = out->rotate[2] = 0;
+		out->rotate[3] = -1;
+	}
+	VectorCopy( &v[7], out->scale );
+}
+
+/*
+================
+BG_QuatSlerp
+
+From from to to by frac, the short way round (the renderer's).
+================
+*/
+static void BG_QuatSlerp( const vec4_t from, const vec4_t to, float frac, vec4_t out ) {
+	float cosAngle, angle, sinAngle, a, b, sign = 1.0f;
+
+	cosAngle = from[0] * to[0] + from[1] * to[1] + from[2] * to[2] + from[3] * to[3];
+	if ( cosAngle < 0.0f ) {
+		cosAngle = -cosAngle;
+		sign = -1.0f;
+	}
+	if ( cosAngle < 0.999999f ) {
+		angle = acos( cosAngle );
+		sinAngle = sin( angle );
+		a = sin( ( 1.0f - frac ) * angle ) / sinAngle;
+		b = sin( frac * angle ) / sinAngle;
+	} else {
+		a = 1.0f - frac;
+		b = frac;
+	}
+	b *= sign;
+	out[0] = from[0] * a + to[0] * b;
+	out[1] = from[1] * a + to[1] * b;
+	out[2] = from[2] * a + to[2] * b;
+	out[3] = from[3] * a + to[3] * b;
+}
+
+/*
+================
+BG_LerpJoint
+
+a moved toward b by frac
+================
+*/
+static void BG_LerpJoint( bgJointTransform_t *a, const bgJointTransform_t *b, float frac ) {
+	vec4_t q;
+	int k;
+
+	for ( k = 0; k < 3; k++ ) {
+		a->translate[k] += ( b->translate[k] - a->translate[k] ) * frac;
+		a->scale[k] += ( b->scale[k] - a->scale[k] ) * frac;
+	}
+	BG_QuatSlerp( a->rotate, b->rotate, frac, q );
+	Vector4Copy( q, a->rotate );
+}
+
+static qboolean BG_JointInMask( const unsigned int *mask, int joint ) {
+	int i;
+
+	for ( i = 0; i < MASK_WORDS; i++ ) {
+		if ( mask[i] ) {
+			return ( joint >> 5 ) < MASK_WORDS && ( mask[joint >> 5] & ( 1u << ( joint & 31 ) ) );
+		}
+	}
+	return qtrue;	// no mask: every joint
+}
+
+/*
 ================
 BG_ModelPose
 
 The joints (3x4 matrices in the model's space) of the channels' animations
-blended at time: hModel is the mesh registered with this module's renderer
-(the server's has one too). Returns how many.
+blended at time: the first layer is the base, each next one takes over its
+joints by its weight (Doom 3's channels and cross-fades). Returns how many.
 ================
 */
-int BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChannel_t *channels, int time, float *jointMats ) {
+int BG_ModelPose( const bgModel_t *model, const bgAnimChannel_t *channels, int time, float *jointMats ) {
 	skeletonBlend_t blends[MAX_ANIM_CHANNELS * 2];
-	int n;
+	bgJointTransform_t pose[MAX_MODEL_JOINTS], layer, old;
+	const bgSkeleton_t *sk;
+	int b, j, n, numBlends;
 
-	n = BG_ModelSkeletonBlends( model, channels, time, blends, ARRAY_LEN( blends ) );
-	return trap_R_BlendSkeleton( hModel, blends, n, jointMats, MAX_MODEL_JOINTS );
+	if ( !model->numJoints ) {
+		return 0;
+	}
+	sk = BG_LoadSkeleton( model );
+	numBlends = BG_ModelSkeletonBlends( model, channels, time, blends, ARRAY_LEN( blends ) );
+	if ( !sk || numBlends < 1 ) {
+		BG_ModelBindPose( model, jointMats );
+		return model->numJoints;
+	}
+	n = sk->numPoses;
+
+	for ( b = 0; b < numBlends; b++ ) {
+		const skeletonBlend_t *blend = &blends[b];
+		int frame = blend->frame < 0 ? 0 : blend->frame % sk->numFrames;
+		int oldframe = blend->oldframe < 0 ? 0 : blend->oldframe % sk->numFrames;
+		float w = blend->weight;
+
+		for ( j = 0; j < n; j++ ) {
+			if ( b > 0 && ( w <= 0.0f || !BG_JointInMask( blend->jointMask, j ) ) ) {
+				continue;
+			}
+			BG_SkeletonJoint( sk, frame, j, &layer );
+			if ( blend->backlerp != 0.0f ) {
+				BG_SkeletonJoint( sk, oldframe, j, &old );
+				BG_LerpJoint( &old, &layer, 1.0f - blend->backlerp );
+				layer = old;
+			}
+			if ( b == 0 || w >= 1.0f ) {
+				pose[j] = layer;		// the base: every joint
+			} else {
+				BG_LerpJoint( &pose[j], &layer, w );
+			}
+		}
+	}
+
+	// each joint its parent's times its own (IQM joints come after their parents)
+	for ( j = 0; j < n; j++ ) {
+		const bgJointTransform_t *t = &pose[j];
+		float local[12], *m = &jointMats[12 * j], *p;
+		float x = t->rotate[0], y = t->rotate[1], z = t->rotate[2], w = t->rotate[3];
+		int r, c;
+
+		local[0] = t->scale[0] * ( 1 - 2 * ( y * y + z * z ) );
+		local[1] = t->scale[0] * 2 * ( x * y - w * z );
+		local[2] = t->scale[0] * 2 * ( x * z + w * y );
+		local[3] = t->translate[0];
+		local[4] = t->scale[1] * 2 * ( x * y + w * z );
+		local[5] = t->scale[1] * ( 1 - 2 * ( x * x + z * z ) );
+		local[6] = t->scale[1] * 2 * ( y * z - w * x );
+		local[7] = t->translate[1];
+		local[8] = t->scale[2] * 2 * ( x * z - w * y );
+		local[9] = t->scale[2] * 2 * ( y * z + w * x );
+		local[10] = t->scale[2] * ( 1 - 2 * ( x * x + y * y ) );
+		local[11] = t->translate[2];
+
+		if ( sk->poses[j].parent < 0 || sk->poses[j].parent >= j ) {
+			memcpy( m, local, sizeof( local ) );
+			continue;
+		}
+		p = &jointMats[12 * sk->poses[j].parent];
+		for ( r = 0; r < 3; r++ ) {
+			for ( c = 0; c < 4; c++ ) {
+				m[r * 4 + c] = p[r * 4 + 0] * local[0 * 4 + c] + p[r * 4 + 1] * local[1 * 4 + c] + p[r * 4 + 2] * local[2 * 4 + c]
+								+ ( c == 3 ? p[r * 4 + 3] : 0.0f );
+			}
+		}
+	}
+	return n;
 }
 
 /*

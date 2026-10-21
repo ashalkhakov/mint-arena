@@ -580,7 +580,7 @@ void CG_Character( centity_t *cent ) {
 	BG_AnimChannelsFromState( cent->characterChannels, s1->legsAnim, s1->time, CHARACTER_LEGS_RATE( s1 ), s1->torsoAnim, s1->time2 );
 	// the legs' frames for the bounds, the blended skeleton to draw
 	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, NULL );
-	numJoints = BG_ModelPose( model, ent.hModel, cent->characterChannels, cg.time, joints );
+	numJoints = BG_ModelPose( model, cent->characterChannels, cg.time, joints );
 	if ( CG_ServerRagdoll( cent, s1->modelindex2, &ent, joints, numJoints ) ) {
 		// limp: the server's figure (its axis made again)
 		if ( s1->origin2[0] > 0.0f && s1->origin2[0] != 1.0f ) {
@@ -708,7 +708,7 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 	BG_ModelFrameRate( model, cent->characterChannels[ANIMCHANNEL_LEGS].anim, cent->characterChannels[ANIMCHANNEL_LEGS].frameTime,
 				   cg.time, cent->characterChannels[ANIMCHANNEL_LEGS].rate, &legs->frame, &legs->oldframe, &legs->backlerp, NULL );
 	VectorCopy( legs->origin, legs->oldorigin );
-	numJoints = BG_ModelPose( model, legs->hModel, cent->characterChannels, cg.time, joints );
+	numJoints = BG_ModelPose( model, cent->characterChannels, cg.time, joints );
 	if ( !( s1->eFlags & EF_DEAD ) ) {
 		CG_RagdollAlive( cent );
 	} else if ( numJoints > 0 && CG_Ragdoll( cent, pi->modelDef, legs, joints, numJoints ) ) {

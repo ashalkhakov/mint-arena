@@ -1413,7 +1413,7 @@ void		BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int leg
 #define		CHARACTER_LEGS_RATE( s )	( (s)->frame > 0 ? (s)->frame / 16.0f : 1.0f )	// an ET_CHARACTER's legs rate, in s.frame (sixteenths)
 struct skeletonBlend_s;
 int			BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *channels, int time, void *blends, int maxBlends );
-int			BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChannel_t *channels, int time, float *jointMats );
+int			BG_ModelPose( const bgModel_t *model, const bgAnimChannel_t *channels, int time, float *jointMats );
 void		BG_ModelBindPose( const bgModel_t *model, float *jointMats );
 int			BG_ModelHitboxes( const bgModel_t *model, const float *jointMats, int numJoints,
 							  const vec3_t origin, const vec3_t axis[3], bgHitboxPose_t *poses );

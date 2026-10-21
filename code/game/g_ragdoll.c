@@ -96,7 +96,7 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	vec3_t axis[3];
 	int i, numJoints;
 
-	if ( ent->ragdoll || !BG_ValidModel( ent->characterDef ) || !ent->characterModel ) {
+	if ( ent->ragdoll || !BG_ValidModel( ent->characterDef ) ) {
 		return qfalse;
 	}
 	model = &bg_models[ent->characterDef];
@@ -130,7 +130,7 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 
 	// the pose it has
 	BG_AnimChannelsFromState( channels, ent->s.legsAnim, ent->s.time, CHARACTER_LEGS_RATE( &ent->s ), ent->s.torsoAnim, ent->s.time2 );
-	numJoints = BG_ModelPose( model, ent->characterModel, channels, level.time, pose );
+	numJoints = BG_ModelPose( model, channels, level.time, pose );
 	if ( numJoints <= 0 ) {
 		G_FreeRagdoll( ent );
 		return qfalse;

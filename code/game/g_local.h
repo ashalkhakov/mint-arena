@@ -310,7 +310,6 @@ struct gentity_s {
 	int				numPartClipModels;
 
 	int				characterDef;		// a skeletal character's model def (bg_models), ET_CHARACTER or a player
-	qhandle_t		characterModel;		// its mesh with the server's renderer, for the joints
 	struct characterHistory_s	*characterHistory;	// its animation and place the last frames
 	struct gRagdoll_s	*ragdoll;			// gone limp: its articulated figure (g_ragdoll.c)
 	struct rigidBody_s	*body;			// physics props, see g_physics.c
