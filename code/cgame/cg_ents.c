@@ -571,6 +571,11 @@ static void CG_Item( centity_t *cent ) {
 	}
 
 	item = BG_ItemForItemNum( es->modelindex );
+	// an item the map didn't have (one carried from the last map and dropped,
+	// one spawned): its model and sounds now
+	if ( !cg_items[es->modelindex].registered ) {
+		CG_RegisterItemVisuals( es->modelindex );
+	}
 	if ( cg_simpleItems.integer && item->giType != IT_TEAM ) {
 		memset( &ent, 0, sizeof( ent ) );
 		ent.reType = RT_SPRITE;

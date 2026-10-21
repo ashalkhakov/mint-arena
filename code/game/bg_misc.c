@@ -214,6 +214,7 @@ vmNetField_t	bg_playerStateFields[] =
 { PSA(invCount), 16 },
 { PSA(invCell), 8 },
 { PSA(invValue), 16 },
+{ PSA(invBelt), 10 },
 { PSF(pm_type), 8 },					
 { PSF(delta_angles[0]), 16 },
 { PSF(delta_angles[2]), 16 },

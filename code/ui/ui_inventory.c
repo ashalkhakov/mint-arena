@@ -79,6 +79,101 @@ static qhandle_t UI_InvItemIcon( const gitem_t *item ) {
 
 /*
 ================
+UI_InvDrawModel
+
+An item's world model in a box of the screen (640x480), turned to yaw and
+framed whole: back far enough that what it shows of the model fills the
+box. Swing turns it more without framing it again, a little either way for
+the selected item. qfalse when it has no model.
+================
+*/
+static qboolean UI_InvDrawModel( int itemNum, float x, float y, float w, float h, float yaw, float swing ) {
+	const gitem_t *item = BG_ItemForItemNum( itemNum );
+	refdef_t refdef;
+	refEntity_t ent;
+	vec3_t mins, maxs, bounds[2], angles, axis[3], p, lo, hi, mid;
+	float scale, dist;
+	int i, j;
+
+	if ( !cg_items[itemNum].registered ) {
+		CG_RegisterItemVisuals( itemNum );
+	}
+	if ( !cg_items[itemNum].models[0] ) {
+		return qfalse;
+	}
+
+	memset( &refdef, 0, sizeof( refdef ) );
+	refdef.rdflags = RDF_NOWORLDMODEL;
+	AxisClear( refdef.viewaxis );
+	DC->adjustFrom640( &x, &y, &w, &h );
+	refdef.x = x;
+	refdef.y = y;
+	refdef.width = w;
+	refdef.height = h;
+	refdef.fov_x = 30;
+	refdef.fov_y = RAD2DEG( 2 * atan( tan( DEG2RAD( refdef.fov_x ) / 2 ) * h / w ) );
+	refdef.time = DC->realTime;
+
+	memset( &ent, 0, sizeof( ent ) );
+	ent.hModel = cg_items[itemNum].models[0];
+	DC->modelBounds( ent.hModel, mins, maxs, 0, 0, 0 );
+	scale = BG_ItemModelScale( item, qfalse );
+	VectorScale( mins, scale, bounds[0] );
+	VectorScale( maxs, scale, bounds[1] );
+	VectorSet( angles, 15, yaw, 0 );
+	AnglesToAxis( angles, axis );
+
+	// the box's corners as seen: x away from the eye, y left, z up
+	VectorSet( lo, 99999, 99999, 99999 );
+	VectorSet( hi, -99999, -99999, -99999 );
+	for ( i = 0; i < 8; i++ ) {
+		vec3_t c;
+
+		VectorSet( c, bounds[i & 1][0], bounds[( i >> 1 ) & 1][1], bounds[( i >> 2 ) & 1][2] );
+		VectorClear( p );
+		for ( j = 0; j < 3; j++ ) {
+			VectorMA( p, c[j], axis[j], p );
+		}
+		AddPointToBounds( p, lo, hi );
+	}
+	if ( hi[1] <= lo[1] || hi[2] <= lo[2] ) {
+		return qfalse;
+	}
+	VectorAdd( lo, hi, mid );
+	VectorScale( mid, 0.5f, mid );
+	dist = 1.15f * MAX( ( hi[1] - lo[1] ) / 2 / tan( DEG2RAD( refdef.fov_x ) / 2 ),
+		( hi[2] - lo[2] ) / 2 / tan( DEG2RAD( refdef.fov_y ) / 2 ) ) + ( hi[0] - lo[0] ) / 2;
+
+	// turned more about its middle, which stays where it was framed
+	if ( swing ) {
+		vec3_t local;
+
+		VectorAdd( bounds[0], bounds[1], local );
+		VectorScale( local, 0.5f, local );
+		angles[YAW] += swing;
+		AnglesToAxis( angles, axis );
+		VectorClear( mid );
+		for ( j = 0; j < 3; j++ ) {
+			VectorMA( mid, local[j], axis[j], mid );
+		}
+	}
+	for ( i = 0; i < 3; i++ ) {
+		VectorScale( axis[i], scale, ent.axis[i] );
+	}
+	ent.nonNormalizedAxes = ( scale != 1.0f );
+	VectorSet( ent.origin, dist - mid[0], -mid[1], -mid[2] );
+	VectorCopy( ent.origin, ent.oldorigin );
+	VectorCopy( ent.origin, ent.lightingOrigin );
+	ent.renderfx = RF_LIGHTING_ORIGIN | RF_NOSHADOW;
+
+	DC->clearScene();
+	DC->addRefEntityToScene( &ent );
+	DC->renderScene( &refdef );
+	return qtrue;
+}
+
+/*
+================
 UI_InvDrawGrid
 
 The grid, square cells as big as the rect allows, each a cell picture (the
@@ -140,9 +235,10 @@ static void UI_InvDrawGrid( rectDef_t *rect, float scale, vec4_t color, qhandle_
 			DC->fillRect( rx, ry, rw, rh, hoverColor );
 		}
 
-		icon = UI_InvItemIcon( item );
-		if ( icon ) {
-			// square pictures, as big as the stack's cells allow
+		// its world model, the selected one turning; else its picture
+		if ( UI_InvDrawModel( ps->invItem[slot], rx, ry, rw, rh, rw > rh * 1.5f ? 80 : 210,
+				slot == sel ? 25 * sin( DC->realTime * 0.002 ) : 0 ) ) {
+		} else if ( ( icon = UI_InvItemIcon( item ) ) != 0 ) {
 			side = MIN( rw, rh );
 			DC->setColor( NULL );
 			DC->drawHandlePic( rx + ( rw - side ) / 2, ry + ( rh - side ) / 2, side, side, icon );
@@ -324,7 +420,7 @@ qboolean UI_InventoryOwnerDraw( int ownerDraw, rectDef_t *rect, float scale, vec
 			qhandle_t icon = UI_InvItemIcon( worn );
 			float side = rect->h;
 
-			if ( icon ) {
+			if ( !UI_InvDrawModel( ps->stats[STAT_ARMOR_ITEM], rect->x, rect->y, side, side, 210, 0 ) && icon ) {
 				DC->setColor( NULL );
 				DC->drawHandlePic( rect->x, rect->y, side, side, icon );
 			}
@@ -445,6 +541,35 @@ qboolean UI_InventoryHandleKey( int ownerDraw, int key ) {
 	default:
 		return qfalse;
 	}
+}
+
+/*
+================
+UI_InventoryBeltKey
+
+A key bound to "belt <key>" pressed on the screen puts the selected item on
+that key of the belt, Deus Ex's way, or takes it off when it's there.
+================
+*/
+qboolean UI_InventoryBeltKey( const char *binding ) {
+	const playerState_t *ps = UI_InvPlayerState();
+	int slot = UI_InvSelected();
+	int key;
+
+	if ( Q_stricmpn( binding, "belt ", 5 ) ) {
+		return qfalse;
+	}
+	key = atoi( binding + 5 );
+	if ( !ps || slot < 0 || key < 0 || key >= MAX_BELT_SLOTS ) {
+		return qtrue;
+	}
+	if ( ps->invBelt[( key + MAX_BELT_SLOTS - 1 ) % MAX_BELT_SLOTS] == ps->invItem[slot] ) {
+		trap_Cmd_ExecuteText( EXEC_APPEND, va( "invunbelt %d\n", key ) );
+	} else {
+		trap_Cmd_ExecuteText( EXEC_APPEND, va( "invbelt %d %d\n", key, slot ) );
+	}
+	DC->startLocalSound( DC->registerSound( "sounds/menus/button_006.wav", qfalse ), CHAN_LOCAL_SOUND );
+	return qtrue;
 }
 
 /*

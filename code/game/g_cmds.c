@@ -272,7 +272,8 @@ void Cmd_SpawnItem_f( gentity_t *ent ) {
 	it_ent->classname = it->classname;
 	G_SpawnItem( it_ent, it );
 	FinishSpawningItem( it_ent );
-	G_Printf( "spawnitem: %s is entity %d\n", it->classname, it_ent->s.number );
+	G_Printf( "spawnitem: %s is entity %d at %s, the player at %s\n", it->classname, it_ent->s.number,
+		vtos( it_ent->r.currentOrigin ), vtos( ent->r.currentOrigin ) );
 }
 
 /*

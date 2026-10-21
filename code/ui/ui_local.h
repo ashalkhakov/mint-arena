@@ -472,6 +472,7 @@ qboolean	UI_InventoryVisible( int *flags );
 qboolean	UI_InventoryHandleKey( int ownerDraw, int key );
 void		UI_InventoryCommand( const char *cmd );
 void		UI_InventoryOpen( void );
+qboolean	UI_InventoryBeltKey( const char *binding );
 int			UI_InvSelected( void );
 extern void			UI_ForceMenuOff (void);
 void UI_LoadBestScores(const char *map, int game);

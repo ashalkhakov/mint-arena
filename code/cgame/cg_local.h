@@ -1353,6 +1353,7 @@ typedef struct {
 	// parsed from serverinfo
 	char			gametypeName[MAX_NAME_LENGTH];
 	gametype_t		gametype;
+	qboolean		touchPickup;	// items are taken by walking over them, g_touchPickup (else by use, g_frob.c)
 	int				dmflags;
 	int				fraglimit;
 	int				capturelimit;
@@ -1433,6 +1434,7 @@ extern	vmCvar_t		cg_dedicated;
 
 extern	vmCvar_t		cg_centertime;
 extern	vmCvar_t		cg_weaponSelectTime;
+extern	vmCvar_t		cg_drawBelt;
 extern	vmCvar_t		cg_viewbob;
 extern	vmCvar_t		cg_viewkick;
 extern	vmCvar_t		cg_runpitch;

@@ -106,6 +106,16 @@ static qboolean Menu_OverActiveItem(menuDef_t *menu, float x, float y);
 static char		memoryPool[MEM_POOL_SIZE];
 static int		allocPoint, outOfMemory;
 
+// the items' fonts ("font <name> <size>"), one of each in the pool however
+// many items use it: a fontInfo_t is big
+#define MAX_ITEM_FONTS	32
+static struct {
+	char		name[MAX_QPATH];
+	int			pointSize;
+	fontInfo_t	*font;
+} itemFonts[MAX_ITEM_FONTS];
+static int		numItemFonts;
+
 
 /*
 ===============
@@ -139,6 +149,7 @@ UI_InitMemory
 void UI_InitMemory( void ) {
 	allocPoint = 0;
 	outOfMemory = qfalse;
+	numItemFonts = 0;
 }
 
 qboolean UI_OutOfMemory( void ) {
@@ -5045,16 +5056,28 @@ qboolean ItemParse_plaque_disabled( itemDef_t *item, int handle ) {
 // font <name> <pointSize>: the item's text in that font, whatever its scale
 qboolean ItemParse_font( itemDef_t *item, int handle ) {
 	const char *name;
-	int pointSize;
+	int pointSize, i;
 
 	if (!PC_String_Parse(handle, &name) || !PC_Int_Parse(handle, &pointSize)) {
 		return qfalse;
+	}
+	for ( i = 0; i < numItemFonts; i++ ) {
+		if ( itemFonts[i].pointSize == pointSize && !Q_stricmp( itemFonts[i].name, name ) ) {
+			item->font = itemFonts[i].font;
+			return qtrue;
+		}
 	}
 	item->font = UI_Alloc(sizeof(fontInfo_t));
 	if (!item->font) {
 		return qfalse;
 	}
 	DC->registerFont(name, pointSize, 0, qfalse, item->font);
+	if ( numItemFonts < MAX_ITEM_FONTS ) {
+		Q_strncpyz( itemFonts[numItemFonts].name, name, sizeof( itemFonts[numItemFonts].name ) );
+		itemFonts[numItemFonts].pointSize = pointSize;
+		itemFonts[numItemFonts].font = item->font;
+		numItemFonts++;
+	}
 	return qtrue;
 }
 

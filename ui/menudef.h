@@ -227,6 +227,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define CG_WEAPON_SELECTED 73			// the item's background when that weapon is selected
 #define CG_CENTERPRINT 74				// the centre print, a line at a time from the top of the rect
 #define CG_LEVEL_TIME 75				// the time since the level started, hh:mm:ss
+#define CG_BELT_ITEM 77					// the item on the belt's key the item's special numbers (1 to 9, 0): its model turning
+#define CG_BELT_COUNT 78				// how many of it: a weapon's ammo, else the items carried
+#define CG_BELT_SELECTED 79				// the item's background when it's the weapon in hand
 #define CG_FROB_HINT 76					// what use does to what's looked at; the item's ownerDrawParam says it: %k the key, %a the action, %n the thing
 
 

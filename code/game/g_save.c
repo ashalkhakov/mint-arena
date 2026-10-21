@@ -29,7 +29,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 
 #define PERSISTANT_FILE		"save/current.psw"
 #define PERSISTANT_MAGIC	0x50534b44		// "DKSP"
-#define PERSISTANT_VERSION	2		// 2: the inventory grid
+#define PERSISTANT_VERSION	3		// 2: the inventory grid, 3: the belt
 
 // what a player carries (bg_inventory.c)
 typedef struct {
@@ -38,6 +38,8 @@ typedef struct {
 	int		cell[MAX_INV_SLOTS];
 	int		value[MAX_INV_SLOTS];
 	int		flags[MAX_INV_SLOTS];
+	int		belt[MAX_BELT_SLOTS];
+	int		seen[MAX_ITEMS / 32];
 } savedInventory_t;
 
 static void G_SaveInventory( const gplayer_t *player, savedInventory_t *inv ) {
@@ -46,6 +48,8 @@ static void G_SaveInventory( const gplayer_t *player, savedInventory_t *inv ) {
 	memcpy( inv->cell, player->ps.invCell, sizeof( inv->cell ) );
 	memcpy( inv->value, player->ps.invValue, sizeof( inv->value ) );
 	memcpy( inv->flags, player->pers.invFlags, sizeof( inv->flags ) );
+	memcpy( inv->belt, player->ps.invBelt, sizeof( inv->belt ) );
+	memcpy( inv->seen, player->pers.invSeen, sizeof( inv->seen ) );
 }
 
 static void G_RestoreInventory( gplayer_t *player, const savedInventory_t *inv ) {
@@ -54,6 +58,8 @@ static void G_RestoreInventory( gplayer_t *player, const savedInventory_t *inv )
 	memcpy( player->ps.invCell, inv->cell, sizeof( inv->cell ) );
 	memcpy( player->ps.invValue, inv->value, sizeof( inv->value ) );
 	memcpy( player->pers.invFlags, inv->flags, sizeof( inv->flags ) );
+	memcpy( player->ps.invBelt, inv->belt, sizeof( inv->belt ) );
+	memcpy( player->pers.invSeen, inv->seen, sizeof( inv->seen ) );
 }
 
 // what a player takes along
@@ -199,7 +205,7 @@ typedef struct {
 #include "g_funcs.h"		// made by code/tools/extractfuncs.py
 
 #define SAVEGAME_MAGIC		0x47534b44		// "DKSG"
-#define SAVEGAME_VERSION	3		// 2: the scripts' (g_script.c), 3: the inventory grid
+#define SAVEGAME_VERSION	4		// 2: the scripts' (g_script.c), 3: the inventory grid, 4: the belt
 #define MAX_SAVEGAME_SIZE	( 8 << 20 )
 
 typedef enum {

@@ -1591,6 +1591,47 @@ static void CG_Inventory_f( int localPlayerNum ) {
 	UI_SetActiveMenu( UIMENU_INVENTORY );
 }
 
+/*
+=================
+CG_Belt_f
+
+belt <key>: the quick-use belt's item on that key (1 to 9, 0), Deus Ex's:
+a weapon is taken in hand here, anything else is used by the game
+(g_inventory.c).
+=================
+*/
+static void CG_Belt_f( int localPlayerNum ) {
+	localPlayer_t	*player = &cg.localPlayers[localPlayerNum];
+	playerState_t	*ps;
+	const gitem_t	*item;
+	int				key, n;
+
+	if ( player->playerNum == -1 || !cg.snap ) {
+		return;
+	}
+	ps = &cg.snap->pss[localPlayerNum];
+	if ( ps->pm_flags & PMF_FOLLOW ) {
+		return;
+	}
+	key = atoi( CG_Argv( 1 ) );
+	if ( key < 0 || key >= MAX_BELT_SLOTS ) {
+		return;
+	}
+	player->weaponSelectTime = cg.time;		// the belt shows
+	n = ps->invBelt[( key + MAX_BELT_SLOTS - 1 ) % MAX_BELT_SLOTS];
+	if ( !n ) {
+		return;
+	}
+	item = BG_ItemForItemNum( n );
+	if ( item->giType == IT_WEAPON ) {
+		if ( BG_HasWeapon( ps, item->giTag ) ) {
+			player->weaponSelect = item->giTag;
+		}
+		return;
+	}
+	trap_SendClientCommand( va( "%s %s", Com_LocalPlayerCvarName( localPlayerNum, "invuse" ), item->classname ) );
+}
+
 static consoleCommand_t	cg_commands[] = {
 	{ "+vstr", CG_VstrDown_f, 0, CG_VstrComplete },
 	{ "-vstr", CG_VstrUp_f, 0, CG_VstrComplete },
@@ -1802,6 +1843,9 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "invdropworn", CG_ForwardToServer_f, CMD_INGAME },
 	{ "invquick", CG_ForwardToServer_f, CMD_INGAME },
 	{ "invlist", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invbelt", CG_ForwardToServer_f, CMD_INGAME },
+	{ "invunbelt", CG_ForwardToServer_f, CMD_INGAME },
+	{ "belt", CG_Belt_f, CMD_INGAME },
 	{ "stats", CG_ForwardToServer_f, CMD_INGAME },
 	// physics props, see g_physics.c
 	{ "prop", CG_ForwardToServer_f, CMD_INGAME, CG_PropShapeComplete },

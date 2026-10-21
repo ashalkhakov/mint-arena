@@ -392,6 +392,10 @@ static void CG_TouchItem( centity_t *cent ) {
 	if ( !cg_predictItems.integer ) {
 		return;
 	}
+	// items are taken by use, not touched (g_frob.c): nothing to predict
+	if ( !cgs.touchPickup ) {
+		return;
+	}
 	if ( !BG_PlayerTouchesItem( &cg.cur_lc->predictedPlayerState, &cent->currentState, cg.time ) ) {
 		return;
 	}

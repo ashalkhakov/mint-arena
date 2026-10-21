@@ -912,6 +912,107 @@ static void CG_DrawWeaponSelected( rectDef_t *rect, int slot, vec4_t color, qhan
 	trap_R_SetColor( NULL );
 }
 
+/*
+==============
+The belt
+
+The quick-use belt (g_inventory.c) in a menu script, Deus Ex's: each owner
+draw takes its key (1 to 9, 0) from the item's special.
+==============
+*/
+static int CG_BeltItem( int key ) {
+	if ( key < 0 || key >= MAX_BELT_SLOTS ) {
+		return 0;
+	}
+	return cg.cur_ps->invBelt[( key + MAX_BELT_SLOTS - 1 ) % MAX_BELT_SLOTS];
+}
+
+// the item's model turning on the rect's middle; a weapon's own model
+static void CG_DrawBeltItem( rectDef_t *rect, int key ) {
+	const gitem_t	*item;
+	vec3_t			mins, maxs, center, origin, angles, axis[3];
+	float			radius, size;
+	qhandle_t		model;
+	int				n;
+
+	n = CG_BeltItem( key );
+	if ( !n ) {
+		return;
+	}
+	item = BG_ItemForItemNum( n );
+	if ( item->giType == IT_WEAPON && BG_ValidWeapon( item->giTag ) ) {
+		CG_RegisterWeapon( item->giTag );
+		model = cg_weapons[item->giTag].weaponModel;
+	} else {
+		if ( !cg_items[n].registered ) {
+			CG_RegisterItemVisuals( n );
+		}
+		model = cg_items[n].models[0];
+	}
+	if ( !model ) {
+		return;
+	}
+
+	trap_R_ModelBounds( model, mins, maxs, 0, 0, 0 );
+	VectorAdd( mins, maxs, center );
+	VectorScale( center, 0.5f, center );
+	radius = 0.5f * Distance( mins, maxs );
+
+	VectorSet( angles, 0, cg.time * 0.12f, item->giType == IT_WEAPON ? -45 : 0 );
+	AnglesToAxis( angles, axis );
+	VectorSet( origin, radius / 0.268f, 0, 0 );	// radius / tan( fov/2 )
+	VectorMA( origin, -center[0], axis[0], origin );
+	VectorMA( origin, -center[1], axis[1], origin );
+	VectorMA( origin, -center[2], axis[2], origin );
+
+	size = MAX( rect->w, rect->h );
+	CG_Draw3DModel( rect->x + ( rect->w - size ) / 2, rect->y + ( rect->h - size ) / 2, size, size,
+		model, NULL, origin, angles );
+}
+
+// a weapon's ammo, how many of anything else
+static void CG_DrawBeltCount( rectDef_t *rect, int key, float scale, vec4_t color, int textStyle ) {
+	const gitem_t	*item;
+	char	num[16];
+	int		n, value;
+
+	n = CG_BeltItem( key );
+	if ( !n ) {
+		return;
+	}
+	item = BG_ItemForItemNum( n );
+	if ( item->giType == IT_WEAPON ) {
+		if ( !BG_ValidWeapon( item->giTag ) || BG_Weapon( item->giTag )->ammoRequired <= 0 ) {
+			return;
+		}
+		value = cg.cur_ps->ammo[item->giTag];
+	} else {
+		value = BG_InvCount( cg.cur_ps, n );
+	}
+	if ( value < 0 ) {
+		return;
+	}
+	Com_sprintf( num, sizeof( num ), "%i", value );
+	CG_Text_Paint( rect->x + ( rect->w - CG_Text_Width( num, scale, 0 ) ) / 2, rect->y + rect->h, scale, color, num, 0, 0, textStyle );
+}
+
+// the item's background when the key's item is the weapon in hand
+static void CG_DrawBeltSelected( rectDef_t *rect, int key, vec4_t color, qhandle_t shader ) {
+	int n = CG_BeltItem( key );
+	const gitem_t *item;
+
+	if ( !shader || !n ) {
+		return;
+	}
+	item = BG_ItemForItemNum( n );
+	if ( item->giType != IT_WEAPON || item->giTag != cg.cur_lc->weaponSelect ) {
+		return;
+	}
+	trap_R_SetColor( color );
+	CG_DrawPic( rect->x, rect->y, rect->w, rect->h, shader );
+	trap_R_SetColor( NULL );
+}
+
 // the time since the level started, hh:mm:ss
 static void CG_DrawLevelTime( rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
 	int		seconds;
@@ -2157,6 +2258,15 @@ void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y
 		break;
 	case CG_WEAPON_SELECTED:
 		CG_DrawWeaponSelected(&rect, (int)special, color, shader);
+		break;
+	case CG_BELT_ITEM:
+		CG_DrawBeltItem(&rect, (int)special);
+		break;
+	case CG_BELT_COUNT:
+		CG_DrawBeltCount(&rect, (int)special, scale, color, textStyle);
+		break;
+	case CG_BELT_SELECTED:
+		CG_DrawBeltSelected(&rect, (int)special, color, shader);
 		break;
 	case CG_CENTERPRINT:
 		CG_DrawCenterPrintText(&rect, scale, color, textStyle);

@@ -60,6 +60,9 @@ static void G_InventoryFindWeaponItems( void ) {
 	g_weaponItemsFound = qtrue;
 }
 
+static qboolean G_InventorySlotValid( gentity_t *ent, int slot );
+static void G_InventoryBeltSync( gentity_t *ent );
+
 /*
 ================
 G_InventorySpawn
@@ -88,6 +91,7 @@ void G_InventorySpawn( gentity_t *ent, const int *savedItem, const int *savedCou
 	} else {
 		BG_InvClear( &player->ps );
 		memset( player->pers.invFlags, 0, sizeof( player->pers.invFlags ) );
+		memset( player->pers.invSeen, 0, sizeof( player->pers.invSeen ) );
 	}
 	player->ps.stats[STAT_ARMOR_ITEM] = 0;
 	player->ps.stats[STAT_ARMOR] = 0;
@@ -135,6 +139,103 @@ void G_InventorySync( gentity_t *ent ) {
 			}
 		}
 	}
+
+	G_InventoryBeltSync( ent );
+}
+
+/*
+================
+G_InventoryBeltSync
+
+The quick-use belt, as Deus Ex's: an item that leaves the inventory leaves
+the belt; one newly carried that can be used goes on it, a weapon at its
+"weapon_slot" key when that's free, anything else at the first free key.
+================
+*/
+static void G_InventoryBeltSync( gentity_t *ent ) {
+	playerState_t *ps = &ent->player->ps;
+	int *seen = ent->player->pers.invSeen;
+	int carried[MAX_ITEMS / 32];
+	int i, n, slot, key;
+	gitem_t *item;
+
+	memset( carried, 0, sizeof( carried ) );
+	for ( slot = 0; slot < MAX_INV_SLOTS; slot++ ) {
+		n = ps->invItem[slot];
+		if ( n > 0 && n < MAX_ITEMS ) {
+			carried[n >> 5] |= 1 << ( n & 31 );
+		}
+	}
+
+	for ( i = 0; i < MAX_BELT_SLOTS; i++ ) {
+		n = ps->invBelt[i];
+		if ( n <= 0 || n >= MAX_ITEMS || !( carried[n >> 5] & ( 1 << ( n & 31 ) ) ) ) {
+			ps->invBelt[i] = 0;
+		}
+	}
+
+	for ( n = 1; n < bg_numItems && n < MAX_ITEMS; n++ ) {
+		if ( !( carried[n >> 5] & ( 1 << ( n & 31 ) ) ) || ( seen[n >> 5] & ( 1 << ( n & 31 ) ) ) ) {
+			continue;
+		}
+		item = BG_ItemForItemNum( n );
+		if ( item->invCategory != INVCAT_WEAPONS && item->invCategory != INVCAT_HEALTH
+			&& item->invCategory != INVCAT_ARTIFACTS ) {
+			continue;
+		}
+		for ( i = 0; i < MAX_BELT_SLOTS && ps->invBelt[i] != n; i++ ) {
+		}
+		if ( i < MAX_BELT_SLOTS ) {
+			continue;		// on it already
+		}
+		key = -1;
+		if ( item->giType == IT_WEAPON && BG_ValidWeapon( item->giTag ) ) {
+			i = ( BG_Weapon( item->giTag )->slot + MAX_BELT_SLOTS - 1 ) % MAX_BELT_SLOTS;
+			if ( BG_Weapon( item->giTag )->slot > 0 && !ps->invBelt[i] ) {
+				key = i;
+			}
+		}
+		for ( i = 0; key < 0 && i < MAX_BELT_SLOTS; i++ ) {
+			if ( !ps->invBelt[i] ) {
+				key = i;
+			}
+		}
+		if ( key >= 0 ) {
+			ps->invBelt[key] = n;
+		}
+	}
+
+	memcpy( seen, carried, sizeof( carried ) );
+}
+
+/*
+================
+G_InventoryBelt
+
+Puts an inventory slot's item on a key of the belt (0 for key 1 ... 9 for
+key 0), taking it off any other; a slot below 0 empties the key.
+================
+*/
+static void G_InventoryBelt( gentity_t *ent, int key, int slot ) {
+	playerState_t *ps = &ent->player->ps;
+	int i;
+
+	if ( key < 0 || key >= MAX_BELT_SLOTS ) {
+		return;
+	}
+	if ( slot < 0 ) {
+		ps->invBelt[key] = 0;
+		return;
+	}
+	if ( !G_InventorySlotValid( ent, slot ) ) {
+		return;
+	}
+	for ( i = 0; i < MAX_BELT_SLOTS; i++ ) {
+		if ( ps->invBelt[i] == ps->invItem[slot] ) {
+			ps->invBelt[i] = 0;
+		}
+	}
+	ps->invBelt[key] = ps->invItem[slot];
 }
 
 /*
@@ -650,7 +751,8 @@ Cmd_Inventory_f
 The inventory's commands, for the inventory screen and binds:
   invuse <slot>, invwear <slot>, invremove, invdrop <slot> [count],
   (a slot by its number or by an item's def name)
-  invdropworn, invquick <category>, invlist
+  invdropworn, invquick <category>, invlist,
+  invbelt <key> <slot>, invunbelt <key> (keys 1 to 9 and 0)
 ================
 */
 void Cmd_Inventory_f( gentity_t *ent, const char *cmd ) {
@@ -667,6 +769,12 @@ void Cmd_Inventory_f( gentity_t *ent, const char *cmd ) {
 	} else if ( !Q_stricmp( cmd, "invdrop" ) ) {
 		trap_Argv( 2, buf, sizeof( buf ) );
 		G_InventoryDrop( ent, G_InventorySlotArg( ent, 1 ), atoi( buf ) );
+	} else if ( !Q_stricmp( cmd, "invbelt" ) ) {
+		trap_Argv( 1, buf, sizeof( buf ) );
+		G_InventoryBelt( ent, ( atoi( buf ) + MAX_BELT_SLOTS - 1 ) % MAX_BELT_SLOTS, G_InventorySlotArg( ent, 2 ) );
+	} else if ( !Q_stricmp( cmd, "invunbelt" ) ) {
+		trap_Argv( 1, buf, sizeof( buf ) );
+		G_InventoryBelt( ent, ( atoi( buf ) + MAX_BELT_SLOTS - 1 ) % MAX_BELT_SLOTS, -1 );
 	} else if ( !Q_stricmp( cmd, "invdropworn" ) ) {
 		G_InventoryDropWorn( ent );
 	} else if ( !Q_stricmp( cmd, "invquick" ) ) {
@@ -697,6 +805,11 @@ void Cmd_Inventory_f( gentity_t *ent, const char *cmd ) {
 			BG_InvSlotRect( ps, slot, &x, &y, &w, &h );
 			G_Printf( "  slot %d: %s x%d value %d at %d,%d size %dx%d\n", slot,
 				BG_ItemForItemNum( ps->invItem[slot] )->classname, ps->invCount[slot], ps->invValue[slot], x, y, w, h );
+		}
+		for ( i = 0; i < MAX_BELT_SLOTS; i++ ) {
+			if ( ps->invBelt[i] ) {
+				G_Printf( "  belt %d: %s\n", ( i + 1 ) % MAX_BELT_SLOTS, BG_ItemForItemNum( ps->invBelt[i] )->classname );
+			}
 		}
 	}
 }

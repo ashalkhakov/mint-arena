@@ -1158,6 +1158,7 @@ void PlayerSpawn(gentity_t *ent) {
 	int		accuracy_hits, accuracy_shots;
 	int		eventSequence;
 	int		invItem[MAX_INV_SLOTS], invCount[MAX_INV_SLOTS], invCell[MAX_INV_SLOTS], invValue[MAX_INV_SLOTS];
+	int		invBelt[MAX_BELT_SLOTS];
 
 	index = ent - g_entities;
 	player = ent->player;
@@ -1211,6 +1212,7 @@ void PlayerSpawn(gentity_t *ent) {
 	memcpy( invCount, player->ps.invCount, sizeof( invCount ) );
 	memcpy( invCell, player->ps.invCell, sizeof( invCell ) );
 	memcpy( invValue, player->ps.invValue, sizeof( invValue ) );
+	memcpy( invBelt, player->ps.invBelt, sizeof( invBelt ) );
 
 	Com_Memset (player, 0, sizeof(*player));
 
@@ -1257,6 +1259,7 @@ void PlayerSpawn(gentity_t *ent) {
 
 	// the inventory: kept in the campaign, emptied elsewhere (g_inventory.c)
 	G_InventorySpawn( ent, invItem, invCount, invCell, invValue );
+	memcpy( player->ps.invBelt, invBelt, sizeof( invBelt ) );	// the player's choice, kept everywhere
 
 	G_GiveStartWeapons( player );
 

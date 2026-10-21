@@ -2839,15 +2839,20 @@ void CG_DrawTimedMenus( qboolean *voiceMenuOpen ) {
 CG_DrawHudWeaponSelect
 
 A HUD with a weaponselect_menu shows it for cg_weaponSelectTime after a
-weapon change instead of Quake 3's row of icons (CG_WEAPON_* owner draws).
+weapon change or a use of the belt instead of Quake 3's row of icons
+(CG_WEAPON_* and CG_BELT_* owner draws); always with cg_drawBelt 1 and
+while the inventory screen is open.
 =================
 */
 static void CG_DrawHudWeaponSelect( void ) {
 #ifdef MISSIONPACK_HUD
 	menuDef_t *menu = Menus_FindByName( "weaponselect_menu" );
+	menuDef_t *inventory = Menus_FindByName( "inventory" );
 
 	if ( menu ) {
-		if ( cg.cur_lc->weaponSelectTime && cg.time - cg.cur_lc->weaponSelectTime < cg_weaponSelectTime.integer ) {
+		if ( cg_drawBelt.integer
+			|| ( inventory && ( inventory->window.flags & WINDOW_VISIBLE ) && ( Key_GetCatcher() & KEYCATCH_UI ) )
+			|| ( cg.cur_lc->weaponSelectTime && cg.time - cg.cur_lc->weaponSelectTime < cg_weaponSelectTime.integer ) ) {
 			Menu_Paint( menu, qtrue );
 		}
 		return;

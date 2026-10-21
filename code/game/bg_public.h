@@ -327,6 +327,7 @@ typedef enum {
 
 #define	MAX_INV_SLOTS			64		// item stacks in the inventory grid
 #define	INV_GRID_BITS			4		// cells per side up to 1 << INV_GRID_BITS
+#define	MAX_BELT_SLOTS			10		// the quick-use belt, keys 1 to 0
 
 #define PS_PMOVEFRAMECOUNTBITS	6
 
@@ -437,6 +438,7 @@ typedef struct playerState_s {
 	int			invCount[MAX_INV_SLOTS];	// how many in the stack
 	int			invCell[MAX_INV_SLOTS];		// its top left cell, x | y << 4
 	int			invValue[MAX_INV_SLOTS];	// the item's own state: an armor suit's points
+	int			invBelt[MAX_BELT_SLOTS];	// the quick-use belt: an item number for each key, 0 for none
 
 	int			tokens;			// harvester skulls
 	int			loopSound;

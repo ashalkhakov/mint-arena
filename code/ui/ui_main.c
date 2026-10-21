@@ -4914,6 +4914,10 @@ void UI_KeyEvent( int key, qboolean down ) {
 					UI_ForceMenuOff();
 					return;
 				}
+				// a belt key puts the selected item on the belt
+				if ( UI_InventoryBeltKey( binding ) ) {
+					return;
+				}
 			}
 			if (key == K_ESCAPE && down && !Menus_AnyFullScreenVisible()) {
 				Menus_CloseAll();

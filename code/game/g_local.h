@@ -395,6 +395,7 @@ typedef struct {
 	int			teamVoteCount;		// to prevent people from constantly calling votes
 	qboolean	teamInfo;			// send team overlay updates?
 	// the campaign's
+	int				invSeen[MAX_ITEMS / 32];	// the items carried at the last sync, for the belt (g_inventory.c)
 	int				invFlags[MAX_INV_SLOTS];	// Daikatana's key flags of the inventory's slots (KEY_USE_ONCE...)
 	qboolean	persistantLoaded;		// what the last map gave them is theirs (G_LoadPersistant)
 	int			persistantWeapon;		// the weapon they had up there

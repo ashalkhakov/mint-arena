@@ -867,20 +867,29 @@ static qboolean PM_LadderAhead( const vec3_t origin, const vec3_t dir, float dis
 PM_LadderNear
 
 A ladder +activate can take hold of: within LADDER_USE_REACH of the box,
-along the view or LADDER_USE_ANGLE to either side.
+along the view or LADDER_USE_ANGLE to either side, reaching up to the
+middle of the body.
 =============
 */
 static qboolean PM_LadderNear( trace_t *tr ) {
 	static const float turns[3] = { 0, LADDER_USE_ANGLE, -LADDER_USE_ANGLE };
-	vec3_t dir;
+	vec3_t dir, mins, maxs, end;
 	float yaw;
 	int i;
 
+	// at the middle of the body: a ladder ending at the feet (one stood on
+	// over its top end) is one to climb down, not up
+	VectorSet( mins, pm->ps->mins[0], pm->ps->mins[1], -4 );
+	VectorSet( maxs, pm->ps->maxs[0], pm->ps->maxs[1], 4 );
 	for ( i = 0; i < 3; i++ ) {
 		yaw = DEG2RAD( pm->ps->viewangles[YAW] + turns[i] );
 		VectorSet( dir, cos( yaw ), sin( yaw ), 0 );
-		if ( PM_LadderAhead( pm->ps->origin, dir, LADDER_USE_REACH, tr ) ) {
-			return qtrue;
+		VectorMA( pm->ps->origin, LADDER_USE_REACH, dir, end );
+		pm->trace( tr, pm->ps->origin, mins, maxs, end, pm->ps->playerNum, MASK_PLAYERSOLID );
+		if ( tr->fraction < 1 && !tr->startsolid && ( tr->surfaceFlags & SURF_LADDER ) ) {
+			// up against it with the whole box
+			VectorMA( pm->ps->origin, LADDER_USE_REACH * tr->fraction, dir, end );
+			return PM_LadderAhead( pm->ps->origin, dir, LADDER_USE_REACH, tr );
 		}
 	}
 	return qfalse;
