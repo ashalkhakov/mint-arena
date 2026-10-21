@@ -127,7 +127,7 @@ void G_CharacterRecord( gentity_t *ent ) {
 		st->movementDir = ( ent->s.eFlags & EF_DEAD ) ? 0 : ent->player->ps.movementDir;
 		st->onGround = ent->player->ps.groundEntityNum != ENTITYNUM_NONE && !( ent->s.eFlags & EF_DEAD );
 	} else {
-		BG_AnimChannelsFromState( h->channels, ent->s.legsAnim, ent->s.time, ent->s.torsoAnim, ent->s.time2 );
+		BG_AnimChannelsFromState( h->channels, ent->s.legsAnim, ent->s.time, CHARACTER_LEGS_RATE( &ent->s ), ent->s.torsoAnim, ent->s.time2 );
 		VectorCopy( ent->r.currentAngles, st->angles );
 	}
 	memcpy( st->channels, h->channels, sizeof( st->channels ) );

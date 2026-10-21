@@ -129,7 +129,7 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	VectorSet( rd->af.physics.gravityVector, 0, 0, -g_gravity.value );
 
 	// the pose it has
-	BG_AnimChannelsFromState( channels, ent->s.legsAnim, ent->s.time, ent->s.torsoAnim, ent->s.time2 );
+	BG_AnimChannelsFromState( channels, ent->s.legsAnim, ent->s.time, CHARACTER_LEGS_RATE( &ent->s ), ent->s.torsoAnim, ent->s.time2 );
 	numJoints = BG_ModelPose( model, ent->characterModel, channels, level.time, pose );
 	if ( numJoints <= 0 ) {
 		G_FreeRagdoll( ent );

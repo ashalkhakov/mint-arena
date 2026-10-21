@@ -1408,7 +1408,8 @@ void		BG_ModelFrame( const bgModel_t *model, int animNum, int animTime, int time
 						   int *frame, int *oldFrame, float *backlerp, int *animFrame );
 int			BG_ModelJointIndex( const bgModel_t *model, const char *name );
 void		BG_AnimChannelPlay( bgAnimChannel_t *channel, int anim, int time );
-void		BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int legsTime, int torsoAnim, int torsoTime );
+void		BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int legsTime, float legsRate, int torsoAnim, int torsoTime );
+#define		CHARACTER_LEGS_RATE( s )	( (s)->frame > 0 ? (s)->frame / 16.0f : 1.0f )	// an ET_CHARACTER's legs rate, in s.frame (sixteenths)
 struct skeletonBlend_s;
 int			BG_ModelSkeletonBlends( const bgModel_t *model, const bgAnimChannel_t *channels, int time, void *blends, int maxBlends );
 int			BG_ModelPose( const bgModel_t *model, qhandle_t hModel, const bgAnimChannel_t *channels, int time, float *jointMats );

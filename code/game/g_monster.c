@@ -832,6 +832,45 @@ static void G_MonsterFlyMove( gentity_t *ent, float dt ) {
 
 /*
 ================
+G_MonsterLegsRate
+
+its legs' animation, if it goes over the ground (a walk, a run: "anim_speed"),
+played as much faster as it's moving faster than that, so its feet keep to
+the ground (as a player's: BG_PlayerLegsRate). The animation's time is moved
+so a change doesn't jump its frame
+================
+*/
+static void G_MonsterLegsRate( gentity_t *ent ) {
+	const bgModel_t	*model;
+	const bgAnim_t	*anim;
+	float			speed, rate, old;
+	int				q;
+
+	if ( !BG_ValidModel( ent->s.modelindex2 ) ) {
+		return;
+	}
+	model = &bg_models[ent->s.modelindex2];
+	if ( ent->s.legsAnim < 0 || ent->s.legsAnim >= model->numAnims ) {
+		return;
+	}
+	anim = &model->anims[ent->s.legsAnim];
+	rate = 1.0f;
+	speed = sqrt( ent->monster.velocity[0] * ent->monster.velocity[0] + ent->monster.velocity[1] * ent->monster.velocity[1] );
+	if ( anim->speed > 0 && anim->loop && speed > 1 ) {
+		rate = Com_Clamp( 0.5f, 3.0f, speed / anim->speed );
+	}
+	q = (int)( rate * 16 + 0.5f );
+	if ( q == ( ent->s.frame > 0 ? ent->s.frame : 16 ) ) {
+		return;
+	}
+	old = CHARACTER_LEGS_RATE( &ent->s );
+	ent->s.time = level.time - (int)( ( level.time - ent->s.time ) * old / ( q / 16.0f ) );
+	ent->s.frame = q == 16 ? 0 : q;
+	G_CharacterRecord( ent );
+}
+
+/*
+================
 G_MonsterTurn
 
 toward what it faces, at its turn rate; a flyer pitches with its climb and
@@ -1038,6 +1077,7 @@ void G_MonsterThink( gentity_t *ent ) {
 		G_MonsterGroundMove( ent, dt );
 	}
 	G_MonsterTurn( ent, dt );
+	G_MonsterLegsRate( ent );
 	ent->s.pos.trType = TR_INTERPOLATE;		// (G_SetOrigin makes it stationary)
 	ent->s.apos.trType = TR_INTERPOLATE;
 

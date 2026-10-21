@@ -650,12 +650,14 @@ void BG_AnimChannelPlay( bgAnimChannel_t *channel, int anim, int time ) {
 ================
 BG_AnimChannelsFromState
 
-The channels of an entity's legsAnim/time (the legs) and torsoAnim/time2
+The channels of an entity's legsAnim/time (the legs, played legsRate
+faster: a character's walk to how fast it goes, 0 as 1) and torsoAnim/time2
 (the torso, 0 for none, else the animation plus one).
 ================
 */
-void BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int legsTime, int torsoAnim, int torsoTime ) {
+void BG_AnimChannelsFromState( bgAnimChannel_t *channels, int legsAnim, int legsTime, float legsRate, int torsoAnim, int torsoTime ) {
 	BG_AnimChannelPlay( &channels[ANIMCHANNEL_LEGS], legsAnim, legsTime );
+	channels[ANIMCHANNEL_LEGS].rate = legsRate > 0 ? legsRate : 1.0f;
 	BG_AnimChannelPlay( &channels[ANIMCHANNEL_TORSO], torsoAnim > 0 ? torsoAnim - 1 : -1, torsoAnim > 0 ? torsoTime : 0 );
 }
 

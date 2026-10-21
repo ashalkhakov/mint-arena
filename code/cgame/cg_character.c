@@ -577,7 +577,7 @@ void CG_Character( centity_t *cent ) {
 		ent.nonNormalizedAxes = qtrue;
 	}
 
-	BG_AnimChannelsFromState( cent->characterChannels, s1->legsAnim, s1->time, s1->torsoAnim, s1->time2 );
+	BG_AnimChannelsFromState( cent->characterChannels, s1->legsAnim, s1->time, CHARACTER_LEGS_RATE( s1 ), s1->torsoAnim, s1->time2 );
 	// the legs' frames for the bounds, the blended skeleton to draw
 	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, NULL );
 	numJoints = BG_ModelPose( model, ent.hModel, cent->characterChannels, cg.time, joints );
