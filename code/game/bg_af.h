@@ -374,7 +374,7 @@ typedef struct {
 } afJointModInfo_t;
 
 // idAF: the figure of a skeletal model (bg_model.c)
-typedef struct {
+typedef struct afFigure_s {
 	const afDecl_t		*decl;
 	const bgModel_t		*model;
 	afPhysics_t			physics;
@@ -395,5 +395,11 @@ void		BG_AFChangePose( afFigure_t *af, const float *jointMats, const vec3_t orig
 void		BG_AFTestSolid( afFigure_t *af );
 void		BG_AFStart( afFigure_t *af, int time );
 void		BG_AFPose( const afFigure_t *af, float *jointMats, vec3_t origin, vec3_t axis[3] );
+
+// bg_snapshot.c: a figure in an entity's snapshot words (Doom 3's
+// idPhysics_AF::WriteToSnapshot): the first body's origin goes in pos, the
+// bodies' orientations in the words; enough for BG_AFPose
+void		BG_WriteAFSnapshot( const afFigure_t *af, entityState_t *es );
+qboolean	BG_ReadAFSnapshot( afFigure_t *af, const entityState_t *es, const entityState_t *next, float frac, const vec3_t origin );
 
 #endif /* !__BG_AF_H__ */

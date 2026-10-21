@@ -214,6 +214,7 @@ struct gentity_s {
 	int				characterDef;		// a skeletal character's model def (bg_models), ET_CHARACTER or a player
 	qhandle_t		characterModel;		// its mesh with the server's renderer, for the joints
 	struct characterHistory_s	*characterHistory;	// its animation and place the last frames
+	struct gRagdoll_s	*ragdoll;			// gone limp: its articulated figure (g_ragdoll.c)
 	struct rigidBody_s	*body;			// physics props, see g_physics.c
 	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
 };
@@ -755,6 +756,14 @@ void Svcmd_AbortPodium_f( void );
 //
 // g_world.c
 //
+//
+// g_ragdoll.c
+//
+qboolean	G_StartRagdoll( gentity_t *ent );
+void		G_RunRagdoll( gentity_t *ent );
+void		G_RagdollImpulse( gentity_t *ent, const vec3_t point, const vec3_t impulse );
+void		G_FreeRagdoll( gentity_t *ent );
+
 extern clip_t g_clip;
 
 void G_SectorList_f( void );
@@ -843,6 +852,7 @@ extern	vmCvar_t	g_inactivity;
 extern	vmCvar_t	g_debugMove;
 extern	vmCvar_t	g_debugDamage;
 extern	vmCvar_t	g_debugHitboxes;
+extern	vmCvar_t	g_ragdollPush;
 extern	vmCvar_t	g_weaponRespawn;
 extern	vmCvar_t	g_weaponTeamRespawn;
 extern	vmCvar_t	g_synchronousClients;

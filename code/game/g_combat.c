@@ -967,6 +967,17 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		knockback = 0;
 	}
 
+	// ragdolls take the push (Doom 3's idAFEntity_Base::Damage), and nothing else
+	if ( targ->ragdoll ) {
+		if ( dir && point && knockback ) {
+			vec3_t impulse;
+
+			VectorScale( dir, knockback * g_ragdollPush.value, impulse );
+			G_RagdollImpulse( targ, point, impulse );
+		}
+		return;
+	}
+
 	// physics props take the push, and damage only when they can break
 	if ( targ->body ) {
 		G_PhysicsDamage( targ, inflictor, dir, point, knockback, dflags );

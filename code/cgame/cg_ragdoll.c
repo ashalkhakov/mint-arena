@@ -37,6 +37,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 
 typedef struct {
 	qboolean	inUse;
+	qboolean	server;					// the server runs it: its bodies come in the snapshots
 	int			entityNum;				// whose it is
 	int			playerNum;
 	int			modelDef;
@@ -377,5 +378,58 @@ qboolean CG_Ragdoll( centity_t *cent, int modelDef, refEntity_t *legs, float *jo
 	if ( cg_drawRagdolls.integer ) {
 		AF_DebugDraw( &rd->af.physics, CG_RagdollDebugLine );
 	}
+	return qtrue;
+}
+
+/*
+================
+CG_ServerRagdoll
+
+An entity whose snapshot holds an articulated figure (the server's
+ragdoll, bg_snapshot.c): the model's pose from its bodies, interpolated
+between snapshots; qfalse when it holds none.
+================
+*/
+qboolean CG_ServerRagdoll( centity_t *cent, int modelDef, refEntity_t *ent, float *jointMats, int numJoints ) {
+	const bgModel_t *model = &bg_models[modelDef];
+	const afDecl_t *decl;
+	float bindPose[MAX_MODEL_JOINTS * 12];
+	ragdoll_t *rd;
+
+	if ( ( cent->currentState.snapshot[0] & 0xff ) != SNAPSHOT_AF || !model->ragdoll[0] || numJoints <= 0 ) {
+		return qfalse;
+	}
+
+	rd = CG_RagdollForEntity( cent->currentState.number );
+	if ( rd && ( !rd->server || rd->modelDef != modelDef ) ) {
+		rd->inUse = qfalse;
+		rd = NULL;
+	}
+	if ( !rd ) {
+		decl = BG_FindAFDecl( model->ragdoll );
+		if ( !decl ) {
+			return qfalse;
+		}
+		rd = CG_AllocRagdoll();
+		memset( rd, 0, sizeof( *rd ) );
+		BG_ModelBindPose( model, bindPose );
+		if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints ) ) {
+			return qfalse;
+		}
+		rd->inUse = qtrue;
+		rd->server = qtrue;
+		rd->entityNum = cent->currentState.number;
+		rd->playerNum = -1;
+		rd->modelDef = modelDef;
+	}
+	rd->lastSeen = cg.time;
+
+	if ( !BG_ReadAFSnapshot( &rd->af, &cent->currentState, cent->interpolate ? &cent->nextState : NULL,
+							 cg.frameInterpolation, cent->lerpOrigin ) ) {
+		return qfalse;
+	}
+	BG_AFPose( &rd->af, jointMats, ent->origin, ent->axis );
+	VectorCopy( ent->origin, ent->oldorigin );
+	VectorCopy( ent->origin, ent->lightingOrigin );
 	return qtrue;
 }

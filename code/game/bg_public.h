@@ -222,6 +222,8 @@ Add new fields to bg_entityStateFields / bg_playerStateFields in bg_misc.c
 // The messages are delta compressed, so it doesn't really matter if
 // the structure size is fairly large
 
+#define	ES_SNAPSHOT_WORDS		16		// 512 bits
+
 typedef struct entityState_s {
 	int		number;			// entity index
 
@@ -282,7 +284,31 @@ typedef struct entityState_s {
 	int		torsoAnim;		// mask off ANIM_TOGGLEBIT
 	int		weaponAnim;		// mask off ANIM_TOGGLEBIT
 	int		tokens;			// harvester skulls
+
+	// Doom 3's entity snapshots: what an entity's class writes for itself
+	// (WriteToSnapshot), as a bit message; the first word's low byte says
+	// what (snapshotType_t). Delta compressed word by word.
+	int		snapshot[ES_SNAPSHOT_WORDS];
 } entityState_t;
+
+typedef enum {
+	SNAPSHOT_NONE,
+	SNAPSHOT_AF				// an articulated figure's bodies (bg_snapshot.c)
+} snapshotType_t;
+
+// Doom 3's idBitMsg over snapshot words
+typedef struct {
+	int			*data;
+	int			maxBits;
+	int			bit;
+	qboolean	overflowed;
+} bitMsg_t;
+
+void	BG_BitMsgInit( bitMsg_t *msg, int *words, int numWords );
+void	BG_WriteBits( bitMsg_t *msg, int value, int numBits );		// numBits < 0: signed
+int		BG_ReadBits( bitMsg_t *msg, int numBits );
+void	BG_WriteFloat( bitMsg_t *msg, float f );
+float	BG_ReadFloat( bitMsg_t *msg );
 
 
 // bit limits

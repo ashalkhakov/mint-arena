@@ -82,6 +82,7 @@ vmCvar_t	g_inactivity;
 vmCvar_t	g_debugMove;
 vmCvar_t	g_debugDamage;
 vmCvar_t	g_debugHitboxes;
+vmCvar_t	g_ragdollPush;
 vmCvar_t	g_weaponRespawn;
 vmCvar_t	g_weaponTeamRespawn;
 vmCvar_t	g_motd;
@@ -172,6 +173,7 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_debugMove, "g_debugMove", "0", 0, 0, RANGE_BOOL },
 	{ &g_debugDamage, "g_debugDamage", "0", 0, 0, RANGE_BOOL },
 	{ &g_debugHitboxes, "g_debugHitboxes", "0", 0, 0, RANGE_BOOL },
+	{ &g_ragdollPush, "g_ragdollPush", "200", 0, 0, RANGE_ALL },	// a hit's impulse on a ragdoll, per point of knockback
 	{ &g_motd, "g_motd", "", 0, 0, RANGE_ALL },
 
 	{ &g_podiumDist, "g_podiumDist", "80", 0, 0, RANGE_ALL },

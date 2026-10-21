@@ -541,6 +541,7 @@ void G_FreeEntity( gentity_t *ed ) {
 	G_UnlinkEntity (ed);		// unlink from world
 
 	G_PhysicsFreeBody( ed );
+	G_FreeRagdoll( ed );
 
 	if ( ed->neverFree ) {
 		return;

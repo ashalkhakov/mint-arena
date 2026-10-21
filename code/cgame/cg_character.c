@@ -405,7 +405,9 @@ void CG_Character( centity_t *cent ) {
 	// the legs' frames for the bounds, the blended skeleton to draw
 	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, NULL );
 	numJoints = BG_ModelPose( model, ent.hModel, cent->characterChannels, cg.time, joints );
-	if ( numJoints > 0 && cg_ik.integer ) {
+	if ( CG_ServerRagdoll( cent, s1->modelindex2, &ent, joints, numJoints ) ) {
+		// limp: the server's figure
+	} else if ( numJoints > 0 && cg_ik.integer ) {
 		// feet on the floor under them, the box's bottom where it stands
 		BG_ModelWalkIK( model, joints, numJoints, ent.origin, (const vec3_t *)ent.axis, ent.origin[2] + s1->mins[2],
 						qtrue, s1->number, cg.time, &cent->ik );

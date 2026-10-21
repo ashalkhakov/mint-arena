@@ -320,8 +320,8 @@ void G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const
 			break;
 		}
 		ent = &g_entities[results->entityNum];
-		if ( !ent->characterDef || !ent->characterModel ) {
-			break;
+		if ( !ent->characterDef || !ent->characterModel || ent->ragdoll ) {
+			break;		// (a ragdoll's box is hit)
 		}
 		if ( G_TraceHitboxes( ent, start, mins, maxs, end, contentmask, results, &hitZone ) ) {
 			if ( zone ) {
@@ -431,6 +431,13 @@ void G_PlayerCharacterFrame( gentity_t *ent ) {
 static void G_CharacterThink( gentity_t *ent ) {
 	const bgModel_t *model = &bg_models[ent->s.modelindex2];
 
+	if ( ent->ragdoll ) {
+		// limp
+		G_RunRagdoll( ent );
+		ent->nextthink = level.time + 1;
+		return;
+	}
+
 	// "anim_cycle": goes through the animations, a few seconds each
 	if ( ent->wait > 0 && level.time - ent->s.time >= ent->wait * 1000 && model->numAnims > 1 ) {
 		G_CharacterSetAnim( ent, ANIMCHANNEL_LEGS, ( ent->s.legsAnim + 1 ) % model->numAnims );
@@ -446,6 +453,12 @@ static void G_CharacterPain( gentity_t *self, gentity_t *attacker, int damage ) 
 }
 
 static void G_CharacterDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+	// Doom 3's idActor::Killed: limp, if its model has a figure
+	if ( G_StartRagdoll( self ) ) {
+		self->takedamage = qtrue;		// shots still push it
+		self->health = 1 << 30;
+		return;
+	}
 	// a test dummy: back up
 	self->health = self->count;
 	self->takedamage = qtrue;
@@ -457,7 +470,8 @@ A skeletal character (bg_model.c), for now a target to shoot.
 "anim"			the animation it plays (the first by default), on the legs channel
 "torso_anim"	an animation for the torso channel (its joints) over that
 "anim_cycle"	seconds before it goes on to the next animation, 0 never
-"health"		how much it takes (1000; it gets up again)
+"health"		how much it takes (1000); then it goes limp if its model def has a
+				"ragdoll", else it gets up again
 "angle"			facing
 */
 void SP_misc_character( gentity_t *ent ) {
@@ -563,6 +577,9 @@ void Svcmd_SpawnCharacter_f( void ) {
 	}
 	SP_misc_character( ent );
 	level.numSpawnVars = 0;
+	if ( ent->inuse ) {
+		G_Printf( "character %d\n", ent->s.number );
+	}
 }
 
 /*

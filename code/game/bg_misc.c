@@ -587,7 +587,8 @@ vmNetField_t	bg_entityStateFields[] =
 { NETF(dl_intensity), 32 },
 { NETF(density), 10},
 { NETF(frame), 16 },
-{ NETF(weaponAnim), 8 }
+{ NETF(weaponAnim), 8 },
+{ NETA(snapshot), 32 }
 };
 
 int bg_numEntityStateFields = ARRAY_LEN(bg_entityStateFields);

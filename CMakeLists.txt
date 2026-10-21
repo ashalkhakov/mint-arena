@@ -1132,6 +1132,7 @@ set(Q3CGOBJ
   game/bg_af.c
   game/bg_afdecl.c
   game/bg_lcp.c
+  game/bg_snapshot.c
   game/bg_model.c
   game/bg_sound.c
   cgame/cg_atmospheric.c
@@ -1397,6 +1398,7 @@ set(Q3GOBJ
   game/bg_af.c
   game/bg_afdecl.c
   game/bg_lcp.c
+  game/bg_snapshot.c
   game/bg_model.c
   game/bg_sound.c
   game/g_active.c
@@ -1425,6 +1427,7 @@ set(Q3GOBJ
   game/g_world.c
   game/g_physics.c
   game/g_character.c
+  game/g_ragdoll.c
   
   botlib/be_aas_bspq3.c
   botlib/be_aas_cluster.c

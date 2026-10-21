@@ -1868,6 +1868,7 @@ void CG_ClearRagdolls( void );
 void CG_UpdateRagdolls( void );
 void CG_RagdollAlive( centity_t *cent );
 qboolean CG_Ragdoll( centity_t *cent, int modelDef, refEntity_t *legs, float *jointMats, int numJoints );
+qboolean CG_ServerRagdoll( centity_t *cent, int modelDef, refEntity_t *ent, float *jointMats, int numJoints );
 int	CG_PointContents( const vec3_t point, int passEntityNum );
 void CG_Trace( trace_t *result, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, 
 					 int skipNumber, int mask );
