@@ -3026,18 +3026,18 @@ void CG_DrawMiscGamemodels( void ) {
 
 	for ( i = 0; i < cg.numMiscGameModels; i++ ) {
 		if ( cgs.miscGameModels[i].radius ) {
-			if ( CG_CullPointAndRadius( cgs.miscGameModels[i].org, cgs.miscGameModels[i].radius ) ) {
+			if ( CG_CullPointAndRadius( cgs.miscGameModels[i].center, cgs.miscGameModels[i].radius ) ) {
 				continue;
 			}
 		}
 
-		if ( !trap_R_inPVS( cg.refdef.vieworg, cgs.miscGameModels[i].org ) ) {
+		if ( !trap_R_inPVS( cg.refdef.vieworg, cgs.miscGameModels[i].center ) ) {
 			continue;
 		}
 
 		VectorCopy( cgs.miscGameModels[i].org, ent.origin );
 		VectorCopy( cgs.miscGameModels[i].org, ent.oldorigin );
-		VectorCopy( cgs.miscGameModels[i].org, ent.lightingOrigin );
+		VectorCopy( cgs.miscGameModels[i].center, ent.lightingOrigin );
 
 /*		{
 			vec3_t v;

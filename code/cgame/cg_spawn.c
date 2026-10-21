@@ -177,11 +177,15 @@ void SP_misc_gamemodel( void ) {
 		VectorScale( gamemodel->axes[i], vScale[i], gamemodel->axes[i] );
 	}
 	VectorCopy( org, gamemodel->org );
+	VectorCopy( org, gamemodel->center );
 
 	if ( gamemodel->model ) {
 		vec3_t mins, maxs;
 
 		trap_R_ModelBounds( gamemodel->model, mins, maxs, 0, 0, 0 );
+		for ( i = 0; i < 3; i++ ) {
+			VectorMA( gamemodel->center, ( mins[i] + maxs[i] ) * 0.5f, gamemodel->axes[i], gamemodel->center );
+		}
 
 		for ( i = 0; i < 3; i++ ) {
 			mins[i] *= vScale[i];

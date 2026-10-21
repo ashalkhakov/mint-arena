@@ -1296,6 +1296,7 @@ typedef struct cg_gamemodel_s {
 	qhandle_t model;
 	cgSkin_t skin;
 	vec3_t org;
+	vec3_t center;		// its bounds' middle: what's culled and checked for being seen (a model on the floor may have its origin in it)
 	vec3_t axes[3];
 	vec_t radius;
 	int frame;
