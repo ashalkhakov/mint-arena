@@ -426,6 +426,18 @@ static void CG_StoreHitboxes( centity_t *cent, const bgModel_t *model, const flo
 	h->entityNum = cent->currentState.number;
 	h->time = cg.time ? cg.time : 1;
 	h->num = BG_ModelHitboxes( model, joints, numJoints, ent->origin, (const vec3_t *)ent->axis, h->poses );
+	if ( ent->nonNormalizedAxes ) {
+		// a scaled model's: the boxes scaled, their axes not
+		float scale = VectorLength( ent->axis[0] );
+
+		for ( i = 0; i < h->num; i++ ) {
+			VectorNormalize( h->poses[i].axis[0] );
+			VectorNormalize( h->poses[i].axis[1] );
+			VectorNormalize( h->poses[i].axis[2] );
+			VectorScale( h->poses[i].mins, scale, h->poses[i].mins );
+			VectorScale( h->poses[i].maxs, scale, h->poses[i].maxs );
+		}
+	}
 }
 
 /*
@@ -557,13 +569,25 @@ void CG_Character( centity_t *cent ) {
 	VectorCopy( cent->lerpOrigin, ent.oldorigin );
 	VectorCopy( cent->lerpOrigin, ent.lightingOrigin );
 	AnglesToAxis( cent->lerpAngles, ent.axis );
+	if ( s1->origin2[0] > 0.0f && s1->origin2[0] != 1.0f ) {
+		// "modelscale"
+		VectorScale( ent.axis[0], s1->origin2[0], ent.axis[0] );
+		VectorScale( ent.axis[1], s1->origin2[0], ent.axis[1] );
+		VectorScale( ent.axis[2], s1->origin2[0], ent.axis[2] );
+		ent.nonNormalizedAxes = qtrue;
+	}
 
 	BG_AnimChannelsFromState( cent->characterChannels, s1->legsAnim, s1->time, s1->torsoAnim, s1->time2 );
 	// the legs' frames for the bounds, the blended skeleton to draw
 	BG_ModelFrame( model, s1->legsAnim, s1->time, cg.time, &ent.frame, &ent.oldframe, &ent.backlerp, NULL );
 	numJoints = BG_ModelPose( model, ent.hModel, cent->characterChannels, cg.time, joints );
 	if ( CG_ServerRagdoll( cent, s1->modelindex2, &ent, joints, numJoints ) ) {
-		// limp: the server's figure
+		// limp: the server's figure (its axis made again)
+		if ( s1->origin2[0] > 0.0f && s1->origin2[0] != 1.0f ) {
+			VectorScale( ent.axis[0], s1->origin2[0], ent.axis[0] );
+			VectorScale( ent.axis[1], s1->origin2[0], ent.axis[1] );
+			VectorScale( ent.axis[2], s1->origin2[0], ent.axis[2] );
+		}
 	} else if ( numJoints > 0 && cg_ik.integer ) {
 		// feet on the floor under them, the box's bottom where it stands
 		BG_ModelWalkIK( model, joints, numJoints, ent.origin, (const vec3_t *)ent.axis, ent.origin[2] + s1->mins[2],

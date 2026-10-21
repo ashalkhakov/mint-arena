@@ -800,6 +800,26 @@ static int AF_JointIndex( const bgModel_t *model, const char *name ) {
 
 /*
 ================
+AF_ScalePose
+
+a pose's joints this much further apart: the scaled model's
+================
+*/
+static void AF_ScalePose( float *jointMats, int numJoints, float scale ) {
+	int j, r;
+
+	if ( scale == 1.0f ) {
+		return;
+	}
+	for ( j = 0; j < numJoints; j++ ) {
+		for ( r = 0; r < 3; r++ ) {
+			jointMats[12 * j + r * 4 + 3] *= scale;
+		}
+	}
+}
+
+/*
+================
 AF_FinishVector
 
 idAFVector::Finish, in the AF pose
@@ -811,7 +831,8 @@ static void AF_FinishVector( const afFigure_t *af, const afVector_t *v, vec3_t o
 
 	switch ( v->type ) {
 		case AFVEC_COORDS:
-			VectorCopy( v->vec, out );
+			// (the joints' are in the scaled pose already)
+			VectorScale( v->vec, af->scale, out );
 			break;
 		case AFVEC_JOINT:
 			j1 = AF_JointIndex( af->model, v->joint1 );
@@ -924,7 +945,7 @@ static qboolean AF_LoadBody( afFigure_t *af, const afDeclBody_t *fb ) {
 			NormalVectors( axis[2], axis[0], axis[1] );
 			VectorNegate( axis[1], axis[1] );
 			// create bone trace model
-			TraceModelSetupBone( &trm, length, fb->width );
+			TraceModelSetupBone( &trm, length, fb->width * af->scale );
 			break;
 		default:
 			return qfalse;
@@ -1077,14 +1098,16 @@ idAF::Load: the figure made in the AF pose (model space jointMats of the
 model's skeleton)
 ================
 */
-qboolean BG_AFLoad( afFigure_t *af, const afDecl_t *decl, const bgModel_t *model, const float *afPose, int numJoints ) {
+qboolean BG_AFLoad( afFigure_t *af, const afDecl_t *decl, const bgModel_t *model, const float *afPose, int numJoints, float scale ) {
 	int i;
 
 	memset( af, 0, sizeof( *af ) );
 	af->decl = decl;
 	af->model = model;
 	af->numJoints = Com_Clamp( 0, MAX_MODEL_JOINTS, numJoints );
+	af->scale = scale > 0.0f ? scale : 1.0f;
 	memcpy( af->afPose, afPose, af->numJoints * 12 * sizeof( float ) );
+	AF_ScalePose( af->afPose, af->numJoints, af->scale );
 
 	if ( !decl->numBodies || Q_stricmp( decl->bodies[0].jointName, "origin" ) ) {
 		Com_Printf( S_COLOR_YELLOW "BG_AFLoad: articulated figure '%s' has no body which modifies the origin joint.\n", decl->name );
@@ -1146,6 +1169,7 @@ void BG_AFSetupPose( afFigure_t *af, const float *jointMats, const vec3_t origin
 		jm = &af->jointMods[i];
 		body = &af->physics.bodies[jm->bodyId];
 		AF_JointTransform( jointMats, jm->joint, jointOrigin, jointAxis );
+		VectorScale( jointOrigin, af->scale, jointOrigin );		// the scaled model's
 
 		// renderOrigin + ( origin + jointBodyOrigin * axis ) * renderAxis
 		AFD_VectorMat( jm->jointBodyOrigin, (const vec3_t *)jointAxis, t );
@@ -1320,4 +1344,7 @@ void BG_AFPose( const afFigure_t *af, float *jointMats, vec3_t renderOrigin, vec
 
 		AF_SetJointTransform( jointMats, j, jo, (const vec3_t *)ja );
 	}
+
+	// back to the model's own size: the caller draws it scaled
+	AF_ScalePose( jointMats, af->numJoints, 1.0f / af->scale );
 }

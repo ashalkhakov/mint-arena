@@ -112,7 +112,8 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	rd->self = ent;
 
 	BG_ModelBindPose( model, bindPose );
-	if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints ) ) {
+	if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints,
+					 ent->s.origin2[0] > 0.0f ? ent->s.origin2[0] : 1.0f ) ) {
 		trap_HeapFree( rd );
 		return qfalse;
 	}

@@ -486,12 +486,15 @@ A skeletal character (bg_model.c), for now a target to shoot.
 "anim_cycle"	seconds before it goes on to the next animation, 0 never
 "health"		how much it takes (1000); then it goes limp if its model def has a
 				"ragdoll", else it gets up again
+"modelscale"	how much bigger it is (1)
+"frame"			of its animation, the pose it starts in
+"ragdoll"		1: limp from the start, as a body lying where it's put
 "angle"			facing
 */
 void SP_misc_character( gentity_t *ent ) {
 	const bgModel_t *model;
 	char *name;
-	int anim, health;
+	int anim, health, frame, ragdoll;
 
 	G_SpawnString( "model", "", &name );
 	ent->s.modelindex2 = BG_ModelForName( name );
@@ -514,6 +517,12 @@ void SP_misc_character( gentity_t *ent ) {
 
 	DictGetVector( model->def, "mins", "-16 -16 -24", ent->s.mins );
 	DictGetVector( model->def, "maxs", "16 16 48", ent->s.maxs );
+	G_SpawnFloat( "modelscale", "1", &ent->s.origin2[0] );
+	if ( ent->s.origin2[0] <= 0.0f ) {
+		ent->s.origin2[0] = 1.0f;
+	}
+	VectorScale( ent->s.mins, ent->s.origin2[0], ent->s.mins );
+	VectorScale( ent->s.maxs, ent->s.origin2[0], ent->s.maxs );
 	ent->s.contents = CONTENTS_BODY;
 	ent->s.collisionType = CT_AABB;
 
@@ -531,6 +540,11 @@ void SP_misc_character( gentity_t *ent ) {
 	VectorCopy( ent->s.angles, ent->r.currentAngles );
 	ent->s.legsAnim = anim < 0 ? 0 : anim;
 	ent->s.time = level.time;
+	// a frame of it: as if it began that long ago
+	G_SpawnInt( "frame", "0", &frame );
+	if ( frame > 0 && ent->s.legsAnim < model->numAnims && model->anims[ent->s.legsAnim].fps > 0 ) {
+		ent->s.time -= frame * 1000 / model->anims[ent->s.legsAnim].fps;
+	}
 	ent->s.torsoAnim = 0;
 	G_SpawnString( "torso_anim", "", &name );
 	if ( name[0] && BG_ModelAnimForName( model, name ) >= 0 ) {
@@ -541,6 +555,13 @@ void SP_misc_character( gentity_t *ent ) {
 	ent->think = G_CharacterThink;
 	ent->nextthink = level.time + 1;
 	G_LinkEntity( ent );
+
+	// a body: limp from the start, from the pose it's put in
+	G_SpawnInt( "ragdoll", "0", &ragdoll );
+	if ( ragdoll && G_StartRagdoll( ent ) ) {
+		ent->takedamage = qtrue;		// shots push it
+		ent->health = 1 << 30;
+	}
 }
 
 /*

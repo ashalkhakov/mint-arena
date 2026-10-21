@@ -303,7 +303,7 @@ static ragdoll_t *CG_RagdollStart( centity_t *cent, int modelDef, const refEntit
 
 	// the figure is made in the model's bind pose
 	BG_ModelBindPose( model, bindPose );
-	if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints ) ) {
+	if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints, 1.0f ) ) {
 		return NULL;
 	}
 
@@ -438,7 +438,8 @@ qboolean CG_ServerRagdoll( centity_t *cent, int modelDef, refEntity_t *ent, floa
 		rd = CG_AllocRagdoll();
 		memset( rd, 0, sizeof( *rd ) );
 		BG_ModelBindPose( model, bindPose );
-		if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints ) ) {
+		if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints,
+						 cent->currentState.origin2[0] > 0.0f ? cent->currentState.origin2[0] : 1.0f ) ) {
 			return qfalse;
 		}
 		rd->inUse = qtrue;

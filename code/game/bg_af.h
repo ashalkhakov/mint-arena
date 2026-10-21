@@ -388,12 +388,13 @@ typedef struct afFigure_s {
 	vec3_t				baseAxis[3];
 	float				afPose[MAX_MODEL_JOINTS * 12];	// the pose the figure was made in, model space
 	int					numJoints;
+	float				scale;				// the model's: the figure is this much bigger
 	int					poseTime;
 	qboolean			isLoaded;
 } afFigure_t;
 
 const afDecl_t	*BG_FindAFDecl( const char *name );
-qboolean	BG_AFLoad( afFigure_t *af, const afDecl_t *decl, const bgModel_t *model, const float *afPose, int numJoints );
+qboolean	BG_AFLoad( afFigure_t *af, const afDecl_t *decl, const bgModel_t *model, const float *afPose, int numJoints, float scale );
 void		BG_AFSetupPose( afFigure_t *af, const float *jointMats, const vec3_t origin, const vec3_t axis[3], int time );
 void		BG_AFChangePose( afFigure_t *af, const float *jointMats, const vec3_t origin, const vec3_t axis[3], int time );
 void		BG_AFTestSolid( afFigure_t *af );
