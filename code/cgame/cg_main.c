@@ -2848,6 +2848,7 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 
 	CG_InitLocalEntities();
 	CG_ClearRagdolls();
+	CG_ClearNetEvents();
 
 	CG_InitMarkPolys();
 

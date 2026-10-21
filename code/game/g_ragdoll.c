@@ -34,7 +34,32 @@ typedef struct gRagdoll_s {
 	clipModel_t		clips[AF_MAX_BODIES];	// the bodies' trace models, for the clip
 	gentity_t		*self;
 	int				time;					// simulated up to
+	int				soundTime;				// of its last bounce
 } gRagdoll_t;
+
+#define RAGDOLL_BOUNCE_SPEED	60			// a body hitting something this fast is heard
+#define RAGDOLL_BOUNCE_MSEC		250			// and not again sooner
+
+/*
+================
+G_RagdollImpact
+
+idAFEntity_Base::Collide: a body hitting something hard bounces
+("snd_bounce", as an entity event)
+================
+*/
+static void G_RagdollImpact( void *ctx, const afPhysics_t *af, int body, const cm_trace_t *collision, const vec3_t impulse ) {
+	gRagdoll_t *rd = ctx;
+	float speed = AF_ImpactSpeed( af, body, impulse );
+	const char *sound;
+
+	if ( collision->c.entityNum < 0 || speed < RAGDOLL_BOUNCE_SPEED || level.time - rd->soundTime < RAGDOLL_BOUNCE_MSEC ) {
+		return;
+	}
+	rd->soundTime = level.time;
+	sound = DictGetStringReference( bg_models[rd->self->characterDef].def, "snd_bounce", "" );
+	G_SendSoundEvent( rd->self, CHAN_BODY, sound, speed / 300.0f );
+}
 
 static qboolean G_RagdollMotion( void *ctx, const afPhysics_t *af, int body, cm_trace_t *results, const vec3_t start,
 								const vec3_t end, const rotation_t *rotation, const traceModel_t *trm, const vec3_t axis[3], int mask ) {
@@ -48,6 +73,10 @@ static int G_RagdollContacts( void *ctx, const afPhysics_t *af, int body, contac
 	gRagdoll_t *rd = ctx;
 
 	return ClipContacts( &g_clip, contacts, maxContacts, origin, dir, depth, &rd->clips[body], axis, mask, (sharedEntity_t *)rd->self );
+}
+
+static cmHandle_t G_RagdollTrmModel( void *ctx, const traceModel_t *trm ) {
+	return trap_CM_SetupTrmModel( trm, 0 );
 }
 
 /*
@@ -94,6 +123,8 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	rd->af.physics.clip.ctx = rd;
 	rd->af.physics.clip.motion = G_RagdollMotion;
 	rd->af.physics.clip.contacts = G_RagdollContacts;
+	rd->af.physics.clip.impact = G_RagdollImpact;
+	rd->af.physics.clip.trmModel = G_RagdollTrmModel;
 	VectorSet( rd->af.physics.gravityVector, 0, 0, -g_gravity.value );
 
 	// the pose it has

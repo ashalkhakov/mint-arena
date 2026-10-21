@@ -1146,6 +1146,7 @@ set(Q3CGOBJ
   cgame/cg_aas.c
   cgame/cg_character.c
   cgame/cg_ragdoll.c
+  cgame/cg_netevent.c
   cgame/cg_ents.c
   cgame/cg_event.c
   cgame/cg_field.c
@@ -1428,6 +1429,7 @@ set(Q3GOBJ
   game/g_physics.c
   game/g_character.c
   game/g_ragdoll.c
+  game/g_netevent.c
   
   botlib/be_aas_bspq3.c
   botlib/be_aas_cluster.c

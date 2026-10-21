@@ -2668,6 +2668,139 @@ static void AF_SetupCollisionForBody( afPhysics_t *af, afBody_t *body ) {
 }
 
 /*
+===============================================================================
+
+	Self collision: Doom 3 links each body's clip model and lets the others
+	collide with it; here a body traces against the others' trace models
+
+===============================================================================
+*/
+
+// the engine's collision queries, as the game and the cgame both have them
+void	trap_CM_Translation( cm_trace_t *results, const vec3_t start, const vec3_t end,
+							const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+							cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+void	trap_CM_Rotation( cm_trace_t *results, const vec3_t start, const rotation_t *rotation,
+							const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+							cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+int		trap_CM_Contacts( contactInfo_t *contacts, const int maxContacts, const vec3_t start, const vec6_t dir, const float depth,
+							const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
+							cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
+
+// whether body collides with other now (AF_SetupCollisionForBody's say)
+static qboolean AF_SelfCollides( const afPhysics_t *af, const afBody_t *body, const afBody_t *other ) {
+	return af->clip.trmModel && other != body && !other->clipDisabled && ( body->clipMask & other->contents );
+}
+
+/*
+================
+AF_SelfMotion
+
+The body moved from where it is to end (origin and axis) against the
+figure's other bodies, those before it where they're going (they've moved:
+Doom 3 relinks each as it goes), the rest where they are; qtrue on a
+collision, its entityNum -1 and its id the other body.
+================
+*/
+static qboolean AF_SelfMotion( afPhysics_t *af, afBody_t *body, cm_trace_t *results, const vec3_t endOrigin, const vec3_t endAxis[3] ) {
+	const afBodyPState_t *state;
+	cm_trace_t trace, best;
+	rotation_t rotation;
+	vec3_t axis[3], reached;
+	afBody_t *other;
+	qboolean hit = qfalse, rotates;
+	int i;
+
+	memset( &best, 0, sizeof( best ) );
+	best.fraction = 1.0f;
+	VectorCopy( endOrigin, best.endpos );
+	AxisCopy( body->current->worldAxis, best.endAxis );
+
+	// translation
+	if ( !VectorCompare( body->current->worldOrigin, endOrigin ) ) {
+		for ( i = 0; i < af->numBodies; i++ ) {
+			other = &af->bodies[i];
+			if ( !AF_SelfCollides( af, body, other ) ) {
+				continue;
+			}
+			state = other->id < body->id ? other->next : other->current;
+			trap_CM_Translation( &trace, body->current->worldOrigin, endOrigin, &body->trm, (const vec3_t *)body->current->worldAxis,
+								body->clipMask, af->clip.trmModel( af->clip.ctx, &other->trm ), state->worldOrigin,
+								(const vec3_t *)state->worldAxis );
+			if ( trace.fraction < best.fraction ) {
+				best = trace;
+				best.c.entityNum = -1;
+				best.c.id = other->id;
+				hit = qtrue;
+			}
+		}
+	}
+	if ( hit ) {
+		*results = best;
+		return qtrue;
+	}
+
+	// then the rotation, where the translation got
+	VectorCopy( best.endpos, reached );
+	Mat3TransposeMul( (const vec3_t *)body->current->worldAxis, endAxis, axis );
+	memset( &rotation, 0, sizeof( rotation ) );
+	Mat3ToRotation( (const vec3_t *)axis, &rotation );
+	VectorCopy( reached, rotation.origin );
+	rotates = rotation.angle != 0.0f && !VectorCompare( rotation.vec, vec3_origin );
+	if ( rotates ) {
+		for ( i = 0; i < af->numBodies; i++ ) {
+			other = &af->bodies[i];
+			if ( !AF_SelfCollides( af, body, other ) ) {
+				continue;
+			}
+			state = other->id < body->id ? other->next : other->current;
+			trap_CM_Rotation( &trace, reached, &rotation, &body->trm, (const vec3_t *)body->current->worldAxis,
+							  body->clipMask, af->clip.trmModel( af->clip.ctx, &other->trm ), state->worldOrigin,
+							  (const vec3_t *)state->worldAxis );
+			if ( trace.fraction < best.fraction ) {
+				best = trace;
+				best.c.entityNum = -1;
+				best.c.id = other->id;
+				hit = qtrue;
+			}
+		}
+	}
+	if ( hit ) {
+		*results = best;
+	}
+	return hit;
+}
+
+/*
+================
+AF_SelfContacts
+
+the body's contacts with the figure's other bodies, after n of the world's
+================
+*/
+static int AF_SelfContacts( afPhysics_t *af, afBody_t *body, contactInfo_t *contacts, int n, int maxContacts, const vec6_t dir ) {
+	afBody_t *other;
+	int i, j, num;
+
+	for ( i = 0; i < af->numBodies && n < maxContacts; i++ ) {
+		other = &af->bodies[i];
+		if ( !AF_SelfCollides( af, body, other ) ) {
+			continue;
+		}
+		num = trap_CM_Contacts( contacts + n, maxContacts - n, body->current->worldOrigin, dir, 2.0f, &body->trm,
+								(const vec3_t *)body->current->worldAxis, body->clipMask,
+								af->clip.trmModel( af->clip.ctx, &other->trm ), other->current->worldOrigin,
+								(const vec3_t *)other->current->worldAxis );
+		for ( j = 0; j < num; j++ ) {
+			contacts[n + j].entityNum = -1;
+			contacts[n + j].id = other->id;
+		}
+		n += num;
+	}
+	return n;
+}
+
+/*
 ================
 AF_CheckForCollisions
 
@@ -2680,7 +2813,8 @@ static void AF_CheckForCollisions( afPhysics_t *af, float timeStep ) {
 	afBody_t *body;
 	vec3_t axis[3];
 	rotation_t rotation;
-	cm_trace_t collision;
+	cm_trace_t collision, selfCollision;
+	qboolean hit;
 
 	// clear list with collisions
 	af_numCollisions = 0;
@@ -2702,12 +2836,21 @@ static void AF_CheckForCollisions( afPhysics_t *af, float timeStep ) {
 			VectorCopy( body->current->worldOrigin, rotation.origin );
 
 			// if there was a collision
-			if ( af->clip.motion( af->clip.ctx, af, body->id, &collision, body->current->worldOrigin, body->next->worldOrigin,
-								&rotation, &body->trm, (const vec3_t *)body->current->worldAxis, body->clipMask ) ) {
+			hit = af->clip.motion( af->clip.ctx, af, body->id, &collision, body->current->worldOrigin, body->next->worldOrigin,
+								&rotation, &body->trm, (const vec3_t *)body->current->worldAxis, body->clipMask );
+			if ( hit ) {
 				// set the next state to the state at the moment of impact
 				VectorCopy( collision.endpos, body->next->worldOrigin );
 				AxisCopy( collision.endAxis, body->next->worldAxis );
-
+			}
+			// and the figure's other bodies on the way there
+			if ( AF_SelfMotion( af, body, &selfCollision, body->next->worldOrigin, (const vec3_t *)body->next->worldAxis ) ) {
+				VectorCopy( selfCollision.endpos, body->next->worldOrigin );
+				AxisCopy( selfCollision.endAxis, body->next->worldAxis );
+				collision = selfCollision;
+				hit = qtrue;
+			}
+			if ( hit ) {
 				// add collision to the list
 				af_collisions[af_numCollisions].trace = collision;
 				af_collisions[af_numCollisions].body = body;
@@ -2757,6 +2900,7 @@ static qboolean AF_EvaluateContacts( afPhysics_t *af ) {
 
 		numContacts = af->clip.contacts( af->clip.ctx, af, i, contactInfo, 10, body->current->worldOrigin, dir, 2.0f,
 										&body->trm, (const vec3_t *)body->current->worldAxis, body->clipMask );
+		numContacts = AF_SelfContacts( af, body, contactInfo, numContacts, 10, dir );
 
 		// merge nearby contacts between the same bodies
 		// and assure there are at most three planar contacts between any pair of bodies
@@ -3204,4 +3348,18 @@ void AF_DebugDraw( const afPhysics_t *af, void (*line)( const vec3_t start, cons
 		VectorMA( af->contacts[i].point, 6.0f, af->contacts[i].normal, v2 );
 		line( af->contacts[i].point, v2, 2 );
 	}
+}
+
+/*
+================
+AF_ImpactSpeed
+
+how fast a body hit what an impact's impulse was for (the impact callback's)
+================
+*/
+float AF_ImpactSpeed( const afPhysics_t *af, int body, const vec3_t impulse ) {
+	if ( body < 0 || body >= af->numBodies ) {
+		return 0.0f;
+	}
+	return VectorLength( impulse ) * af->bodies[body].invMass / ( 1.0f + af->bodies[body].bouncyness );
 }

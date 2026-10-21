@@ -542,6 +542,7 @@ void G_FreeEntity( gentity_t *ed ) {
 
 	G_PhysicsFreeBody( ed );
 	G_FreeRagdoll( ed );
+	G_RemoveEntityEvents( ed );
 
 	if ( ed->neverFree ) {
 		return;

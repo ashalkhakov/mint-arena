@@ -205,6 +205,9 @@ typedef struct {
 							const vec3_t origin, const vec6_t dir, float depth, const traceModel_t *trm, const vec3_t axis[3], int mask );
 	// a collision's impact on what was hit, may be NULL
 	void		(*impact)( void *ctx, const struct afPhysics_s *af, int body, const cm_trace_t *collision, const vec3_t impulse );
+	// a collision model of a trace model to trace against, for self
+	// collision (the engine's temporary one); NULL for no self collision
+	cmHandle_t	(*trmModel)( void *ctx, const traceModel_t *trm );
 } afClip_t;
 
 typedef struct {
@@ -284,6 +287,7 @@ void		AF_AddForce( afPhysics_t *af, int id, const vec3_t point, const vec3_t for
 void		AF_GetImpactInfo( const afPhysics_t *af, int id, const vec3_t point, float *invMass,
 							vec3_t invInertiaTensor[3], vec3_t position, vec3_t velocity );
 void		AF_GetBounds( const afPhysics_t *af, vec3_t absBounds[2] );
+float		AF_ImpactSpeed( const afPhysics_t *af, int body, const vec3_t impulse );
 void		AF_DebugDraw( const afPhysics_t *af, void (*line)( const vec3_t start, const vec3_t end, int color ) );
 
 // bg_lcp.c: the box LCP, Doom 3's idLCP_Symmetric

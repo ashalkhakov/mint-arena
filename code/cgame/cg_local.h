@@ -1862,6 +1862,13 @@ void CG_BuildSolidList( void );
 int CG_SolidEntities( centity_t ***list );
 
 //
+// cg_netevent.c
+//
+void CG_ClearNetEvents( void );
+void CG_QueueNetEvent( int start );
+void CG_ProcessNetEvents( void );
+
+//
 // cg_ragdoll.c
 //
 void CG_ClearRagdolls( void );

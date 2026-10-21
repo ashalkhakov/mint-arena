@@ -495,6 +495,8 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
     BG_InitIdLib();
     ie.Init();
 
+	G_ClearSavedEvents();
+
 	// entity defs and the items made from them
 	BG_InitItems();
 

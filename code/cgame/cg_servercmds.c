@@ -1239,6 +1239,12 @@ static void CG_ServerCommand( void ) {
 		return;
 	}
 
+	if ( !strcmp( cmd, "eev" ) ) {
+		// Doom 3's entity network event
+		CG_QueueNetEvent( start + 1 );
+		return;
+	}
+
 	if ( !strcmp( cmd, "cs" ) ) {
 		if ( localPlayerBits != -1 ) {
 			return;

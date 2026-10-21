@@ -291,6 +291,16 @@ typedef struct entityState_s {
 	int		snapshot[ES_SNAPSHOT_WORDS];
 } entityState_t;
 
+// Doom 3's entity network events (g_netevent.c, cg_netevent.c): what every
+// entity takes, the classes' own after ENTEV_NUM_COMMON
+#define	MAX_EVENT_PARAM_SIZE	128
+
+typedef enum {
+	ENTEV_STARTSOUND,		// a sound shader on a channel, at a volume (EVENT_STARTSOUNDSHADER)
+
+	ENTEV_NUM_COMMON
+} entityNetEvent_t;
+
 typedef enum {
 	SNAPSHOT_NONE,
 	SNAPSHOT_AF				// an articulated figure's bodies (bg_snapshot.c)
@@ -1423,6 +1433,8 @@ typedef struct {
 void					BG_InitSoundShaders( void );
 const bgSoundShader_t	*BG_FindSoundShader( const char *name );
 const char				*BG_SoundShaderFile( const bgSoundShader_t *shader );
+extern bgSoundShader_t	bg_soundShaders[MAX_SOUND_SHADERS];
+extern int				bg_numSoundShaders;
 
 extern const char *bg_surfaceTypeNames[MAX_SURFACE_TYPES];	// Doom 3's surface types' names
 int			BG_PlayerModelForName( const char *modelName );

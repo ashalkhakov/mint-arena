@@ -1042,6 +1042,9 @@ void PlayerBegin( int playerNum ) {
 
 	// count current players and rank for scoreboard
 	CalculateRanks();
+
+	// Doom 3's saved entity events: the state a late joiner needs
+	G_SendSavedEvents( playerNum );
 }
 
 /*

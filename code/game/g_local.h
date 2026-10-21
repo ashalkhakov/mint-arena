@@ -757,6 +757,15 @@ void Svcmd_AbortPodium_f( void );
 // g_world.c
 //
 //
+// g_netevent.c
+//
+void		G_ServerSendEvent( const gentity_t *ent, int event, const bitMsg_t *msg, qboolean saveEvent, int excludePlayer );
+void		G_SendSavedEvents( int playerNum );
+void		G_RemoveEntityEvents( const gentity_t *ent );
+void		G_ClearSavedEvents( void );
+void		G_SendSoundEvent( const gentity_t *ent, int channel, const char *soundShader, float volume );
+
+//
 // g_ragdoll.c
 //
 qboolean	G_StartRagdoll( gentity_t *ent );

@@ -44,6 +44,7 @@ typedef struct {
 	qboolean	orphan;					// its player's alive again: its corpse may take it
 	int			lastSeen;				// cg.time
 	int			time;					// simulated up to
+	int			soundTime;				// of its last bounce
 	afFigure_t	af;
 } ragdoll_t;
 
@@ -166,6 +167,28 @@ static int CG_RagdollContacts( void *ctx, const afPhysics_t *af, int body, conta
 		n += num;
 	}
 	return n;
+}
+
+static cmHandle_t CG_RagdollTrmModel( void *ctx, const traceModel_t *trm ) {
+	return trap_CM_TempTraceModel( trm, CONTENTS_CORPSE );
+}
+
+/*
+================
+CG_RagdollImpact
+
+a body hitting something hard bounces ("snd_bounce")
+================
+*/
+static void CG_RagdollImpact( void *ctx, const afPhysics_t *af, int body, const cm_trace_t *collision, const vec3_t impulse ) {
+	ragdoll_t *rd = ctx;
+
+	if ( collision->c.entityNum < 0 || AF_ImpactSpeed( af, body, impulse ) < 60 || cg.time - rd->soundTime < 250 ) {
+		return;
+	}
+	rd->soundTime = cg.time;
+	CG_StartModelSound( NULL, rd->entityNum, CHAN_BODY, rd->modelDef, "snd_bounce",
+						Com_Clamp( 0, 1, AF_ImpactSpeed( af, body, impulse ) / 300.0f ) );
 }
 
 /*
@@ -293,6 +316,8 @@ static ragdoll_t *CG_RagdollStart( centity_t *cent, int modelDef, const refEntit
 
 	rd->af.physics.clip.motion = CG_RagdollMotion;
 	rd->af.physics.clip.contacts = CG_RagdollContacts;
+	rd->af.physics.clip.impact = CG_RagdollImpact;
+	rd->af.physics.clip.trmModel = CG_RagdollTrmModel;
 	rd->af.physics.clip.ctx = rd;
 	VectorSet( rd->af.physics.gravityVector, 0, 0, -( cg.snap && cg.snap->pss[0].gravity ? cg.snap->pss[0].gravity : DEFAULT_GRAVITY ) );
 
