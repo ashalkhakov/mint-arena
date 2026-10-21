@@ -59,6 +59,9 @@ void SP_info_player_deathmatch( gentity_t *ent ) {
 equivalent to info_player_deathmatch
 */
 void SP_info_player_start(gentity_t *ent) {
+	if ( g_gametype.integer == GT_CAMPAIGN ) {
+		return;		// the campaign picks one by its targetname (G_CampaignSpawnPoint)
+	}
 	ent->classname = "info_player_deathmatch";
 	SP_info_player_deathmatch( ent );
 }
@@ -274,6 +277,11 @@ Chooses a player start, deathmatch start, etc
 ============
 */
 gentity_t *SelectSpawnPoint ( vec3_t avoidPoint, vec3_t origin, vec3_t angles, qboolean isbot ) {
+	gentity_t *spot;
+
+	if ( g_gametype.integer == GT_CAMPAIGN && ( spot = G_CampaignSpawnPoint( origin, angles ) ) != NULL ) {
+		return spot;
+	}
 	return SelectRandomFurthestSpawnPoint( avoidPoint, origin, angles, isbot );
 
 	/*
@@ -315,6 +323,10 @@ use normal spawn selection.
 */
 gentity_t *SelectInitialSpawnPoint( vec3_t origin, vec3_t angles, qboolean isbot ) {
 	gentity_t	*spot;
+
+	if ( g_gametype.integer == GT_CAMPAIGN ) {
+		return SelectSpawnPoint( vec3_origin, origin, angles, isbot );
+	}
 
 	spot = NULL;
 	
@@ -1247,6 +1259,11 @@ void PlayerSpawn(gentity_t *ent) {
 	// health will count down towards max_health
 	ent->health = player->ps.stats[STAT_HEALTH] = player->ps.stats[STAT_MAX_HEALTH] + 25;
 
+	// the campaign: what they had in the last map, once
+	if ( g_gametype.integer == GT_CAMPAIGN ) {
+		G_LoadPersistant( ent );
+	}
+
 	G_SetOrigin( ent, spawn_origin );
 	VectorCopy( spawn_origin, player->ps.origin );
 
@@ -1283,6 +1300,11 @@ void PlayerSpawn(gentity_t *ent) {
 					player->ps.weapon = i;
 					break;
 				}
+			}
+			// or the one they came with from the last map
+			if ( player->pers.persistantWeapon > 0 && BG_HasWeapon( &player->ps, player->pers.persistantWeapon ) ) {
+				player->ps.weapon = player->pers.persistantWeapon;
+				player->pers.persistantWeapon = 0;
 			}
 			// positively link the player, even if the command times are weird
 			VectorCopy(ent->player->ps.origin, ent->r.currentOrigin);

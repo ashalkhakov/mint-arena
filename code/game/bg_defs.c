@@ -749,6 +749,10 @@ static qboolean BG_ItemFromDef( const dict_t *dict, gitem_t *item ) {
 		item->giType = IT_HOLDABLE;
 	} else if ( BG_ItemTag( dict, "inv_team", IT_TEAM, &tag ) ) {
 		item->giType = IT_TEAM;
+	} else if ( DictGetInt( dict, "inv_item", "0" ) ) {
+		// Doom 3's: into the inventory
+		item->giType = IT_INVENTORY;
+		item->quantity = DictGetInt( dict, "inv_count", "1" );
 	} else {
 		Com_Printf( S_COLOR_YELLOW "WARNING: item %s gives nothing, left out\n", item->classname );
 		return qfalse;

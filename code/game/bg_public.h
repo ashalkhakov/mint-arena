@@ -168,6 +168,7 @@ typedef enum {
 	GT_FFA,				// free for all
 	GT_TOURNAMENT,		// one on one tournament
 	GT_SINGLE_PLAYER,	// single player ffa
+	GT_CAMPAIGN,		// Daikatana's single player (and coop): its levels, keys, saves
 
 	//-- team games go after this --
 
@@ -1138,8 +1139,24 @@ typedef enum {
 	IT_HOLDABLE,			// single use, holdable item
 							// EFX: rotate + bob
 	IT_PERSISTANT_POWERUP,
-	IT_TEAM
+	IT_TEAM,
+	IT_INVENTORY			// Doom 3's "inv_item": kept in the inventory (keys, quest items, save gems)
 } itemType_t;
+
+// Doom 3's idInventory's items: what a player carries of the IT_INVENTORY
+// items, by def name (g_items.c, g_campaign.c)
+#define MAX_INVENTORY_ITEMS		32
+
+typedef struct {
+	char		item[48];			// the item's def (classname)
+	int			count;
+	int			flags;				// Daikatana's key flags (KEY_USE_ONCE...) of the one picked up
+} inventoryItem_t;
+
+typedef struct {
+	int				numItems;
+	inventoryItem_t	items[MAX_INVENTORY_ITEMS];
+} playerInventory_t;
 
 #define MAX_ITEM_MODELS 4
 

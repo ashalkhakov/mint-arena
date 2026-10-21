@@ -127,6 +127,10 @@ struct gentity_s {
 	vec3_t		pos1, pos2;
 
 	char		*message;
+	char		*map;				// trigger_changelevel's next map
+	char		*killtarget;		// Quake 2's: removed when its targets are used
+	float		delay;				// Quake 2's: seconds before its targets are used
+	char		*keyname;			// Daikatana's: the item it needs (an inventory item's classname)
 
 	int			timestamp;		// body queue sinking, etc
 
@@ -284,6 +288,10 @@ typedef struct {
 	int			voteCount;			// to prevent people from constantly calling votes
 	int			teamVoteCount;		// to prevent people from constantly calling votes
 	qboolean	teamInfo;			// send team overlay updates?
+	// the campaign's
+	playerInventory_t	inventory;		// Doom 3's idInventory's items
+	qboolean	persistantLoaded;		// what the last map gave them is theirs (G_LoadPersistant)
+	int			persistantWeapon;		// the weapon they had up there
 } playerPersistant_t;
 
 #define MAX_PLAYER_MARKERS 17
@@ -479,6 +487,11 @@ typedef struct {
 #endif
 
 	int			hitboxTime;				// the time shots hit hitboxes at, while rewound for lag; 0 now
+
+	// the campaign's
+	qboolean	changingLevel;			// a trigger_changelevel was touched
+	int			numSecrets;
+	int			secretsFound;
 } level_locals_t;
 
 
@@ -757,6 +770,31 @@ void Svcmd_AbortPodium_f( void );
 // g_world.c
 //
 //
+// g_campaign.c
+//
+qboolean	G_CampaignSkipEntity( const gentity_t *ent );
+gentity_t	*G_CampaignSpawnPoint( vec3_t origin, vec3_t angles );
+void		G_CampaignUseTargets( gentity_t *ent, gentity_t *activator );
+qboolean	G_CampaignKeyCheck( gentity_t *self, gentity_t *activator );
+int			G_InventoryCount( const gentity_t *ent, const char *item );
+void		G_InventoryAdd( gentity_t *ent, const char *item, int count, int flags );
+void		G_InventoryRemove( gentity_t *ent, const char *item, int count );
+void		G_ChangeLevel( const char *map, const char *target );
+void		SP_info_player_coop( gentity_t *ent );
+void		SP_trigger_relay( gentity_t *self );
+void		SP_trigger_counter( gentity_t *self );
+void		SP_trigger_secret( gentity_t *self );
+void		SP_trigger_changelevel( gentity_t *self );
+void		SP_trigger_remove_inventory_item( gentity_t *self );
+void		SP_func_wall( gentity_t *self );
+
+//
+// g_save.c
+//
+qboolean	G_SavePersistant( const char *nextmap );
+qboolean	G_LoadPersistant( gentity_t *ent );
+
+//
 // g_netevent.c
 //
 void		G_ServerSendEvent( const gentity_t *ent, int event, const bitMsg_t *msg, qboolean saveEvent, int excludePlayer );
@@ -862,6 +900,8 @@ extern	vmCvar_t	g_debugMove;
 extern	vmCvar_t	g_debugDamage;
 extern	vmCvar_t	g_debugHitboxes;
 extern	vmCvar_t	g_ragdollPush;
+extern	vmCvar_t	g_skill;
+extern	vmCvar_t	g_spawnTarget;
 extern	vmCvar_t	g_weaponRespawn;
 extern	vmCvar_t	g_weaponTeamRespawn;
 extern	vmCvar_t	g_synchronousClients;

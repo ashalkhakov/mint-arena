@@ -114,7 +114,7 @@ static int gametype_remap[] = {GT_FFA, GT_TEAM, GT_TOURNAMENT, GT_CTF
 ,GT_1FCTF, GT_OBELISK, GT_HARVESTER
 #endif
 };
-static int gametype_remap2[] = {0, 2, 0, 1, 3
+static int gametype_remap2[] = {0, 2, 0, 0, 1, 3
 #ifdef MISSIONPACK
 ,4, 5, 6
 #endif

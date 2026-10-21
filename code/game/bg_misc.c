@@ -674,6 +674,7 @@ const char *bg_netGametypeNames[GT_MAX_GAME_TYPE] = {
 	"FFA",
 	"Tournament",
 	"SP",
+	"Campaign",
 	"TeamDM",
 	"CTF",
 #ifdef MISSIONPACK
@@ -687,6 +688,7 @@ const char *bg_displayGametypeNames[GT_MAX_GAME_TYPE] = {
 	"Free For All",
 	"Tournament",
 	"Single Player",
+	"Campaign",
 	"Team Deathmatch",
 	"Capture the Flag",
 #ifdef MISSIONPACK
@@ -704,7 +706,7 @@ BG_CheckSpawnEntity
 qboolean BG_CheckSpawnEntity( const bgEntitySpawnInfo_t *info ) {
 	int			i, gametype;
 	char		*s, *value, *gametypeName;
-	static char *gametypeNames[GT_MAX_GAME_TYPE] = {"ffa", "tournament", "single", "team", "ctf"
+	static char *gametypeNames[GT_MAX_GAME_TYPE] = {"ffa", "tournament", "single", "campaign", "team", "ctf"
 #ifdef MISSIONPACK
 		, "oneflag", "obelisk", "harvester"
 #endif
@@ -985,6 +987,9 @@ qboolean BG_CanItemBeGrabbed( int gametype, const entityState_t *ent, const play
 
 		return qtrue;
 #endif
+
+	case IT_INVENTORY:	// always: they add up
+		return qtrue;
 
 	case IT_TEAM: // team items, such as flags
 #ifdef MISSIONPACK		

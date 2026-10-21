@@ -699,6 +699,11 @@ void Use_BinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 	int		total;
 	int		partial;
 
+	// a lock (Daikatana's keyname): only with its key
+	if ( ent->keyname && !G_CampaignKeyCheck( ent, activator ) ) {
+		return;
+	}
+
 	// only the master should be used
 	if ( ent->flags & FL_TEAMSLAVE ) {
 		Use_BinaryMover( ent->teammaster, other, activator );

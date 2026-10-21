@@ -135,6 +135,7 @@ void G_InitSessionData( gplayer_t *player, char *userinfo ) {
 			default:
 			case GT_FFA:
 			case GT_SINGLE_PLAYER:
+			case GT_CAMPAIGN:
 				if ( g_maxGamePlayers.integer > 0 && 
 					level.numNonSpectatorPlayers >= g_maxGamePlayers.integer ) {
 					sess->sessionTeam = TEAM_SPECTATOR;

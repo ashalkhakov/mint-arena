@@ -168,6 +168,25 @@ int Pickup_PersistantPowerup( gentity_t *ent, gentity_t *other ) {
 //======================================================================
 #endif
 
+/*
+==============
+Pickup_Inventory
+
+Doom 3's inventory items: added to what the player carries (keys, quest
+items, save gems), with Daikatana's key flags of this one
+==============
+*/
+int Pickup_Inventory( gentity_t *ent, gentity_t *other ) {
+	int max = ent->item->def ? DictGetInt( ent->item->def, "inv_max", "0" ) : 0;
+
+	if ( max > 0 && G_InventoryCount( other, ent->item->classname ) >= max ) {
+		return 0;		// as many as one carries
+	}
+	G_InventoryAdd( other, ent->item->classname, ent->item->quantity ? ent->item->quantity : 1, ent->spawnflags & 7 );
+	trap_SendServerCommand( other - g_entities, va( "cp \"%s\"", ent->item->pickup_name ) );
+	return -1;
+}
+
 int Pickup_Holdable( gentity_t *ent, gentity_t *other ) {
 
 	other->player->ps.stats[STAT_HOLDABLE_ITEM] = BG_ItemNumForItem( ent->item );
@@ -523,8 +542,16 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 	case IT_HOLDABLE:
 		respawn = Pickup_Holdable(ent, other);
 		break;
+	case IT_INVENTORY:
+		respawn = Pickup_Inventory(ent, other);
+		break;
 	default:
 		return;
+	}
+
+	// the campaign's don't come back
+	if ( g_gametype.integer == GT_CAMPAIGN && !( ent->flags & FL_DROPPED_ITEM ) ) {
+		ent->wait = -1;
 	}
 
 	if ( !respawn ) {

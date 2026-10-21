@@ -107,6 +107,9 @@ field_t fields[] = {
 	{"target", FOFS(target), F_STRING},
 	{"targetname", FOFS(targetname), F_STRING},
 	{"message", FOFS(message), F_STRING},
+	{"killtarget", FOFS(killtarget), F_STRING},
+	{"delay", FOFS(delay), F_FLOAT},
+	{"keyname", FOFS(keyname), F_STRING},
 	{"team", FOFS(team), F_STRING},
 	{"wait", FOFS(wait), F_FLOAT},
 	{"random", FOFS(random), F_FLOAT},
@@ -223,6 +226,14 @@ spawn_t	spawns[] = {
 	{"info_camp", SP_info_camp},
 
 	{"func_plat", SP_func_plat},
+	// Daikatana's campaign (g_campaign.c)
+	{"info_player_coop", SP_info_player_coop},
+	{"trigger_relay", SP_trigger_relay},
+	{"trigger_counter", SP_trigger_counter},
+	{"trigger_secret", SP_trigger_secret},
+	{"trigger_changelevel", SP_trigger_changelevel},
+	{"trigger_remove_inventory_item", SP_trigger_remove_inventory_item},
+	{"func_wall", SP_func_wall},
 	{"func_button", SP_func_button},
 	{"func_door", SP_func_door},
 	{"func_water", SP_func_water},
@@ -348,7 +359,12 @@ qboolean G_CallSpawn( gentity_t *ent ) {
 			return qtrue;
 		}
 	}
-	G_Printf ("%s doesn't have a spawn function\n", ent->classname);
+	if ( g_gametype.integer == GT_CAMPAIGN ) {
+		// Daikatana's single player has plenty the campaign doesn't do yet
+		G_DPrintf( "%s doesn't have a spawn function\n", ent->classname );
+	} else {
+		G_Printf ("%s doesn't have a spawn function\n", ent->classname);
+	}
 	return qfalse;
 }
 
@@ -468,8 +484,8 @@ void G_SpawnGEntityFromSpawnVars( void ) {
 	spawnInfo.spawnInt = G_SpawnInt;
 	spawnInfo.spawnString = G_SpawnString;
 
-	// check "notsingle", "notfree", "notteam", etc
-	if ( !BG_CheckSpawnEntity( &spawnInfo ) ) {
+	// check "notsingle", "notfree", "notteam", etc; the campaign's skill
+	if ( !BG_CheckSpawnEntity( &spawnInfo ) || G_CampaignSkipEntity( ent ) ) {
 		ADJUST_AREAPORTAL();
 		G_FreeEntity( ent );
 		return;
