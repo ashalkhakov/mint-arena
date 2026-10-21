@@ -18,21 +18,9 @@ You should have received a copy of the GNU General Public License
 along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
-// bg_defs.c -- entity definitions, Doom 3's entityDef declarations
-//
-// def/*.def hold blocks of
-//
-//	entityDef <name> {
-//		"inherit"	"<other def>"	// its keys, unless this one sets them
-//		"<key>"		"<value>"
-//		...
-//	}
-//
-// with // and /* */ comments. Other kinds of blocks (Doom 3's "model" and
-// the like) are skipped. A later def of a name replaces an earlier one,
-// files load in name order. The game and the cgame load the same files, so
-// they know the same defs. Code adds defs of its own (BG_AddDef) for things
-// built into the game; a file's def of such a name changes the keys it sets.
+
+// bg_defs.c -- what the game and the cgame build from entity defs
+// (idlib/decl_entitydef.c): the weapons, the items and their models
 
 #ifdef CGAME
 #include "../cgame/cg_local.h"
@@ -41,320 +29,6 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 #else
 #include "g_local.h"
 #endif
-
-#define MAX_BG_DEFS			2048
-#define MAX_DEF_NAME		64
-#define DEF_HASH_SIZE		1024
-#define MAX_DEF_FILES		4096		// bytes of def/ file names
-
-typedef struct bgDef_s {
-	char			name[MAX_DEF_NAME];
-	dict_t			dict;
-	qboolean		resolved;		// "inherit" merged in
-	qboolean		resolving;		// to catch loops
-	qboolean		builtin;		// added by code: a file's def of the name only changes its keys
-	struct bgDef_s	*hashNext;
-} bgDef_t;
-
-static bgDef_t	*bg_defs[MAX_BG_DEFS];
-static int		bg_numDefs;
-static bgDef_t	*bg_defHash[DEF_HASH_SIZE];
-
-static int BG_DefHash( const char *name ) {
-	int hash = 0;
-
-	for ( ; *name; name++ ) {
-		int c = *name;
-		hash = hash * 31 + ( ( c >= 'A' && c <= 'Z' ) ? c - 'A' + 'a' : c );
-	}
-	return hash & ( DEF_HASH_SIZE - 1 );
-}
-
-static bgDef_t *BG_FindDefRaw( const char *name ) {
-	bgDef_t *def;
-
-	for ( def = bg_defHash[BG_DefHash( name )]; def; def = def->hashNext ) {
-		if ( !Q_stricmp( def->name, name ) ) {
-			return def;
-		}
-	}
-	return NULL;
-}
-
-/*
-================
-BG_ClearDefs
-================
-*/
-void BG_ClearDefs( void ) {
-	int i;
-
-	for ( i = 0; i < bg_numDefs; i++ ) {
-		DictFree( &bg_defs[i]->dict );
-		trap_HeapFree( bg_defs[i] );
-	}
-	bg_numDefs = 0;
-	memset( bg_defHash, 0, sizeof( bg_defHash ) );
-}
-
-/*
-================
-BG_AddDef
-
-A def with the name, for things built into the game; it starts empty. A
-def a file gives for the name later only changes the keys it sets, where
-a file's def replaces any other def of its name.
-================
-*/
-static dict_t *BG_AddDefFrom( const char *name, qboolean builtin ) {
-	bgDef_t *def;
-	int hash;
-
-	def = BG_FindDefRaw( name );
-	if ( def ) {
-		if ( !def->builtin || builtin ) {
-			DictClear( &def->dict );
-		}
-		def->builtin = builtin;
-		def->resolved = qfalse;
-		return &def->dict;
-	}
-	if ( bg_numDefs == MAX_BG_DEFS ) {
-		Com_Printf( S_COLOR_YELLOW "WARNING: more than %d entity defs, %s left out\n", MAX_BG_DEFS, name );
-		return NULL;
-	}
-
-	def = trap_HeapMalloc( sizeof( *def ) );
-	memset( def, 0, sizeof( *def ) );
-	def->builtin = builtin;
-	Q_strncpyz( def->name, name, sizeof( def->name ) );
-	DictInit( &def->dict );
-
-	hash = BG_DefHash( name );
-	def->hashNext = bg_defHash[hash];
-	bg_defHash[hash] = def;
-	bg_defs[bg_numDefs++] = def;
-	return &def->dict;
-}
-
-dict_t *BG_AddDef( const char *name ) {
-	return BG_AddDefFrom( name, qtrue );
-}
-
-/*
-================
-BG_ResolveDef
-
-Merges in what the def inherits, once.
-================
-*/
-static void BG_ResolveDef( bgDef_t *def ) {
-	const char *parentName;
-	bgDef_t *parent;
-
-	if ( def->resolved ) {
-		return;
-	}
-	if ( def->resolving ) {
-		Com_Printf( S_COLOR_YELLOW "WARNING: entity def %s inherits from itself\n", def->name );
-		return;
-	}
-	def->resolving = qtrue;
-
-	// the parent's own parents first, then its keys under this one's
-	while ( DictGetString( &def->dict, "inherit", "", &parentName ) && parentName[0] ) {
-		char name[MAX_DEF_NAME];
-
-		Q_strncpyz( name, parentName, sizeof( name ) );
-		DictDelete( &def->dict, "inherit" );
-		parent = BG_FindDefRaw( name );
-		if ( !parent ) {
-			Com_Printf( S_COLOR_YELLOW "WARNING: entity def %s inherits from unknown def %s\n", def->name, name );
-			continue;
-		}
-		BG_ResolveDef( parent );
-		DictSetDefaults( &def->dict, &parent->dict );
-	}
-
-	// a def's classname is its name, whatever it inherits
-	DictSet( &def->dict, "classname", def->name );
-
-	def->resolving = qfalse;
-	def->resolved = qtrue;
-}
-
-/*
-================
-BG_FindDef
-
-The def of the name, with what it inherits, or NULL.
-================
-*/
-const dict_t *BG_FindDef( const char *name ) {
-	bgDef_t *def;
-
-	if ( !name || !name[0] ) {
-		return NULL;
-	}
-	def = BG_FindDefRaw( name );
-	if ( !def ) {
-		return NULL;
-	}
-	BG_ResolveDef( def );
-	return &def->dict;
-}
-
-int BG_NumDefs( void ) {
-	return bg_numDefs;
-}
-
-const char *BG_DefName( int num ) {
-	if ( num < 0 || num >= bg_numDefs ) {
-		return NULL;
-	}
-	return bg_defs[num]->name;
-}
-
-const dict_t *BG_DefForNum( int num ) {
-	if ( num < 0 || num >= bg_numDefs ) {
-		return NULL;
-	}
-	BG_ResolveDef( bg_defs[num] );
-	return &bg_defs[num]->dict;
-}
-
-/*
-================
-BG_SkipBlock
-
-Past the closing brace of a block whose opening brace was read.
-================
-*/
-static void BG_SkipBlock( char **p ) {
-	int depth = 1;
-	char *token;
-
-	while ( depth > 0 ) {
-		token = COM_ParseExt( p, qtrue );
-		if ( !token[0] ) {
-			return;
-		}
-		if ( !strcmp( token, "{" ) ) {
-			depth++;
-		} else if ( !strcmp( token, "}" ) ) {
-			depth--;
-		}
-	}
-}
-
-/*
-================
-BG_ParseDefFile
-================
-*/
-static void BG_ParseDefFile( const char *fileName, char *text ) {
-	char *p = text, *token;
-	char name[MAX_DEF_NAME], key[MAX_TOKEN_CHARS];
-	dict_t *dict;
-	int line;
-
-	COM_BeginParseSession( fileName );
-
-	while ( 1 ) {
-		token = COM_ParseExt( &p, qtrue );
-		if ( !token[0] ) {
-			break;
-		}
-
-		// Doom 3 files hold other declarations too: skip to their block
-		if ( Q_stricmp( token, "entityDef" ) ) {
-			while ( token[0] && strcmp( token, "{" ) ) {
-				token = COM_ParseExt( &p, qtrue );
-			}
-			if ( token[0] ) {
-				BG_SkipBlock( &p );
-			}
-			continue;
-		}
-
-		token = COM_ParseExt( &p, qtrue );
-		Q_strncpyz( name, token, sizeof( name ) );
-		token = COM_ParseExt( &p, qtrue );
-		if ( strcmp( token, "{" ) ) {
-			Com_Printf( S_COLOR_YELLOW "WARNING: %s, line %d: no { after entityDef %s\n", fileName, COM_GetCurrentParseLine(), name );
-			break;
-		}
-
-		dict = BG_AddDefFrom( name, qfalse );
-		while ( 1 ) {
-			token = COM_ParseExt( &p, qtrue );
-			if ( !token[0] ) {
-				Com_Printf( S_COLOR_YELLOW "WARNING: %s: entityDef %s isn't closed\n", fileName, name );
-				return;
-			}
-			if ( !strcmp( token, "}" ) ) {
-				break;
-			}
-			Q_strncpyz( key, token, sizeof( key ) );
-			line = COM_GetCurrentParseLine();
-
-			// the value is on the key's line; "" is a value, nothing isn't
-			while ( *p == ' ' || *p == '\t' ) {
-				p++;
-			}
-			if ( !*p || *p == '\n' || *p == '\r' || ( p[0] == '/' && ( p[1] == '/' || p[1] == '*' ) ) ) {
-				Com_Printf( S_COLOR_YELLOW "WARNING: %s, line %d: key %s of %s has no value\n", fileName, line, key, name );
-				continue;
-			}
-			token = COM_ParseExt( &p, qfalse );
-			if ( dict ) {
-				DictSet( dict, key, token );
-			}
-		}
-	}
-}
-
-/*
-================
-BG_LoadDefs
-
-Every def/*.def, in name order. The defs added by code before stay unless a
-file replaces them.
-================
-*/
-static int QDECL BG_CompareFileNames( const void *a, const void *b ) {
-	return Q_stricmp( *(const char **)a, *(const char **)b );
-}
-
-void BG_LoadDefs( void ) {
-	char fileList[MAX_DEF_FILES], *fileName, *names[256];
-	char path[MAX_QPATH];
-	int numFiles, i;
-	long length;
-	void *text;
-
-	numFiles = trap_FS_GetFileList( "def", ".def", fileList, sizeof( fileList ) );
-	Com_DPrintf( "def/: %d files\n", numFiles );
-	numFiles = MIN( numFiles, (int)ARRAY_LEN( names ) );
-	fileName = fileList;
-	for ( i = 0; i < numFiles; i++ ) {
-		names[i] = fileName;
-		fileName += strlen( fileName ) + 1;
-	}
-	qsort( names, numFiles, sizeof( names[0] ), BG_CompareFileNames );
-
-	for ( i = 0; i < numFiles; i++ ) {
-		Com_sprintf( path, sizeof( path ), "def/%s", names[i] );
-		length = BG_FS_ReadFile( path, &text );
-		if ( length <= 0 || !text ) {
-			BG_FS_FreeFile( text );
-			continue;
-		}
-		( (char *)text )[length] = '\0';
-		BG_ParseDefFile( path, (char *)text );
-		BG_FS_FreeFile( text );
-	}
-}
 
 /*
 ===============================================================================
@@ -420,17 +94,17 @@ static void BG_InitWeapons( void ) {
 	int i, num;
 
 	num = 0;
-	for ( i = 0; i < BG_NumDefs(); i++ ) {
-		dict = BG_DefForNum( i );
+	for ( i = 0; i < EntityDef_Num(); i++ ) {
+		dict = EntityDef_ForNum( i );
 		if ( !DictFindKey( dict, "weapon_slot" ) ) {
 			continue;
 		}
 		if ( num == MAX_WEAPONS - 1 ) {
-			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d weapons, %s left out\n", MAX_WEAPONS - 1, BG_DefName( i ) );
+			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d weapons, %s left out\n", MAX_WEAPONS - 1, EntityDef_Name( i ) );
 			break;
 		}
 		sorted[num].def = dict;
-		sorted[num].name = BG_DefName( i );
+		sorted[num].name = EntityDef_Name( i );
 		sorted[num].slot = DictGetInt( dict, "weapon_slot", "0" );
 		num++;
 	}
@@ -469,7 +143,7 @@ static void BG_InitWeapons( void ) {
 		w->numProjectiles = DictGetInt( dict, "numProjectiles", "1" );
 		w->spread = DictGetFloat( dict, "spread", "0" );
 		if ( DictGetString( dict, "def_projectile", "", &projectile ) && projectile[0] ) {
-			w->projectile = BG_FindDef( projectile );
+			w->projectile = EntityDef_Find( projectile );
 			if ( !w->projectile ) {
 				Com_Printf( S_COLOR_YELLOW "WARNING: weapon %s: no projectile def %s\n", w->name, projectile );
 			}
@@ -595,7 +269,7 @@ static void BG_AddBuiltinItemDefs( void ) {
 	int i;
 
 	for ( it = bg_builtinItems + 1; it->classname; it++ ) {
-		dict = BG_AddDef( it->classname );
+		dict = EntityDef_Add( it->classname );
 		if ( !dict ) {
 			continue;
 		}
@@ -784,9 +458,9 @@ void BG_InitItems( void ) {
 	const char *spawnclass;
 	int i, num, firstNew;
 
-	BG_ClearDefs();
+	EntityDef_Clear();
 	BG_AddBuiltinItemDefs();
-	BG_LoadDefs();
+	EntityDef_LoadAll();
 	BG_InitSoundShaders();
 	BG_InitWeapons();
 	BG_InitModels();
@@ -795,7 +469,7 @@ void BG_InitItems( void ) {
 	memset( bg_defItems, 0, sizeof( bg_defItems ) );
 	num = 1;
 	for ( it = bg_builtinItems + 1; it->classname && num < MAX_ITEMS; it++ ) {
-		dict = BG_FindDef( it->classname );
+		dict = EntityDef_Find( it->classname );
 		if ( !dict || !BG_ItemFromDef( dict, &bg_defItems[num] ) ) {
 			// keep the number taken, as the built-in item
 			bg_defItems[num] = *it;
@@ -805,16 +479,16 @@ void BG_InitItems( void ) {
 
 	// then the new ones, by name
 	firstNew = num;
-	for ( i = 0; i < BG_NumDefs(); i++ ) {
-		if ( BG_BuiltinItemForClass( BG_DefName( i ) ) ) {
+	for ( i = 0; i < EntityDef_Num(); i++ ) {
+		if ( BG_BuiltinItemForClass( EntityDef_Name( i ) ) ) {
 			continue;
 		}
-		dict = BG_DefForNum( i );
+		dict = EntityDef_ForNum( i );
 		if ( !DictGetString( dict, "spawnclass", "", &spawnclass ) || Q_stricmp( spawnclass, "item" ) ) {
 			continue;
 		}
 		if ( num == MAX_ITEMS ) {
-			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d items, %s left out\n", MAX_ITEMS - 1, BG_DefName( i ) );
+			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d items, %s left out\n", MAX_ITEMS - 1, EntityDef_Name( i ) );
 			break;
 		}
 		if ( BG_ItemFromDef( dict, &bg_defItems[num] ) ) {
@@ -826,7 +500,7 @@ void BG_InitItems( void ) {
 	bg_itemlist = bg_defItems;
 	bg_numItems = num;
 
-	Com_DPrintf( "%d entity defs, %d items (%d from defs), %d weapons\n", BG_NumDefs(), num - 1, num - firstNew, bg_numWeapons - 1 );
+	Com_DPrintf( "%d entity defs, %d items (%d from defs), %d weapons\n", EntityDef_Num(), num - 1, num - firstNew, bg_numWeapons - 1 );
 }
 
 /*

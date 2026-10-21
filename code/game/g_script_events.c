@@ -785,7 +785,7 @@ a damage def's ("damage", and "damage_random" more at most, Daikatana's)
 ================
 */
 static int DamageFromDef( const char *name ) {
-	const dict_t *def = BG_FindDef( name );
+	const dict_t *def = EntityDef_Find( name );
 
 	if ( !def ) {
 		G_Printf( S_COLOR_YELLOW "WARNING: no damage def %s\n", name );
@@ -804,7 +804,7 @@ TestMelee, in front of it, and seen
 ================
 */
 static qboolean MeleeReach( gentity_t *self, gentity_t *enemy, const char *damageDef ) {
-	const dict_t *def = damageDef[0] ? BG_FindDef( damageDef ) : NULL;
+	const dict_t *def = damageDef[0] ? EntityDef_Find( damageDef ) : NULL;
 	vec3_t	gap, dir;
 	float	range;
 	int		k;
@@ -833,7 +833,7 @@ static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
 
 	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
 	enemy = G_MonsterEnemy( self );
-	if ( !enemy || !BG_FindDef( EVARG_STRING( 0 ) ) || !MeleeReach( self, enemy, EVARG_STRING( 0 ) ) ) {
+	if ( !enemy || !EntityDef_Find( EVARG_STRING( 0 ) ) || !MeleeReach( self, enemy, EVARG_STRING( 0 ) ) ) {
 		Thread_ReturnInt( 0 );
 		return;
 	}

@@ -383,8 +383,8 @@ static qboolean G_MonsterHitBody( gentity_t *ent, gentity_t *other, vec3_t vel, 
 
 	if ( ( m->flags & MONF_LEAPING ) && speed > 150 && other->takedamage && !G_IsMonster( other ) ) {
 		damageDef = G_ScriptGetSpawnArg( ent, "leap_damage", "" );
-		if ( damageDef[0] && BG_FindDef( damageDef ) ) {
-			const dict_t *def = BG_FindDef( damageDef );
+		if ( damageDef[0] && EntityDef_Find( damageDef ) ) {
+			const dict_t *def = EntityDef_Find( damageDef );
 
 			damage = DictGetInt( def, "damage", "0" ) + (int)( random() * DictGetInt( def, "damage_random", "0" ) );
 			VectorNormalize2( vel, dir );

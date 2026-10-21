@@ -126,7 +126,7 @@ const char *G_ScriptGetSpawnArg( gentity_t *ent, const char *key, const char *de
 		return value;
 	}
 	// its def's, as Doom 3's spawn args hold them
-	if ( ent->classname && BG_FindDef( ent->classname ) && DictGetString( BG_FindDef( ent->classname ), key, NULL, &value ) && value ) {
+	if ( ent->classname && EntityDef_Find( ent->classname ) && DictGetString( EntityDef_Find( ent->classname ), key, NULL, &value ) && value ) {
 		return value;
 	}
 	return defaultValue;

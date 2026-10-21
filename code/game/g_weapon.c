@@ -106,7 +106,7 @@ static int G_DamageDef( const dict_t *projectile, const char *key, float *radius
 	if ( !projectile || !DictGetString( projectile, key, "", &name ) || !name[0] ) {
 		return 0;
 	}
-	damage = BG_FindDef( name );
+	damage = EntityDef_Find( name );
 	if ( !damage ) {
 		G_Printf( S_COLOR_YELLOW "WARNING: %s: no damage def %s\n", DictGetStringReference( projectile, "classname", "?" ), name );
 		return 0;

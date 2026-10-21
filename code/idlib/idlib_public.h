@@ -70,6 +70,7 @@ typedef struct idlib_import_s
 	int			(*FS_Seek)( fileHandle_t f, long offset, int origin );
 	long		(*FS_ReadFile)( const char *qpath, void **buffer );
 	void		(*FS_FreeFile)( void *buffer );
+	int			(*FS_GetFileList)( const char *path, const char *extension, char *listbuf, int bufsize );
 /*
 	//debug visualisation stuff
 	int			(*DebugLineCreate)(void);

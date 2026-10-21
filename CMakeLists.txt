@@ -1102,6 +1102,7 @@ set(idlib_files
 
   idlib/hashindex.c
   idlib/dict.c
+  idlib/decl_entitydef.c
 
   idlib/md4.c
   idlib/md5.c

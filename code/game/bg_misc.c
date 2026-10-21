@@ -1755,6 +1755,7 @@ void BG_InitIdLib( void ) {
 	import.FS_Seek = trap_FS_Seek;
 	import.FS_ReadFile = BG_FS_ReadFile;
 	import.FS_FreeFile = BG_FS_FreeFile;
+	import.FS_GetFileList = trap_FS_GetFileList;
 
     ie = *GetIdLibAPI( IDLIB_API_VERSION, &import );
 }

@@ -518,16 +518,16 @@ void BG_InitModels( void ) {
 	int i;
 
 	bg_numModels = 1;
-	for ( i = 0; i < BG_NumDefs(); i++ ) {
-		def = BG_DefForNum( i );
+	for ( i = 0; i < EntityDef_Num(); i++ ) {
+		def = EntityDef_ForNum( i );
 		if ( !DictFindKey( def, "mesh" ) ) {
 			continue;
 		}
 		if ( bg_numModels == MAX_MODEL_DEFS ) {
-			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d models, %s left out\n", MAX_MODEL_DEFS - 1, BG_DefName( i ) );
+			Com_Printf( S_COLOR_YELLOW "WARNING: more than %d models, %s left out\n", MAX_MODEL_DEFS - 1, EntityDef_Name( i ) );
 			break;
 		}
-		BG_LoadModel( &bg_models[bg_numModels++], def, BG_DefName( i ) );
+		BG_LoadModel( &bg_models[bg_numModels++], def, EntityDef_Name( i ) );
 	}
 }
 

@@ -1078,7 +1078,7 @@ qboolean G_IsStartWeapon( int weapon ) {
 	char *p, *token;
 	char buf[MAX_STRING_CHARS];
 
-	def = BG_FindDef( "player" );
+	def = EntityDef_Find( "player" );
 	if ( !def || !DictGetString( def, "weapon", "", &list ) ) {
 		return qfalse;
 	}

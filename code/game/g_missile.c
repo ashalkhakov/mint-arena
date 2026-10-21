@@ -145,7 +145,7 @@ static void G_MissileImpact( gentity_t *ent, trace_t *trace, int zone ) {
 		SnapVectorTowards( trace->endpos, ent->s.pos.trBase );
 		G_SetOrigin( ent, trace->endpos );
 		// "def_water_damage": a blast all around in the water (the ion blaster's), else the splash
-		if ( ( def = BG_FindDef( ent->classname ) ) != NULL && ( damage = G_DefDamage( def, "def_water_damage", &radius ) ) > 0 ) {
+		if ( ( def = EntityDef_Find( ent->classname ) ) != NULL && ( damage = G_DefDamage( def, "def_water_damage", &radius ) ) > 0 ) {
 			G_RadiusDamage( trace->endpos, ent->parent, damage, radius, NULL, ent->splashMethodOfDeath );
 		} else if ( ent->splashDamage ) {
 			G_RadiusDamage( trace->endpos, ent->parent, ent->splashDamage, ent->splashRadius, NULL, ent->splashMethodOfDeath );
@@ -296,7 +296,7 @@ static int G_DefDamage( const dict_t *projectile, const char *key, int *radius )
 	if ( !DictGetString( projectile, key, "", &name ) || !name[0] ) {
 		return 0;
 	}
-	damage = BG_FindDef( name );
+	damage = EntityDef_Find( name );
 	if ( !damage ) {
 		G_Printf( S_COLOR_YELLOW "WARNING: %s: no damage def %s\n", DictGetStringReference( projectile, "classname", "?" ), name );
 		return 0;

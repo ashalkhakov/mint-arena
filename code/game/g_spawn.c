@@ -354,7 +354,7 @@ qboolean G_CallSpawn( gentity_t *ent ) {
 
 	// a monster def's (Doom 3's idAI)
 	{
-		const dict_t *def = BG_FindDef( ent->classname );
+		const dict_t *def = EntityDef_Find( ent->classname );
 		const char *spawnclass;
 
 		if ( def && DictGetString( def, "spawnclass", "", &spawnclass ) && !Q_stricmp( spawnclass, "monster" ) ) {

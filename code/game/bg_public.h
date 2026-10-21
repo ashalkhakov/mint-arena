@@ -33,6 +33,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "../idlib/surfaceflags.h"
 #include "../idlib/idlib_public.h"
 #include "../idlib/bitmsg.h"
+#include "../idlib/decl_entitydef.h"
 #include "../cm2/cm_public.h"
 
 extern idlib_export_t ie;
@@ -1250,15 +1251,8 @@ void	SnapVectorTowards( vec3_t v, vec3_t to );
 
 void    BG_InitIdLib( void );
 
-// bg_defs.c, entity definitions (game and cgame)
+// bg_defs.c, what is built from the entity defs (idlib/decl_entitydef.c)
 struct dict_s;
-void					BG_ClearDefs( void );
-struct dict_s			*BG_AddDef( const char *name );
-const struct dict_s		*BG_FindDef( const char *name );
-int						BG_NumDefs( void );
-const char				*BG_DefName( int num );
-const struct dict_s		*BG_DefForNum( int num );
-void					BG_LoadDefs( void );
 void					BG_InitItems( void );		// and the weapons and the models
 
 //

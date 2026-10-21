@@ -78,7 +78,7 @@ static void UI_PlayerInfo_SetWeapon( uiPlayerInfo_t *pi, weapon_t weaponNum ) {
 
 	// none asked for: the first the "player" def starts with
 	if ( !BG_ValidWeapon( weaponNum ) ) {
-		def = BG_FindDef( "player" );
+		def = EntityDef_Find( "player" );
 		if ( !def || !DictGetString( def, "weapon", "", &list ) ) {
 			return;
 		}

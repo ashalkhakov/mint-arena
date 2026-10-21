@@ -370,7 +370,7 @@ static int BotDefDamage( const dict_t *projectile, const char *key, float *radiu
 
 	if ( radius ) *radius = 0;
 	if ( !projectile || !DictGetString( projectile, key, "", &name ) || !name[0] ) return 0;
-	damage = BG_FindDef( name );
+	damage = EntityDef_Find( name );
 	if ( !damage ) return 0;
 	if ( radius ) *radius = DictGetFloat( damage, "radius", "0" );
 	return DictGetInt( damage, "damage", "0" );
