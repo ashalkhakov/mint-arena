@@ -234,6 +234,25 @@ int G_CharacterHitboxes( const gentity_t *ent, int time, bgHitboxPose_t *poses )
 		BG_ModelWalkIK( model, joints, numJoints, st.origin, (const vec3_t *)axis, st.origin[2] + ent->s.mins[2],
 						qtrue, ent->s.number, time, NULL );
 	}
+	if ( ent->s.origin2[0] > 0.0f && ent->s.origin2[0] != 1.0f ) {
+		// a scaled model ("modelscale"): its joints where it's drawn, the
+		// boxes scaled with them, their axes not (as CG_StoreHitboxes)
+		float	scale = ent->s.origin2[0];
+		int		num, i;
+
+		VectorScale( axis[0], scale, axis[0] );
+		VectorScale( axis[1], scale, axis[1] );
+		VectorScale( axis[2], scale, axis[2] );
+		num = BG_ModelHitboxes( model, joints, numJoints, st.origin, (const vec3_t *)axis, poses );
+		for ( i = 0; i < num; i++ ) {
+			VectorNormalize( poses[i].axis[0] );
+			VectorNormalize( poses[i].axis[1] );
+			VectorNormalize( poses[i].axis[2] );
+			VectorScale( poses[i].mins, scale, poses[i].mins );
+			VectorScale( poses[i].maxs, scale, poses[i].maxs );
+		}
+		return num;
+	}
 	return BG_ModelHitboxes( model, joints, numJoints, st.origin, (const vec3_t *)axis, poses );
 }
 
