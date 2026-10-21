@@ -384,6 +384,23 @@ void G_ScriptWorldSpawn( void ) {
 		Thread_DelayedStart( thread, 0 );
 	}
 
+	// Daikatana's map intro: its cinematic (cine/<name>.script's <name>::play),
+	// in single player
+	if ( g_gametype.integer == GT_CAMPAIGN ) {
+		char *intro;
+
+		G_SpawnString( "cinematic_intro", "", &intro );
+		if ( intro[0] ) {
+			func = Program_FindFunction( va( "%s::play", intro ) );
+			if ( func ) {
+				thread = Thread_NewFunction( func );
+				Thread_DelayedStart( thread, 0 );
+			} else {
+				G_Printf( S_COLOR_YELLOW "no cinematic %s (./dk cine converts them)\n", intro );
+			}
+		}
+	}
+
 	// call any functions specified in worldspawn
 	for ( i = 0; i < level.numSpawnVars; i++ ) {
 		if ( Q_stricmpn( level.spawnVars[ i ][ 0 ], "call", 4 ) ) {

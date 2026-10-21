@@ -389,6 +389,65 @@ void G_RunCinematic( void ) {
 	}
 	VectorCopy( origin, level.cameraLastOrigin );
 	G_CinematicPlayers( qtrue );
+
+	// its loops go with the camera
+	{
+		gentity_t *loop = NULL;
+
+		while ( ( loop = G_Find( loop, FOFS( classname ), "cinematic_loop" ) ) != NULL ) {
+			G_SetOrigin( loop, origin );
+			trap_LinkEntity( loop );
+		}
+	}
+}
+
+/*
+===============================================================================
+
+SOUNDS
+
+===============================================================================
+*/
+
+/*
+================
+G_GlobalSound
+
+a sound every player hears, from no place (a cinematic's lines and noises)
+================
+*/
+void G_GlobalSound( const char *sound ) {
+	gentity_t *te = G_TempEntity( level.cameraLastOrigin, EV_GLOBAL_SOUND );
+
+	te->s.eventParm = G_SoundIndex( sound );
+	te->r.svFlags |= SVF_BROADCAST;
+}
+
+/*
+================
+G_GlobalLoop / G_StopGlobalLoops
+
+a sound looping until it's stopped, at the camera (where the cinematic's
+view is)
+================
+*/
+void G_GlobalLoop( const char *sound ) {
+	gentity_t *ent = G_Spawn();
+
+	ent->classname = "cinematic_loop";
+	ent->s.eType = ET_SPEAKER;
+	ent->s.loopSound = G_SoundIndex( sound );
+	ent->r.svFlags |= SVF_BROADCAST;
+	G_SetOrigin( ent, level.cameraLastOrigin );
+	trap_LinkEntity( ent );
+}
+
+void G_StopGlobalLoops( void ) {
+	gentity_t *ent = NULL;
+
+	while ( ( ent = G_Find( ent, FOFS( classname ), "cinematic_loop" ) ) != NULL ) {
+		G_FreeEntity( ent );
+	}
 }
 
 /*

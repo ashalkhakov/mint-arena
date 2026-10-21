@@ -1080,3 +1080,6 @@ void		G_CinematicConfigString( void );
 void		G_CinematicPlayerThink( gentity_t *ent, usercmd_t *ucmd );
 void		G_RunCinematic( void );
 void		G_SetFade( const vec4_t color, float alpha, int ms );
+void		G_GlobalSound( const char *sound );
+void		G_GlobalLoop( const char *sound );
+void		G_StopGlobalLoops( void );

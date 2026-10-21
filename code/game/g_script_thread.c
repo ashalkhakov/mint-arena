@@ -733,6 +733,22 @@ static void Event_FadeTo( scriptThread_t *thread, const intptr_t *args ) {
 	G_SetFade( EVARG_VECTOR( 0 ), EVARG_FLOAT( 1 ), EVARG_FLOAT( 2 ) * 1000 );
 }
 
+static void Event_StartGlobalSound( scriptThread_t *thread, const intptr_t *args ) {
+	if ( !level.skipCinematic ) {
+		G_GlobalSound( EVARG_STRING( 0 ) );
+	}
+}
+
+static void Event_StartGlobalLoop( scriptThread_t *thread, const intptr_t *args ) {
+	if ( !level.skipCinematic ) {
+		G_GlobalLoop( EVARG_STRING( 0 ) );
+	}
+}
+
+static void Event_StopGlobalLoops( scriptThread_t *thread, const intptr_t *args ) {
+	G_StopGlobalLoops();
+}
+
 static void Event_InCinematic( scriptThread_t *thread, const intptr_t *args ) {
 	Thread_ReturnInt( level.inCinematic );
 }
@@ -1196,6 +1212,9 @@ const sysEventCallback_t threadEventCallbacks[] = {
 	{ "fadeOut",			"vf",		0,		Event_FadeOut },
 	{ "fadeTo",				"vff",		0,		Event_FadeTo },
 	{ "inCinematic",		NULL,		'd',	Event_InCinematic },
+	{ "startGlobalSound",	"s",		0,		Event_StartGlobalSound },
+	{ "startGlobalLoop",	"s",		0,		Event_StartGlobalLoop },
+	{ "stopGlobalLoops",	NULL,		0,		Event_StopGlobalLoops },
 	{ "skippingCinematic",	NULL,		'd',	Event_SkippingCinematic },
 	{ "waitForThread",		"d",		0,		Event_WaitForThread },
 	{ "print",				"s",		0,		Event_Print },
