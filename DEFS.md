@@ -1,13 +1,14 @@
 # Entity defs
 
 Doom 3 style entity definitions, read by the game and the cgame from every
-`def/*.def` (in name order), in `code/game/bg_defs.c`:
+`def/*.def` (in name order), in `code/idlib/decl_entitydef.c` (Doom 3's
+DeclEntityDef); what the game makes of them is in `code/game/bg_defs.c`:
 
 ```
-entityDef item_health_25 {
-	"inherit"	"item_health"			// its keys, unless this def sets them
-	"inv_name"	"Health"
-	"model"		"models/e1/a1_hlth.md3"
+entityDef item_speed_boost {
+	"inherit"	"item_attack_boost"		// its keys, unless this def sets them
+	"inv_name"	"Speed Boost"
+	"model"		"models/global/a_spdb.md3"
 }
 ```
 
@@ -18,10 +19,8 @@ a file's def only changes key by key.
 
 ## Items
 
-Items are the defs with `"spawnclass" "item"`. Quake 3's items (but its
-weapons and ammo) are built-in defs of their classnames, so a def can inherit
-from `item_quad`. Built-in items keep their numbers; items new in defs follow
-in name order (256 at most). What an item gives:
+Items are the defs with `"spawnclass" "item"`, numbered in name order (256
+at most); none are built into the game. What an item gives:
 
 | Key | Gives |
 | --- | --- |
@@ -29,10 +28,9 @@ in name order (256 at most). What an item gives:
 | `inv_armor` N | armor |
 | `inv_weapon` `<weapon def>` | that weapon, with `inv_ammo` N |
 | `inv_ammo` N, `ammo_type` `<weapon def>` | ammo for that weapon |
-| `inv_powerup` `<powerup item>` | that powerup, for `time` seconds |
-| `inv_persistant` `<item>` | a persistant powerup |
-| `inv_holdable` `<holdable item>` | that holdable |
-| `inv_team` `<item>` | a team item (flags) |
+| `inv_powerup` `<powerup>` | that powerup, for `time` seconds: `quad`, `battlesuit`, `haste`, `invis`, `regen`, `flight` (`bg_powerupNames`) |
+| `inv_persistant` `<powerup>` | a persistant powerup |
+| `inv_holdable` `<holdable>` | that holdable: `teleporter`, `medkit`, `kamikaze`, `portal`, `invulnerability` (`bg_holdableNames`) |
 
 Look: `model` (and `model2` to `model4`), `model_scale` (1), `icon`,
 `snd_acquire`, `inv_name`, `sounds` (more to precache). An empty value
@@ -46,8 +44,8 @@ tumble when dropped and are pushed by explosions; they collide as the hull
 of their model (see PHYSICS.md), or their old box for a model without one,
 and stay triggers for picking up. Picked up, they come back where they
 first came to rest. Keys: `mass` or `density`, `bouncyness` (0.1),
-`friction` (0.5), `nophysics`. Suspended map items (spawnflag 1) and team
-items (flags) keep Quake 3's behaviour. The cgame draws them where the game
+`friction` (0.5), `nophysics`. Suspended map items (spawnflag 1) keep
+Quake 3's behaviour. The cgame draws them where the game
 simulates them, without bobbing or spinning.
 
 ## Weapons

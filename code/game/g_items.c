@@ -694,7 +694,7 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity ) {
 	dropped->item = item;
 	if ( dropped->item->giType == IT_HEALTH
 		|| dropped->item->giType == IT_ARMOR
-		|| ( dropped->item->giType == IT_POWERUP && !strcmp( dropped->item->classname, "item_invis" ) ) ) {
+		|| ( dropped->item->giType == IT_POWERUP && dropped->item->giTag == PW_INVIS ) ) {
 		VectorSet( dropped->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -24 );
 		VectorSet( dropped->s.maxs, ITEM_RADIUS, ITEM_RADIUS, 0 );
 	} else {
@@ -784,7 +784,7 @@ void FinishSpawningItem( gentity_t *ent ) {
 
 	if ( ent->item->giType == IT_HEALTH ||
 		 ent->item->giType == IT_ARMOR ||
-		 ( ent->item->giType == IT_POWERUP && !strcmp( ent->item->classname, "item_invis" ) ) ) {
+		 ( ent->item->giType == IT_POWERUP && ent->item->giTag == PW_INVIS ) ) {
 		VectorSet( ent->s.mins, -ITEM_RADIUS, -ITEM_RADIUS, -24 );
 		VectorSet( ent->s.maxs, ITEM_RADIUS, ITEM_RADIUS, 0 );
 	} else {

@@ -1165,13 +1165,14 @@ typedef struct gitem_s {
 
 	char		*sounds;		// string of all sounds this item will use
 
-	const struct dict_s	*def;	// its entity def (bg_defs.c), NULL for a built-in one before BG_InitItems
+	const struct dict_s	*def;	// its entity def (bg_defs.c)
 } gitem_t;
 
 // included in both the game dll and the client
-extern	gitem_t	bg_builtinItems[];
 extern	gitem_t	*bg_itemlist;
 extern	int		bg_numItems;
+extern	const char	*bg_powerupNames[PW_NUM_POWERUPS];
+extern	const char	*bg_holdableNames[HI_NUM_HOLDABLE];
 
 gitem_t	*BG_FindItem( const char *pickupName );
 gitem_t	*BG_FindItemByClassname( const char *classname );

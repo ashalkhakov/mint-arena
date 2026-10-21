@@ -205,26 +205,25 @@ void BG_HitscanDir( const vec3_t forward, const vec3_t right, const vec3_t up, f
 
 ITEMS
 
-Items are entity defs with "spawnclass" "item". The built-in ones (the
-bg_builtinItems table) are defs too, so a file can change one by giving a
-def of its name, or make a new one that inherits from it:
+Items are entity defs with "spawnclass" "item":
 
 	entityDef item_health_25 {
-		"inherit"		"item_health"
+		"spawnclass"	"item"
+		"inv_health"	"25"
 		"model"			"models/e1/a1_hlth.md3"
 		"snd_acquire"	"sounds/global/a_hpick.wav"
 	}
 
-What an item gives comes from Doom 3 style keys, naming other items rather
-than numbers:
+What an item gives comes from Doom 3 style keys, naming things rather than
+numbering them:
 	"inv_health" N						health
 	"inv_armor" N						armor
 	"inv_weapon" "<weapon item>"		that weapon, with "inv_ammo" N
 	"inv_ammo" N, "ammo_type" "<weapon item>"	ammo for that weapon
-	"inv_powerup" "<powerup item>"		that powerup, for "time" seconds
-	"inv_persistant" "<item>"			a persistant powerup
-	"inv_holdable" "<holdable item>"	that holdable
-	"inv_team" "<item>"					a team item (flags)
+	"inv_powerup" "<powerup>"			that powerup (bg_powerupNames: "quad",
+										"haste"...), for "time" seconds
+	"inv_persistant" "<powerup>"		a persistant powerup
+	"inv_holdable" "<holdable>"			that holdable (bg_holdableNames)
 	"inv_item" 1						kept in the inventory, up to "inv_max"
 	"scriptobject" "<object>"			what its script object's pickup() does
 										(none of the keys above: g_items.c)
@@ -232,8 +231,8 @@ Looks: "model" (and "model2" to "model4"), "model_scale", "icon",
 "snd_acquire", "inv_name", "sounds" (what else to precache). Physics in the game: "density", "mass",
 "bouncyness", "friction", "nophysics".
 
-The game and the cgame build the same list from the same files: built-in
-items first, at their usual numbers, then the new ones by name.
+The game and the cgame build the same list from the same files, the items
+numbered by name.
 
 ===============================================================================
 */
@@ -242,104 +241,27 @@ static gitem_t	bg_defItems[MAX_ITEMS + 1];
 
 /*
 ================
-BG_BuiltinItemForClass
-================
-*/
-static const gitem_t *BG_BuiltinItemForClass( const char *classname ) {
-	const gitem_t *it;
-
-	for ( it = bg_builtinItems + 1; it->classname; it++ ) {
-		if ( !Q_stricmp( it->classname, classname ) ) {
-			return it;
-		}
-	}
-	return NULL;
-}
-
-/*
-================
-BG_AddBuiltinItemDefs
-
-A def for each built-in item, with its keys.
-================
-*/
-static void BG_AddBuiltinItemDefs( void ) {
-	const gitem_t *it;
-	dict_t *dict;
-	int i;
-
-	for ( it = bg_builtinItems + 1; it->classname; it++ ) {
-		dict = EntityDef_Add( it->classname );
-		if ( !dict ) {
-			continue;
-		}
-		DictSet( dict, "spawnclass", "item" );
-		for ( i = 0; i < MAX_ITEM_MODELS; i++ ) {
-			if ( it->world_model[i] && it->world_model[i][0] ) {
-				DictSet( dict, i ? va( "model%d", i + 1 ) : "model", it->world_model[i] );
-			}
-		}
-		if ( it->pickup_sound && it->pickup_sound[0] ) {
-			DictSet( dict, "snd_acquire", it->pickup_sound );
-		}
-		if ( it->icon && it->icon[0] ) {
-			DictSet( dict, "icon", it->icon );
-		}
-		if ( it->pickup_name && it->pickup_name[0] ) {
-			DictSet( dict, "inv_name", it->pickup_name );
-		}
-		if ( it->sounds && it->sounds[0] ) {
-			DictSet( dict, "sounds", it->sounds );
-		}
-
-		switch ( it->giType ) {
-		case IT_HEALTH:
-			DictSetInt( dict, "inv_health", it->quantity );
-			break;
-		case IT_ARMOR:
-			DictSetInt( dict, "inv_armor", it->quantity );
-			break;
-		case IT_POWERUP:
-			DictSet( dict, "inv_powerup", it->classname );
-			DictSetInt( dict, "time", it->quantity );
-			break;
-		case IT_PERSISTANT_POWERUP:
-			DictSet( dict, "inv_persistant", it->classname );
-			break;
-		case IT_HOLDABLE:
-			DictSet( dict, "inv_holdable", it->classname );
-			break;
-		case IT_TEAM:
-			DictSet( dict, "inv_team", it->classname );
-			break;
-		default:
-			break;
-		}
-	}
-}
-
-/*
-================
 BG_ItemTag
 
-The tag of the built-in item a key names, for the type.
+The number of the powerup or holdable a key names, in names.
 ================
 */
-static qboolean BG_ItemTag( const dict_t *dict, const char *key, itemType_t type, int *tag ) {
-	const gitem_t *builtin;
+static qboolean BG_ItemTag( const dict_t *dict, const char *key, const char **names, int numNames, int *tag ) {
 	const char *name;
+	int i;
 
 	if ( !DictGetString( dict, key, "", &name ) || !name[0] ) {
 		return qfalse;
 	}
-	builtin = BG_BuiltinItemForClass( name );
-	if ( !builtin || builtin->giType != type ) {
-		Com_Printf( S_COLOR_YELLOW "WARNING: item %s: %s \"%s\" isn't such an item\n",
-					DictGetStringReference( dict, "classname", "?" ), key, name );
-		return qfalse;
+	for ( i = 1; i < numNames; i++ ) {
+		if ( !Q_stricmp( names[i], name ) ) {
+			*tag = i;
+			return qtrue;
+		}
 	}
-	*tag = builtin->giTag;
-	return qtrue;
+	Com_Printf( S_COLOR_YELLOW "WARNING: item %s: %s \"%s\" is unknown\n",
+				DictGetStringReference( dict, "classname", "?" ), key, name );
+	return qfalse;
 }
 
 /*
@@ -417,15 +339,13 @@ static qboolean BG_ItemFromDef( const dict_t *dict, gitem_t *item ) {
 	} else if ( BG_WeaponTag( dict, "ammo_type", &tag ) ) {
 		item->giType = IT_AMMO;
 		item->quantity = DictGetInt( dict, "inv_ammo", "0" );
-	} else if ( BG_ItemTag( dict, "inv_powerup", IT_POWERUP, &tag ) ) {
+	} else if ( BG_ItemTag( dict, "inv_powerup", bg_powerupNames, PW_NUM_POWERUPS, &tag ) ) {
 		item->giType = IT_POWERUP;
 		item->quantity = DictGetInt( dict, "time", "30" );
-	} else if ( BG_ItemTag( dict, "inv_persistant", IT_PERSISTANT_POWERUP, &tag ) ) {
+	} else if ( BG_ItemTag( dict, "inv_persistant", bg_powerupNames, PW_NUM_POWERUPS, &tag ) ) {
 		item->giType = IT_PERSISTANT_POWERUP;
-	} else if ( BG_ItemTag( dict, "inv_holdable", IT_HOLDABLE, &tag ) ) {
+	} else if ( BG_ItemTag( dict, "inv_holdable", bg_holdableNames, HI_NUM_HOLDABLE, &tag ) ) {
 		item->giType = IT_HOLDABLE;
-	} else if ( BG_ItemTag( dict, "inv_team", IT_TEAM, &tag ) ) {
-		item->giType = IT_TEAM;
 	} else if ( DictFindKey( dict, "scriptobject" ) && !DictGetInt( dict, "inv_item", "0" ) ) {
 		// what the item does is its script's
 		item->giType = IT_SCRIPT;
@@ -453,36 +373,20 @@ Loads the entity defs and makes the item list from them.
 ================
 */
 void BG_InitItems( void ) {
-	const gitem_t *it;
 	const dict_t *dict;
 	const char *spawnclass;
-	int i, num, firstNew;
+	int i, num;
 
 	EntityDef_Clear();
-	BG_AddBuiltinItemDefs();
 	EntityDef_LoadAll();
 	BG_InitSoundShaders();
 	BG_InitWeapons();
 	BG_InitModels();
 
-	// the built-in items keep their numbers
+	// item 0 is none
 	memset( bg_defItems, 0, sizeof( bg_defItems ) );
 	num = 1;
-	for ( it = bg_builtinItems + 1; it->classname && num < MAX_ITEMS; it++ ) {
-		dict = EntityDef_Find( it->classname );
-		if ( !dict || !BG_ItemFromDef( dict, &bg_defItems[num] ) ) {
-			// keep the number taken, as the built-in item
-			bg_defItems[num] = *it;
-		}
-		num++;
-	}
-
-	// then the new ones, by name
-	firstNew = num;
 	for ( i = 0; i < EntityDef_Num(); i++ ) {
-		if ( BG_BuiltinItemForClass( EntityDef_Name( i ) ) ) {
-			continue;
-		}
 		dict = EntityDef_ForNum( i );
 		if ( !DictGetString( dict, "spawnclass", "", &spawnclass ) || Q_stricmp( spawnclass, "item" ) ) {
 			continue;
@@ -495,12 +399,12 @@ void BG_InitItems( void ) {
 			num++;
 		}
 	}
-	qsort( bg_defItems + firstNew, num - firstNew, sizeof( bg_defItems[0] ), BG_CompareItemClass );
+	qsort( bg_defItems + 1, num - 1, sizeof( bg_defItems[0] ), BG_CompareItemClass );
 
 	bg_itemlist = bg_defItems;
 	bg_numItems = num;
 
-	Com_DPrintf( "%d entity defs, %d items (%d from defs), %d weapons\n", EntityDef_Num(), num - 1, num - firstNew, bg_numWeapons - 1 );
+	Com_DPrintf( "%d entity defs, %d items, %d weapons\n", EntityDef_Num(), num - 1, bg_numWeapons - 1 );
 }
 
 /*
