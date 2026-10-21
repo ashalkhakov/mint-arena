@@ -1649,6 +1649,10 @@ static void UI_OwnerDraw(float x, float y, float w, float h, float text_x, float
   if ( UI_InventoryOwnerDraw( ownerDraw, &rect, scale, color, shader, textStyle ) ) {
     return;
   }
+  // the save and load menus' (ui_saves.c)
+  if ( UI_SavesOwnerDraw( ownerDraw, &rect, scale, color, textStyle ) ) {
+    return;
+  }
 
   switch (ownerDraw) {
     case UI_HANDICAP:
@@ -1814,6 +1818,10 @@ static qboolean UI_OwnerDrawVisible(int flags) {
 
 	// the inventory screen's (ui_inventory.c)
 	if ( !UI_InventoryVisible( &flags ) ) {
+		vis = qfalse;
+	}
+	// the save and load menus' (ui_saves.c)
+	if ( !UI_SavesVisible( &flags ) ) {
 		vis = qfalse;
 	}
 
@@ -3070,6 +3078,8 @@ static void UI_RunMenuScript(char **args) {
 			UI_StartSkirmish(qfalse);
 		} else if (Q_stricmp(name, "closeingame") == 0) {
 			UI_ForceMenuOff();
+		} else if (UI_SavesScript(name)) {
+			// the save and load menus' (ui_saves.c)
 		} else if (Q_stricmp(name, "InvCommand") == 0) {
 			// the inventory screen's commands (ui_inventory.c)
 			if (String_Parse(args, &name2)) {
@@ -3921,6 +3931,8 @@ static int UI_FeederCount(float feederID) {
 		return uiInfo.modCount;
 	} else if (feederID == FEEDER_DEMOS) {
 		return uiInfo.demoCount;
+	} else if (feederID == FEEDER_SAVEGAMES) {
+		return UI_SavesCount();
 	}
 	return 0;
 }
@@ -4091,6 +4103,8 @@ static const char *UI_FeederItemText(float feederID, int index, int column, qhan
 		if (index >= 0 && index < uiInfo.demoCount) {
 			return uiInfo.demoList[index];
 		}
+	} else if (feederID == FEEDER_SAVEGAMES) {
+		return UI_SavesItemText(index, column);
 	}
 	return "";
 }
@@ -4204,6 +4218,8 @@ static void UI_FeederSelection(float feederID, int index) {
 		uiInfo.previewMovie = -1;
   } else if (feederID == FEEDER_DEMOS) {
 		uiInfo.demoIndex = index;
+  } else if (feederID == FEEDER_SAVEGAMES) {
+		UI_SavesSelect(index);
 	}
 }
 

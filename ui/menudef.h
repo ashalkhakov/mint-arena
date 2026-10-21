@@ -88,6 +88,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define FEEDER_SERVERSTATUS					0x0d			// server status
 #define FEEDER_FINDPLAYER					0x0e			// find player
 #define FEEDER_CINEMATICS					0x0f			// cinematics
+#define FEEDER_SAVEGAMES					0x10			// the saved games, newest first: column 0 the name, 1 the date (ui_saves.c)
 
 // display flags
 #define CG_SHOW_BLUE_TEAM_HAS_REDFLAG     0x00000001
@@ -137,6 +138,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_SHOW_INV_WEARABLE              0x00008000	// it can be worn
 #define UI_SHOW_INV_DROPPABLE             0x00010000	// it can be dropped
 #define UI_SHOW_INV_WORN                  0x00020000	// armor is worn
+#define UI_SHOW_SAVE_SELECTED             0x00040000	// a saved game is selected that can be loaded (ui_saves.c)
 
 
 
@@ -299,6 +301,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_INV_SELINFO 260				// its count, points, ammo
 #define UI_INV_WORN 261					// the armor worn
 #define UI_INV_ROOM 262					// the grid's cells used
+#define UI_SAVE_SHOT 263				// the selected save's map's levelshot (ui_saves.c)
+#define UI_SAVE_TITLE 264				// its episode and map, "Episode 1: ..."
+#define UI_SAVE_INFO 265				// its health, armor, secrets, time and date, a line each
+#define UI_SAVE_GEMS 266				// the save gems the player has, a save's price
 
 #define VOICECHAT_GETFLAG			"getflag"				// command someone to get the flag
 #define VOICECHAT_OFFENSE			"offense"				// command someone to go on offense

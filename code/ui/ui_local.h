@@ -473,6 +473,17 @@ qboolean	UI_InventoryHandleKey( int ownerDraw, int key );
 void		UI_InventoryCommand( const char *cmd );
 void		UI_InventoryOpen( void );
 qboolean	UI_InventoryBeltKey( const char *binding );
+
+//
+// ui_saves.c
+//
+void		UI_LoadSaves( void );
+int			UI_SavesCount( void );
+const char	*UI_SavesItemText( int index, int column );
+void		UI_SavesSelect( int index );
+qboolean	UI_SavesOwnerDraw( int ownerDraw, rectDef_t *rect, float scale, vec4_t color, int textStyle );
+qboolean	UI_SavesVisible( int *flags );
+qboolean	UI_SavesScript( const char *name );
 int			UI_InvSelected( void );
 extern void			UI_ForceMenuOff (void);
 void UI_LoadBestScores(const char *map, int game);

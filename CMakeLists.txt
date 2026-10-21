@@ -1181,7 +1181,8 @@ list(APPEND Q3CGOBJ
   ui/ui_gameinfo.c
   ui/ui_players.c
   ui/ui_shared.c
-  ui/ui_inventory.c)
+  ui/ui_inventory.c
+  ui/ui_saves.c)
 
 list(TRANSFORM Q3CGOBJ PREPEND code/)
 

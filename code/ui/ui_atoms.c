@@ -302,8 +302,24 @@ static void UI_Click_f( void ) {
 	Com_Printf( "\n" );
 }
 
+/*
+=================
+UI_Open_f
+
+ui_open [menu]: the menus up, in game its menu, as escape brings them, and
+the named one opened over them. For tests, with ui_click.
+=================
+*/
+static void UI_Open_f( void ) {
+	UI_SetActiveMenu( cg.connected ? UIMENU_INGAME : UIMENU_MAIN );
+	if ( trap_Argc() > 1 ) {
+		Menus_ActivateByName( CG_Argv( 1 ) );
+	}
+}
+
 consoleCommand_t	ui_commands[] = {
 	{ "ui_click", UI_Click_f, 0 },
+	{ "ui_open", UI_Open_f, 0 },
 	{ "postgame", UI_CalcPostGameStats, CMD_INGAME },
 	{ "ui_cache", UI_Cache_f, 0 },
 	{ "ui_load", UI_Load_f, 0 },

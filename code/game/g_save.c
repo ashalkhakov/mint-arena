@@ -204,8 +204,6 @@ typedef struct {
 
 #include "g_funcs.h"		// made by code/tools/extractfuncs.py
 
-#define SAVEGAME_MAGIC		0x47534b44		// "DKSG"
-#define SAVEGAME_VERSION	4		// 2: the scripts' (g_script.c), 3: the inventory grid, 4: the belt
 #define MAX_SAVEGAME_SIZE	( 8 << 20 )
 
 typedef enum {
@@ -277,16 +275,10 @@ typedef struct {
 	savedInventory_t	inventory;
 } savePlayer_t;
 
-// the engine's loadgame (sv_ccmds.c) reads the first five: keep them first
+// the engine's loadgame (sv_ccmds.c) reads the first five of the info:
+// keep them first
 typedef struct {
-	int			magic;
-	int			version;
-	char		map[MAX_QPATH];
-	int			time;
-	int			skill;
-	int			entitySize;			// a save of another build's entities can't be read
-	int			numSecrets, secretsFound;
-	int			numEntities;
+	saveInfo_t		info;
 	savePlayer_t	players[MAX_CLIENTS];
 } saveHeader_t;
 
@@ -460,14 +452,22 @@ qboolean G_SaveGame( const char *name ) {
 	}
 
 	memset( &header, 0, sizeof( header ) );
-	header.magic = SAVEGAME_MAGIC;
-	header.version = SAVEGAME_VERSION;
-	trap_Cvar_VariableStringBuffer( "mapname", header.map, sizeof( header.map ) );
-	header.time = level.time;
-	header.skill = g_skill.integer;
-	header.entitySize = sizeof( gentity_t );
-	header.numSecrets = level.numSecrets;
-	header.secretsFound = level.secretsFound;
+	header.info.magic = SAVEGAME_MAGIC;
+	header.info.version = SAVEGAME_VERSION;
+	trap_Cvar_VariableStringBuffer( "mapname", header.info.map, sizeof( header.info.map ) );
+	header.info.time = level.time;
+	header.info.skill = g_skill.integer;
+	header.info.entitySize = sizeof( gentity_t );
+	header.info.numSecrets = level.numSecrets;
+	header.info.secretsFound = level.secretsFound;
+	{
+		qtime_t t;
+
+		trap_RealTime( &t );
+		Com_sprintf( header.info.date, sizeof( header.info.date ), "%04d-%02d-%02d %02d:%02d:%02d",
+			1900 + t.tm_year, 1 + t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec );
+	}
+	trap_GetConfigstring( CS_MESSAGE, header.info.title, sizeof( header.info.title ) );
 
 	for ( i = 0; i < level.maxplayers && i < MAX_CLIENTS; i++ ) {
 		player = &level.players[i];
@@ -490,6 +490,10 @@ qboolean G_SaveGame( const char *name ) {
 		memcpy( sp->powerups, player->ps.powerups, sizeof( sp->powerups ) );
 		sp->weapon = player->ps.weapon;
 		G_SaveInventory( player, &sp->inventory );
+		if ( !header.info.health ) {
+			header.info.health = g_entities[i].health;
+			header.info.armor = player->ps.stats[STAT_ARMOR];
+		}
 	}
 
 	g_saveBuf = trap_HeapMalloc( MAX_SAVEGAME_SIZE );
@@ -514,7 +518,7 @@ qboolean G_SaveGame( const char *name ) {
 	}
 	i = -1;
 	G_SaveBytes( &i, sizeof( i ) );
-	( (saveHeader_t *)g_saveBuf )->numEntities = numEntities;
+	( (saveHeader_t *)g_saveBuf )->info.numEntities = numEntities;
 
 	// the scripts' variables and threads
 	G_ScriptWriteGame();
@@ -638,7 +642,7 @@ qboolean G_LoadGame( void ) {
 	g_saveError = qfalse;
 
 	G_LoadBytes( &header, sizeof( header ) );
-	if ( header.magic != SAVEGAME_MAGIC || header.version != SAVEGAME_VERSION || header.entitySize != (int)sizeof( gentity_t ) ) {
+	if ( header.info.magic != SAVEGAME_MAGIC || header.info.version != SAVEGAME_VERSION || header.info.entitySize != (int)sizeof( gentity_t ) ) {
 		trap_HeapFree( g_saveBuf );
 		return qfalse;
 	}
@@ -749,8 +753,8 @@ qboolean G_LoadGame( void ) {
 		G_LinkEntity( ent );
 	}
 
-	level.numSecrets = header.numSecrets;
-	level.secretsFound = header.secretsFound;
+	level.numSecrets = header.info.numSecrets;
+	level.secretsFound = header.info.secretsFound;
 
 	trap_HeapFree( g_saveBuf );
 	if ( g_saveError ) {

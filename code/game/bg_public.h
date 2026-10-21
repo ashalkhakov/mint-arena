@@ -1155,6 +1155,25 @@ typedef enum {
 
 
 // the kinds of items in the inventory, Thief's / The Dark Mod's categories
+// a saved game's header (g_save.c): what the engine's loadgame reads first,
+// then what the save and load menus show (ui_saves.c)
+#define SAVEGAME_MAGIC		0x47534b44		// "DKSG"
+#define SAVEGAME_VERSION	5		// 2: the scripts' (g_script.c), 3: the inventory grid, 4: the belt, 5: the menus' info
+
+typedef struct {
+	int			magic;
+	int			version;
+	char		map[MAX_QPATH];
+	int			time;				// level.time
+	int			skill;
+	int			entitySize;			// a save of another build's entities can't be read
+	int			numSecrets, secretsFound;
+	int			numEntities;
+	char		date[32];			// when it was saved, "2000-05-22 13:45:10"
+	char		title[64];			// the map's name (its worldspawn "message")
+	int			health, armor;		// the first player's
+} saveInfo_t;
+
 typedef enum {
 	INVCAT_MISC,
 	INVCAT_WEAPONS,
