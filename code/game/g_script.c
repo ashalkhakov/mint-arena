@@ -321,6 +321,7 @@ void G_ScriptInit( const char *mapname ) {
 	Event_Init();
 	consoleFunctionCount = 0;
 	shuttingDown = qfalse;
+	ScriptDebug_Init();
 
 	if ( trap_FS_FOpenFile( SCRIPT_DEFAULT, &f, FS_READ ) >= 0 && f ) {
 		trap_FS_FCloseFile( f );
@@ -397,6 +398,7 @@ the threads whose time has come, as the frame starts
 ================
 */
 void G_ScriptFrame( void ) {
+	ScriptDebug_Frame();
 	Thread_RunThreads();
 }
 
@@ -409,6 +411,7 @@ void G_ScriptShutdown( void ) {
 	int i;
 
 	shuttingDown = qtrue;
+	ScriptDebug_Shutdown();
 	for ( i = 0; i < MAX_GENTITIES; i++ ) {
 		ScriptObject_Free( &g_entities[ i ].scriptObject );
 		if ( entitySpawnArgs[ i ] ) {
@@ -677,4 +680,26 @@ void G_ScriptReadGame( void ) {
 		return;
 	}
 	Thread_RestoreAll();
+}
+
+/*
+================
+G_ScriptListSpawnArgs
+
+an entity's spawn args, for the script debugger (their keys stay the dict's)
+================
+*/
+int G_ScriptListSpawnArgs( gentity_t *ent, const char **keys, char values[][ MAX_STRING_LEN + 16 ], int max, int valueSize ) {
+	const dict_t			*args;
+	const dictKeyValue_t	*kv;
+	int						i, n;
+
+	args = entitySpawnArgs[ ent - g_entities ];
+	n = args ? DictGetNumKeyVals( args ) : 0;
+	for ( i = 0; i < n && i < max; i++ ) {
+		kv = DictGetKeyVal( args, i );
+		keys[ i ] = PoolStrGetString( kv->key );
+		Q_strncpyz( values[ i ], PoolStrGetString( kv->value ), valueSize );
+	}
+	return i;
 }

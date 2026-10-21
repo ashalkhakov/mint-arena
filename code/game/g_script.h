@@ -635,6 +635,9 @@ DebuggerServer stops a thread
 
 ===============================================================================
 */
+void			ScriptDebug_Init( void );
+void			ScriptDebug_Frame( void );
+void			ScriptDebug_Shutdown( void );
 qboolean		ScriptDebug_Update( interpreter_t *interpreter, int instructionPointer );
 void			ScriptDebug_ScriptError( interpreter_t *interpreter, int instructionPointer, const char *message, qboolean isError );
 
@@ -733,6 +736,7 @@ void			G_ScriptReadEntity( gentity_t *ent, int entityNum );
 void			G_ScriptWriteGame( void );
 void			G_ScriptReadGame( void );
 void			G_ScriptLoading( qboolean loading );
+int				G_ScriptListSpawnArgs( gentity_t *ent, const char **keys, char values[][ MAX_STRING_LEN + 16 ], int max, int valueSize );
 void			G_ScriptInit( const char *mapname );		// the default script, then the map's
 void			G_ScriptShutdown( void );
 void			G_ScriptFrame( void );
