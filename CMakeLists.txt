@@ -1096,6 +1096,7 @@ set(idlib_files
   idlib/q_extramath.c
   idlib/q_containers.c
   idlib/lcp.c
+  idlib/bitmsg.c
   idlib/surface.c
   idlib/surfacepatch.c
 

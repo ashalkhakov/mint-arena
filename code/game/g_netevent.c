@@ -173,9 +173,9 @@ void G_SendSoundEvent( const gentity_t *ent, int channel, const char *soundShade
 		return;
 	}
 	memset( params, 0, sizeof( params ) );
-	BG_BitMsgInit( &msg, params, ARRAY_LEN( params ) );
-	BG_WriteBits( &msg, shader - bg_soundShaders, 12 );
-	BG_WriteBits( &msg, channel, 4 );
-	BG_WriteBits( &msg, (int)( Com_Clamp( 0, 1, volume ) * 255 ), 8 );
+	BitMsg_Init( &msg, params, ARRAY_LEN( params ) );
+	BitMsg_WriteBits( &msg, shader - bg_soundShaders, 12 );
+	BitMsg_WriteBits( &msg, channel, 4 );
+	BitMsg_WriteBits( &msg, (int)( Com_Clamp( 0, 1, volume ) * 255 ), 8 );
 	G_ServerSendEvent( ent, ENTEV_STARTSOUND, &msg, qfalse, -1 );
 }

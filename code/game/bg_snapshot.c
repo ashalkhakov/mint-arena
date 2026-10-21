@@ -30,92 +30,6 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 /*
 ===============================================================================
 
-	idBitMsg
-
-===============================================================================
-*/
-
-void BG_BitMsgInit( bitMsg_t *msg, int *words, int numWords ) {
-	msg->data = words;
-	msg->maxBits = numWords * 32;
-	msg->bit = 0;
-	msg->overflowed = qfalse;
-}
-
-/*
-================
-BG_WriteBits
-
-the low numBits of value; numBits < 0 writes -numBits of a signed value
-================
-*/
-void BG_WriteBits( bitMsg_t *msg, int value, int numBits ) {
-	unsigned int v;
-	int i, word, bit;
-
-	if ( numBits < 0 ) {
-		numBits = -numBits;
-	}
-	if ( numBits <= 0 || numBits > 32 ) {
-		return;
-	}
-	if ( msg->bit + numBits > msg->maxBits ) {
-		msg->overflowed = qtrue;
-		return;
-	}
-	v = (unsigned int)value;
-	for ( i = 0; i < numBits; i++, msg->bit++ ) {
-		word = msg->bit >> 5;
-		bit = msg->bit & 31;
-		if ( v & ( 1u << i ) ) {
-			msg->data[word] |= ( 1u << bit );
-		} else {
-			msg->data[word] &= ~( 1u << bit );
-		}
-	}
-}
-
-int BG_ReadBits( bitMsg_t *msg, int numBits ) {
-	unsigned int v = 0;
-	qboolean sign = qfalse;
-	int i;
-
-	if ( numBits < 0 ) {
-		numBits = -numBits;
-		sign = qtrue;
-	}
-	if ( numBits <= 0 || numBits > 32 || msg->bit + numBits > msg->maxBits ) {
-		msg->overflowed = qtrue;
-		return 0;
-	}
-	for ( i = 0; i < numBits; i++, msg->bit++ ) {
-		if ( (unsigned int)msg->data[msg->bit >> 5] & ( 1u << ( msg->bit & 31 ) ) ) {
-			v |= ( 1u << i );
-		}
-	}
-	if ( sign && numBits < 32 && ( v & ( 1u << ( numBits - 1 ) ) ) ) {
-		v |= ~( ( 1u << numBits ) - 1 );		// sign extend
-	}
-	return (int)v;
-}
-
-void BG_WriteFloat( bitMsg_t *msg, float f ) {
-	floatint_t fi;
-
-	fi.f = f;
-	BG_WriteBits( msg, fi.i, 32 );
-}
-
-float BG_ReadFloat( bitMsg_t *msg ) {
-	floatint_t fi;
-
-	fi.i = BG_ReadBits( msg, 32 );
-	return fi.f;
-}
-
-/*
-===============================================================================
-
 	Articulated figures
 
 ===============================================================================
@@ -179,7 +93,7 @@ static void AF_ReadQuat( bitMsg_t *msg, float q[4] ) {
 	int i;
 
 	for ( i = 0; i < 3; i++ ) {
-		q[i] = BG_ReadBits( msg, -AF_QUAT_BITS ) / max;
+		q[i] = BitMsg_ReadBits( msg, -AF_QUAT_BITS ) / max;
 	}
 	d = 1.0f - q[0] * q[0] - q[1] * q[1] - q[2] * q[2];
 	q[3] = d > 0.0f ? sqrt( d ) : 0.0f;
@@ -200,13 +114,13 @@ void BG_WriteAFSnapshot( const afFigure_t *af, entityState_t *es ) {
 	int i, k;
 
 	memset( es->snapshot, 0, sizeof( es->snapshot ) );
-	BG_BitMsgInit( &msg, es->snapshot, ES_SNAPSHOT_WORDS );
-	BG_WriteBits( &msg, SNAPSHOT_AF, 8 );
-	BG_WriteBits( &msg, phys->numBodies, 6 );
+	BitMsg_Init( &msg, es->snapshot, ES_SNAPSHOT_WORDS );
+	BitMsg_WriteBits( &msg, SNAPSHOT_AF, 8 );
+	BitMsg_WriteBits( &msg, phys->numBodies, 6 );
 	for ( i = 0; i < phys->numBodies; i++ ) {
 		AF_AxisToQuat( (const vec3_t *)phys->bodies[i].current->worldAxis, q );
 		for ( k = 0; k < 3; k++ ) {
-			BG_WriteBits( &msg, (int)floor( q[k] * max + 0.5f ), -AF_QUAT_BITS );
+			BitMsg_WriteBits( &msg, (int)floor( q[k] * max + 0.5f ), -AF_QUAT_BITS );
 		}
 	}
 	VectorCopy( phys->bodies[0].current->worldOrigin, es->pos.trBase );
@@ -227,17 +141,17 @@ qboolean BG_ReadAFSnapshot( afFigure_t *af, const entityState_t *es, const entit
 	bitMsg_t msg, msg2;
 	int i, k, n;
 
-	BG_BitMsgInit( &msg, (int *)es->snapshot, ES_SNAPSHOT_WORDS );
-	if ( BG_ReadBits( &msg, 8 ) != SNAPSHOT_AF ) {
+	BitMsg_Init( &msg, (int *)es->snapshot, ES_SNAPSHOT_WORDS );
+	if ( BitMsg_ReadBits( &msg, 8 ) != SNAPSHOT_AF ) {
 		return qfalse;
 	}
-	n = BG_ReadBits( &msg, 6 );
+	n = BitMsg_ReadBits( &msg, 6 );
 	if ( n != phys->numBodies ) {
 		return qfalse;
 	}
 	if ( next ) {
-		BG_BitMsgInit( &msg2, (int *)next->snapshot, ES_SNAPSHOT_WORDS );
-		if ( BG_ReadBits( &msg2, 8 ) != SNAPSHOT_AF || BG_ReadBits( &msg2, 6 ) != n ) {
+		BitMsg_Init( &msg2, (int *)next->snapshot, ES_SNAPSHOT_WORDS );
+		if ( BitMsg_ReadBits( &msg2, 8 ) != SNAPSHOT_AF || BitMsg_ReadBits( &msg2, 6 ) != n ) {
 			next = NULL;
 		}
 	}

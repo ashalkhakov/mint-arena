@@ -110,9 +110,9 @@ static qboolean CG_EntityReceiveEvent( centity_t *cent, int event, int time, bit
 
 	switch ( event ) {
 		case ENTEV_STARTSOUND:
-			index = BG_ReadBits( msg, 12 );
-			channel = BG_ReadBits( msg, 4 );
-			volume = BG_ReadBits( msg, 8 ) / 255.0f;
+			index = BitMsg_ReadBits( msg, 12 );
+			channel = BitMsg_ReadBits( msg, 4 );
+			volume = BitMsg_ReadBits( msg, 8 ) / 255.0f;
 			if ( index < 0 || index >= bg_numSoundShaders ) {
 				return qtrue;
 			}
@@ -159,7 +159,7 @@ void CG_ProcessNetEvents( void ) {
 		if ( cg_debugEvents.integer ) {
 			CG_Printf( "%i: entity event %d of entity %d (%d bytes, sent at %d)\n", cg.time, ev->event, ev->entityNum, ev->size, ev->time );
 		}
-		BG_BitMsgInit( &msg, ev->params, ARRAY_LEN( ev->params ) );
+		BitMsg_Init( &msg, ev->params, ARRAY_LEN( ev->params ) );
 		msg.maxBits = ev->size * 8;
 		if ( !CG_EntityReceiveEvent( cent, ev->event, ev->time, &msg ) && cg_debugEvents.integer ) {
 			CG_Printf( S_COLOR_YELLOW "event %d of entity %d: unknown event\n", ev->event, ev->entityNum );

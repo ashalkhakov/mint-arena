@@ -32,6 +32,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 
 #include "../idlib/surfaceflags.h"
 #include "../idlib/idlib_public.h"
+#include "../idlib/bitmsg.h"
 #include "../cm2/cm_public.h"
 
 extern idlib_export_t ie;
@@ -307,19 +308,6 @@ typedef enum {
 	SNAPSHOT_AF				// an articulated figure's bodies (bg_snapshot.c)
 } snapshotType_t;
 
-// Doom 3's idBitMsg over snapshot words
-typedef struct {
-	int			*data;
-	int			maxBits;
-	int			bit;
-	qboolean	overflowed;
-} bitMsg_t;
-
-void	BG_BitMsgInit( bitMsg_t *msg, int *words, int numWords );
-void	BG_WriteBits( bitMsg_t *msg, int value, int numBits );		// numBits < 0: signed
-int		BG_ReadBits( bitMsg_t *msg, int numBits );
-void	BG_WriteFloat( bitMsg_t *msg, float f );
-float	BG_ReadFloat( bitMsg_t *msg );
 
 
 // bit limits
