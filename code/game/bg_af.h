@@ -22,7 +22,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //
 // Bodies (trace models) held together by constraints. A tree of primary
 // constraints is solved in linear time (idAFTree); limits, contacts and
-// friction are auxiliary, solved as a box LCP (idLCP_Symmetric, bg_lcp.c).
+// friction are auxiliary, solved as a box LCP (idLCP_Symmetric, idlib/lcp.c).
 // The game and the cgame both run it: the caller passes how the bodies
 // collide (afClip_t). The figure comes from a Doom 3 .af file (bg_afdecl.c).
 
@@ -290,11 +290,6 @@ void		AF_GetBounds( const afPhysics_t *af, vec3_t absBounds[2] );
 float		AF_ImpactSpeed( const afPhysics_t *af, int body, const vec3_t impulse );
 void		AF_DebugDraw( const afPhysics_t *af, void (*line)( const vec3_t start, const vec3_t end, int color ) );
 
-// bg_lcp.c: the box LCP, Doom 3's idLCP_Symmetric
-// solves for x: (m*x - b) complementary to the bounds lo <= x <= hi; a
-// variable with boxIndex >= 0 has its bounds scaled by x[boxIndex]
-qboolean	LCP_SolveSymmetric( float *m, int n, int stride, float *x, const float *b, const float *lo, const float *hi,
-							const int *boxIndex );
 
 //
 // bg_afdecl.c: Doom 3's .af files, and idAF: the figure on a skeleton

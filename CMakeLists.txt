@@ -1095,6 +1095,7 @@ set(idlib_files
   idlib/q_shared.c
   idlib/q_extramath.c
   idlib/q_containers.c
+  idlib/lcp.c
   idlib/surface.c
   idlib/surfacepatch.c
 
@@ -1131,7 +1132,6 @@ set(Q3CGOBJ
   game/bg_ik.c
   game/bg_af.c
   game/bg_afdecl.c
-  game/bg_lcp.c
   game/bg_snapshot.c
   game/bg_model.c
   game/bg_sound.c
@@ -1398,7 +1398,6 @@ set(Q3GOBJ
   game/bg_ik.c
   game/bg_af.c
   game/bg_afdecl.c
-  game/bg_lcp.c
   game/bg_snapshot.c
   game/bg_model.c
   game/bg_sound.c

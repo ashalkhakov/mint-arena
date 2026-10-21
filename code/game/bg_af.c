@@ -30,6 +30,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 #include "../idlib/q_shared.h"
 #include "bg_public.h"
 #include "bg_af.h"
+#include "../idlib/lcp.h"
 
 #define ERROR_REDUCTION					0.5f
 #define ERROR_REDUCTION_MAX				256.0f

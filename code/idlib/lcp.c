@@ -18,15 +18,14 @@ You should have received a copy of the GNU General Public License
 along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
-// bg_lcp.c -- Doom 3's box LCP solver for symmetric matrices (idLCP_Symmetric)
+// lcp.c -- Doom 3's box LCP solver for symmetric matrices (idLCP_Symmetric)
 //
 // A Dantzig-style pivoting solver: the clamped variables' sub matrix is kept
 // LDL' factored and updated as variables are added and removed. The SIMD
 // routines it used are plain loops here.
 
-#include "../idlib/q_shared.h"
-#include "bg_public.h"
-#include "bg_af.h"
+#include "q_shared.h"
+#include "lcp.h"
 
 #define LCP_BOUND_EPSILON			1e-5f
 #define LCP_ACCEL_EPSILON			1e-5f
