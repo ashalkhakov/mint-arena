@@ -278,10 +278,6 @@ qhandle_t trap_R_RegisterModel( const char *name ) {
 	return syscall( G_R_REGISTERMODEL, name );
 }
 
-int trap_R_BlendSkeleton( qhandle_t model, const skeletonBlend_t *blends, int numBlends, float *jointMats, int maxJoints ) {
-	return syscall( G_R_BLENDSKELETON, model, blends, numBlends, jointMats, maxJoints );
-}
-
 int trap_R_LerpTag( orientation_t *tag, clipHandle_t handle, int startFrame, int endFrame,
 					   float frac, const char *tagName ) {
 	return syscall( G_R_LERPTAG, tag, handle, startFrame, endFrame, PASSFLOAT(frac), tagName );

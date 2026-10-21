@@ -329,8 +329,6 @@ typedef enum {
 	G_DEBUG_CLEARPOLYGONS,	// ( int time );
 	G_DEBUG_POLYGON,		// ( const vec4_t color, const fixedWinding_t *winding, int lifetime, qboolean depthTest );
 
-	G_R_BLENDSKELETON,		// ( qhandle_t model, const skeletonBlend_t *blends, int numBlends, float *jointMats, int maxJoints );
-
 } gameImport_t;
 
 
