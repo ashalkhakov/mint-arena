@@ -377,6 +377,17 @@ void G_ScriptWorldSpawn( void ) {
 		trap_FS_FCloseFile( f );
 	}
 
+	// and the cinematics it plays (./dk assembles cine/maps/<map>.script: all
+	// of them at once would be more than the scripts' memory)
+	scriptname = va( "cine/maps/%s.script", mapname );
+	f = 0;
+	if ( trap_FS_FOpenFile( scriptname, &f, FS_READ ) > 0 && f ) {
+		trap_FS_FCloseFile( f );
+		Program_CompileFile( scriptname );
+	} else if ( f ) {
+		trap_FS_FCloseFile( f );
+	}
+
 	// call the main function by default
 	func = Program_FindFunction( "main" );
 	if ( func != NULL ) {
