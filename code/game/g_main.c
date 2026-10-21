@@ -706,7 +706,15 @@ Model handles are no longer valid, re-register all models.
 =================
 */
 void G_VidRestart( void ) {
+	gentity_t	*ent;
+	int			i;
 
+	// the characters' meshes, for their skeletons (hitboxes, ragdolls)
+	for ( i = 0, ent = g_entities; i < level.num_entities; i++, ent++ ) {
+		if ( ent->inuse && ent->characterModel && BG_ValidModel( ent->characterDef ) ) {
+			ent->characterModel = trap_R_RegisterModel( bg_models[ent->characterDef].mesh );
+		}
+	}
 }
 
 /*

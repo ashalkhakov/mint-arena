@@ -1674,6 +1674,7 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.fxBulletHit = CG_FX_RegisterEffect( "dk/bullet_hit" );
 	cgs.media.fxExplosion = CG_FX_RegisterEffect( "dk/explosion" );
 	cgs.media.fxBlood = CG_FX_RegisterEffect( "dk/blood" );
+	cgs.media.fxMetalHit = CG_FX_RegisterEffect( "dk/metal_hit" );
 	cgs.media.fxRespawn = CG_FX_RegisterEffect( "dk/respawn" );
 
 	cgs.media.bulletFlashModel = trap_R_RegisterModel("models/weaphits/bullet.md3");

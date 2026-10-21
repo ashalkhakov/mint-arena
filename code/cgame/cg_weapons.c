@@ -1546,8 +1546,14 @@ CG_MissileHitPlayer
 =================
 */
 void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum ) {
-	CG_Bleed( origin, entityNum );
-	CG_FX_PlayEffectID( cgs.media.fxBlood, origin, dir );
+	const entityState_t *es = &cg_entities[entityNum].currentState;
+
+	if ( es->eType == ET_CHARACTER && BG_ValidModel( es->modelindex2 ) && bg_models[es->modelindex2].metal ) {
+		// a robot (Daikatana's no-blood monsters): sparks
+		CG_FX_PlayEffectID( cgs.media.fxMetalHit, origin, dir );
+	} else {
+		CG_FX_PlayEffectID( cgs.media.fxBlood, origin, dir );
+	}
 
 	CG_MissileHitWall( weapon, 0, origin, dir, IMPACTSOUND_FLESH );
 }

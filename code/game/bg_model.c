@@ -32,6 +32,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //												// with the fps and loop if not the file's
 //		"hitbox Head"		"-4.5 -4 0 4.5 4 10 head"	// mins, maxs in the joint's space, zone
 //		"damage_scale head"	"2"					// Doom 3's
+//		"surface"			"metal"				// Doom 3's surface type: hits spark, no blood (flesh else)
 //		"frame walk 3"		"sound sounds/global/p_step1.wav"
 //	}
 //
@@ -459,6 +460,7 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	BG_ModelChannel( model, ANIMCHANNEL_TORSO, DictGetStringReference( def, "channel torso", "*Waist" ) );
 	BG_ModelChannel( model, ANIMCHANNEL_HEAD, DictGetStringReference( def, "channel head", "*Head" ) );
 	model->blendTime = DictGetFloat( def, "blend_time", "0.2" ) * 1000;
+	model->metal = !Q_stricmp( DictGetStringReference( def, "surface", "flesh" ), "metal" );
 
 	// as a player model
 	for ( i = 0; i < MAX_TOTALANIMATIONS; i++ ) {

@@ -1385,6 +1385,7 @@ typedef struct {
 	float				runSpeed, walkScale;
 	vec3_t				swimCenter;			// "swim_center": the swimming body's middle, put at the player's
 	char				ragdoll[MAX_QPATH];	// "ragdoll": its articulated figure (bg_afdecl.c), "" none
+	qboolean			metal;				// "surface" "metal" (Doom 3's surface types): a robot's, hits spark, no blood
 } bgModel_t;
 
 typedef struct {

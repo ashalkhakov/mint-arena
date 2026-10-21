@@ -1081,6 +1081,7 @@ typedef struct {
 	int			fxBulletHit;
 	int			fxExplosion;
 	int			fxBlood;
+	int			fxMetalHit;
 	int			fxRespawn;
 
 	// special effects models
