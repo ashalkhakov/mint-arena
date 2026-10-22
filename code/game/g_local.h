@@ -903,7 +903,6 @@ int			G_InventoryAdd( gentity_t *ent, const char *item, int count, int flags );
 // g_inventory.c
 //
 extern qboolean g_itemFrobbed;		// g_items.c
-#define INV_TAKEN_SOME		-1000	// G_InventoryTakeItem took some of a stack, the rest stays
 
 void		G_InventorySpawn( gentity_t *ent, const int *savedItem, const int *savedCount,
 							const int *savedCell, const int *savedValue );

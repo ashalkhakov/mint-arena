@@ -553,10 +553,6 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 			}
 			return;
 		}
-		if ( respawn == INV_TAKEN_SOME ) {
-			G_AddEvent( other, EV_ITEM_PICKUP, ent->s.modelindex );
-			return;
-		}
 	} else
 
 	// call the item-specific pickup function

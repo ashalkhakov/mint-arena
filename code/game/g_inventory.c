@@ -255,8 +255,7 @@ G_InventoryTakeItem
 
 Takes a world item into a player's inventory, the way The Dark Mod's
 CInventory::PutItem does. Returns its respawn seconds, like the Pickup_*
-functions; 0 when there was no room (nothing taken), or INV_TAKEN_SOME when
-only some of a stack was taken and the rest stays.
+functions; 0 when there was no room (nothing taken).
 ================
 */
 int G_InventoryTakeItem( gentity_t *ent, gentity_t *other ) {
@@ -298,12 +297,9 @@ int G_InventoryTakeItem( gentity_t *ent, gentity_t *other ) {
 		if ( room <= 0 ) {
 			return 0;
 		}
+		// the whole pack, as Daikatana: what's over the most one carries is lost
 		ps->ammo[w] += room;
 		G_InventorySync( other );
-		if ( room < count ) {
-			ent->count = count - room;
-			return INV_TAKEN_SOME;
-		}
 		return RESPAWN_AMMO;
 
 	case IT_ARMOR:
