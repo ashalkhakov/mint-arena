@@ -460,6 +460,8 @@ typedef struct {
 	int				modelDef;		// a skeletal model (bg_models) instead, 0 none
 	int				boxModel;		// the model def of the player's box, the server's, 0 Quake 3's
 	qhandle_t		skeletalModel;	// its mesh
+	qboolean		hasSkeletalSkin;	// its def's "skin"
+	cgSkin_t		skeletalSkin;
 
 	cgSkin_t		modelSkin;
 
@@ -1387,6 +1389,8 @@ typedef struct {
 	// locally derived information from gamestate
 	//
 	qhandle_t		gameModels[MAX_MODELS];
+	cgSkin_t		modelSkins[MAX_MODEL_DEFS];		// the model defs' "skin"s (CG_ModelSkin)
+	byte			modelSkinState[MAX_MODEL_DEFS];	// 0 not read, 1 none, 2 one
 	sfxHandle_t		gameSounds[MAX_SOUNDS];
 
 	int				numInlineModels;

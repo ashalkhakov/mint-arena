@@ -139,6 +139,8 @@ typedef struct {
 	float		idealYaw;
 	float		turnRate;			// degrees a second
 	vec3_t		velocity;
+	vec3_t		legsFrom;			// where it was the frame before (G_MonsterLegsRate: moved by a script too)
+	float		legsRateMax;		// "legs_rate_max"
 	int			enemy;				// ENTITYNUM_NONE none
 	vec3_t		lastEnemyPos;
 	int			lastEnemySeen;

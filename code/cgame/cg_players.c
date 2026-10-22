@@ -918,6 +918,8 @@ static void CG_LoadPlayerInfo( int playerNum, playerInfo_t *pi ) {
 	if ( !pi->skeletalModel ) {
 		pi->modelDef = 0;
 	}
+	pi->hasSkeletalSkin = pi->modelDef && bg_models[pi->modelDef].skin[0]
+		&& CG_RegisterSkin( bg_models[pi->modelDef].skin, &pi->skeletalSkin, qfalse );
 
 	modelloaded = qtrue;
 	if ( pi->modelDef ) {
@@ -1011,6 +1013,8 @@ static void CG_CopyPlayerInfoModel( playerInfo_t *from, playerInfo_t *to ) {
 	to->headModel = from->headModel;
 	to->modelDef = from->modelDef;
 	to->skeletalModel = from->skeletalModel;
+	to->hasSkeletalSkin = from->hasSkeletalSkin;
+	to->skeletalSkin = from->skeletalSkin;
 	to->modelSkin = from->modelSkin;
 	to->modelIcon = from->modelIcon;
 

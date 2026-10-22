@@ -1438,6 +1438,7 @@ typedef struct {
 	const struct dict_s	*extra;		// "<name>_extra": what a rigged model def taking the md3's place keeps (fx_*, light_*, frames)
 	const char			*name;
 	char				mesh[MAX_QPATH];
+	char				skin[MAX_QPATH];	// "skin": which of the mesh's surfaces show how (an outfit of several)
 	int					numAnims;
 	bgAnim_t			anims[MAX_MODEL_ANIMS];
 	int					numHitboxes;

@@ -38,6 +38,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //		"modelscale"	"0.65"
 //		"run_speed"		"220"				// what its moves go at (setMoveSpeed changes it)
 //		"turn_rate"		"360"				// degrees a second
+//		"legs_rate_max"	"3"					// its walk played this much faster at most, to keep up with it
 //		"fov"			"270"
 //		"sight_range"	"1500"
 //		"fly"			"1"					// it flies: "fly_speed", "fly_accel", "fly_offset"
@@ -844,11 +845,13 @@ G_MonsterLegsRate
 
 its legs' animation, if it goes over the ground (a walk, a run: "anim_speed"),
 played as much faster as it's moving faster than that, so its feet keep to
-the ground (as a player's: BG_PlayerLegsRate). The animation's time is moved
-so a change doesn't jump its frame
+the ground (as a player's: BG_PlayerLegsRate). Its speed is its own moves',
+or how far it went since the frame before if more (a cinematic's actor, put
+along its way by a script). The animation's time is moved so a change
+doesn't jump its frame
 ================
 */
-static void G_MonsterLegsRate( gentity_t *ent ) {
+static void G_MonsterLegsRate( gentity_t *ent, float dt ) {
 	const bgModel_t	*model;
 	const bgAnim_t	*anim;
 	float			speed, rate, old;
@@ -864,8 +867,17 @@ static void G_MonsterLegsRate( gentity_t *ent ) {
 	anim = &model->anims[ent->s.legsAnim];
 	rate = 1.0f;
 	speed = sqrt( ent->monster.velocity[0] * ent->monster.velocity[0] + ent->monster.velocity[1] * ent->monster.velocity[1] );
+	if ( dt > 0.0f ) {
+		float moved = sqrt( Square( ent->r.currentOrigin[0] - ent->monster.legsFrom[0] )
+							+ Square( ent->r.currentOrigin[1] - ent->monster.legsFrom[1] ) ) / dt;
+
+		if ( moved > speed && moved < 1000.0f ) {		// (faster: put somewhere else)
+			speed = moved;
+		}
+	}
+	VectorCopy( ent->r.currentOrigin, ent->monster.legsFrom );
 	if ( anim->speed > 0 && anim->loop && speed > 1 ) {
-		rate = Com_Clamp( 0.5f, 3.0f, speed / anim->speed );
+		rate = Com_Clamp( 0.5f, ent->monster.legsRateMax > 0.5f ? ent->monster.legsRateMax : 3.0f, speed / anim->speed );
 	}
 	q = (int)( rate * 16 + 0.5f );
 	if ( q == ( ent->s.frame > 0 ? ent->s.frame : 16 ) ) {
@@ -1154,7 +1166,7 @@ void G_MonsterThink( gentity_t *ent ) {
 		G_MonsterGroundMove( ent, dt );
 	}
 	G_MonsterTurn( ent, dt );
-	G_MonsterLegsRate( ent );
+	G_MonsterLegsRate( ent, dt );
 	ent->s.pos.trType = TR_INTERPOLATE;		// (G_SetOrigin makes it stationary)
 	ent->s.apos.trType = TR_INTERPOLATE;
 
@@ -1397,6 +1409,8 @@ void SP_monster( gentity_t *ent ) {
 
 	m->moveSpeed = G_MonsterFloat( ent, "run_speed", "200" );
 	m->turnRate = G_MonsterFloat( ent, "turn_rate", "360" );
+	m->legsRateMax = G_MonsterFloat( ent, "legs_rate_max", "3" );
+	VectorCopy( ent->r.currentOrigin, m->legsFrom );
 	m->fov = G_MonsterFloat( ent, "fov", "180" );
 	m->sightRange = G_MonsterFloat( ent, "sight_range", "2048" );
 	m->impactSpeed = G_MonsterFloat( ent, "impact_speed", "0" );

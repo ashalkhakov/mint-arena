@@ -539,6 +539,25 @@ void CG_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, cons
 
 /*
 ================
+CG_ModelSkin
+
+A model def's "skin" (which surfaces of its mesh show how: an outfit), read
+the first time it's drawn; 0 for none
+================
+*/
+static qhandle_t CG_ModelSkin( int modelDef ) {
+	if ( modelDef <= 0 || modelDef >= MAX_MODEL_DEFS ) {
+		return 0;
+	}
+	if ( !cgs.modelSkinState[modelDef] ) {
+		cgs.modelSkinState[modelDef] = bg_models[modelDef].skin[0]
+			&& CG_RegisterSkin( bg_models[modelDef].skin, &cgs.modelSkins[modelDef], qfalse ) ? 2 : 1;
+	}
+	return cgs.modelSkinState[modelDef] == 2 ? CG_AddSkinToFrame( &cgs.modelSkins[modelDef] ) : 0;
+}
+
+/*
+================
 CG_Character
 
 An ET_CHARACTER: its mesh on its channels' animations blended (Doom 3's
@@ -565,6 +584,7 @@ void CG_Character( centity_t *cent ) {
 	if ( !ent.hModel ) {
 		return;
 	}
+	ent.customSkin = CG_ModelSkin( s1->modelindex2 );
 	VectorCopy( cent->lerpOrigin, ent.origin );
 	VectorCopy( cent->lerpOrigin, ent.oldorigin );
 	VectorCopy( cent->lerpOrigin, ent.lightingOrigin );
@@ -737,7 +757,7 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 	}
 
 	legs->hModel = pi->skeletalModel;
-	legs->customSkin = 0;
+	legs->customSkin = pi->hasSkeletalSkin ? CG_AddSkinToFrame( &pi->skeletalSkin ) : 0;
 	// the legs' frames for the bounds, the blended skeleton to draw
 	BG_ModelFrameRate( model, cent->characterChannels[ANIMCHANNEL_LEGS].anim, cent->characterChannels[ANIMCHANNEL_LEGS].frameTime,
 				   cg.time, cent->characterChannels[ANIMCHANNEL_LEGS].rate, &legs->frame, &legs->oldframe, &legs->backlerp, NULL );

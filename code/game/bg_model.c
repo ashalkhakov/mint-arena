@@ -25,6 +25,8 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //
 //	entityDef model_testchar {
 //		"mesh"				"characters/test/testchar.iqm"
+//		"skin"				"characters/test/testchar_coat.skin"	// a .skin of its surfaces (an outfit:
+//												// the others' "nodraw")
 //		"anim idle"			"idle"				// the IQM's animation of the name
 //		"anim walk"			"walk"
 //		"anim wave"			"0 20 10 loop"		// or frames: first, count, fps, loop
@@ -381,6 +383,7 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 	model->def = def;
 	model->name = name;
 	Q_strncpyz( model->mesh, DictGetStringReference( def, "mesh", "" ), sizeof( model->mesh ) );
+	Q_strncpyz( model->skin, DictGetStringReference( def, "skin", "" ), sizeof( model->skin ) );
 	numIqmAnims = BG_IQMAnims( model->mesh, iqmAnims, MAX_MODEL_ANIMS, model );
 	if ( !numIqmAnims ) {
 		numIqmAnims = BG_MD3Anims( model->mesh, iqmAnims, MAX_MODEL_ANIMS );
