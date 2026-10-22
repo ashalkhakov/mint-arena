@@ -715,6 +715,21 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		trap_S_StartSound (NULL, es->number, CHAN_AUTO, CG_CustomSound( es->number, "*gasp.wav" ) );
 		break;
 
+	case EV_MODEL_FX:
+		DEBUGNAME("EV_MODEL_FX");
+		// a monster's death, its muzzle's flash... (playModelFx, g_script_events.c)
+		if ( BG_ValidModel( es->modelindex2 ) && es->eventParm >= 0 && es->eventParm < MODELFX_NUM ) {
+			const char *fx;
+
+			if ( DictGetString( bg_models[es->modelindex2].def, bg_modelFxKeys[es->eventParm], "", &fx ) && fx[0] ) {
+				vec3_t fwd;
+
+				AngleVectors( cent->lerpAngles, fwd, NULL, NULL );
+				CG_FX_PlayEffect( fx, cent->lerpOrigin, fwd );
+			}
+		}
+		break;
+
 	case EV_INVENTORY_FULL:
 		DEBUGNAME("EV_INVENTORY_FULL");
 		// no room for it (g_inventory.c)

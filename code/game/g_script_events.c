@@ -928,6 +928,26 @@ static void Event_AlertMonsters( gentity_t *self, const intptr_t *args ) {
 	}
 }
 
+/*
+================
+Event_PlayModelFx
+
+playModelFx( "death" ): its model def's "fx_death" (or "fx_muzzle",
+"fx_attack", "fx_special") played by the clients where it is
+================
+*/
+static void Event_PlayModelFx( gentity_t *self, const intptr_t *args ) {
+	int i;
+
+	for ( i = 0; i < MODELFX_NUM; i++ ) {
+		if ( !Q_stricmp( bg_modelFxKeys[i] + 3, EVARG_STRING( 0 ) ) ) {
+			G_AddEvent( self, EV_MODEL_FX, i );
+			return;
+		}
+	}
+	G_Printf( S_COLOR_YELLOW "playModelFx: no effect %s\n", EVARG_STRING( 0 ) );
+}
+
 static void Event_DirectDamage( gentity_t *self, const intptr_t *args ) {
 	gentity_t	*target = EVARG_ENTITY( 0 );
 	vec3_t		dir;
@@ -1139,6 +1159,7 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "directDamage",		"es",		0,		Event_DirectDamage },
 	{ "attackWeapon",		"sv",		'd',	Event_AttackWeapon },
 	{ "alertMonsters",		"f",		0,		Event_AlertMonsters },
+	{ "playModelFx",		"s",		0,		Event_PlayModelFx },
 	{ "playAnim",			"ds",		'd',	Event_PlayAnim },
 	{ "playCycle",			"ds",		'd',	Event_PlayAnim },
 	{ "animDone",			"dd",		'd',	Event_AnimDone },

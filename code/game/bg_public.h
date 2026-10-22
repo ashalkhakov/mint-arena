@@ -911,8 +911,20 @@ typedef enum {
 
 	EV_ALT_FIRE_WEAPON,
 
-	EV_INVENTORY_FULL		// no room for an item, eventParm (g_inventory.c)
+	EV_INVENTORY_FULL,		// no room for an item, eventParm (g_inventory.c)
+	EV_MODEL_FX				// a character's model def's effect, eventParm its key (modelFx_t)
 } entity_event_t;
+
+// the effects a character's model def names, for EV_MODEL_FX: "fx_death"...
+typedef enum {
+	MODELFX_DEATH,
+	MODELFX_MUZZLE,
+	MODELFX_ATTACK,
+	MODELFX_SPECIAL,
+	MODELFX_NUM
+} modelFx_t;
+
+extern const char *bg_modelFxKeys[MODELFX_NUM];
 
 
 typedef enum {
