@@ -912,7 +912,9 @@ typedef enum {
 	EV_ALT_FIRE_WEAPON,
 
 	EV_INVENTORY_FULL,		// no room for an item, eventParm (g_inventory.c)
-	EV_MODEL_FX				// a character's model def's effect, eventParm its key (modelFx_t)
+	EV_MODEL_FX,			// a character's model def's effect, eventParm its key (modelFx_t)
+	EV_DK_EARTHQUAKE,		// the view shakes near it: angles2 its radius, severity, msec (g_dk_level.c)
+	EV_DK_BOLT				// a bolt of lightning to origin2: angles2 its colour, generic1 its width, eventParm its msec / 10
 } entity_event_t;
 
 // the effects a character's model def names, for EV_MODEL_FX: "fx_death"...

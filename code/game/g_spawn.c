@@ -174,6 +174,12 @@ void SP_path_corner (gentity_t *self);
 void SP_misc_teleporter_dest (gentity_t *self);
 void SP_misc_gamemodel (gentity_t *ent);
 void SP_monster_path_corner( gentity_t *ent );
+void SP_info_camera( gentity_t *ent );
+void SP_func_monitor( gentity_t *ent );
+void SP_info_aiscript( gentity_t *ent );
+void SP_target_attractor( gentity_t *ent );
+void SP_effect_lightning( gentity_t *ent );
+void SP_target_earthquake( gentity_t *ent );
 void SP_func_event_generator( gentity_t *ent );
 void SP_trigger_script( gentity_t *ent );
 void SP_target_monster_spawn( gentity_t *ent );
@@ -240,6 +246,12 @@ spawn_t	spawns[] = {
 	{"monster_path_corner", SP_monster_path_corner},		// Daikatana's, for monsters' patrols
 	{"trigger_script", SP_trigger_script},
 	{"func_event_generator", SP_func_event_generator},
+	{"target_earthquake", SP_target_earthquake},
+	{"target_attractor", SP_target_attractor},
+	{"effect_lightning", SP_effect_lightning},
+	{"info_camera", SP_info_camera},
+	{"func_monitor", SP_func_monitor},
+	{"info_aiscript", SP_info_aiscript},
 	{"target_monster_spawn", SP_target_monster_spawn},
 	{"monster_firefly", SP_misc_gamemodel},		// the cgame makes them (cg_fireflies.c)
 

@@ -770,6 +770,10 @@ typedef struct {
 	int			cinematicHandle;	// handle for fullscreen cinematic
 	qboolean	demoPlayback;
 	qboolean	levelShot;			// taking a level menu screenshot
+
+	// the view shaking (CG_StartViewShake): an earthquake, an effect's cameraShake
+	int			shakeStartTime, shakeEndTime;
+	float		shakeIntensity;		// degrees, at most
 	int			deferredPlayerLoading;
 	qboolean	loading;			// don't defer players at initial startup
 	qboolean	intermissionStarted;	// don't play voice rewards, because game will end shortly
@@ -2125,6 +2129,7 @@ void CG_AddAtmosphericEffects(void);
 //
 // cg_fireflies.c
 //
+void CG_StartViewShake( float intensity, int msec );		// cg_view.c
 void CG_ClearFireflies( void );
 void SP_monster_firefly( void );
 void CG_AddFireflies( void );
@@ -2137,6 +2142,7 @@ void	CG_FX_Stop( void );
 int		CG_FX_RegisterEffect( const char *name );
 void	CG_FX_PlayEffect( const char *name, const vec3_t origin, const vec3_t fwd );
 void	CG_FX_PlayEffectID( int id, const vec3_t origin, const vec3_t fwd );
+void	CG_FX_PlayEffectLine( const char *name, const vec3_t start, const vec3_t end );
 void	CG_FX_PlayEffectIDAxis( int id, const vec3_t origin, vec3_t axis[3] );
 void	CG_FX_Update( void );
 void	CG_FX_AddToScene( void );

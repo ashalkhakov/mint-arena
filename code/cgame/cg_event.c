@@ -715,6 +715,24 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		trap_S_StartSound (NULL, es->number, CHAN_AUTO, CG_CustomSound( es->number, "*gasp.wav" ) );
 		break;
 
+	case EV_DK_EARTHQUAKE:
+		DEBUGNAME("EV_DK_EARTHQUAKE");
+		// Daikatana's target_earthquake: the nearer, the harder (g_dk_level.c)
+		{
+			float dist = Distance( cg.refdef.vieworg, cent->lerpOrigin );
+
+			if ( dist < es->angles2[0] ) {
+				CG_StartViewShake( 2 * es->angles2[1] / 200 * ( 1 - dist / es->angles2[0] ), es->angles2[2] );
+			}
+		}
+		break;
+
+	case EV_DK_BOLT:
+		DEBUGNAME("EV_DK_BOLT");
+		// Daikatana's effect_lightning (g_dk_level.c): its bolt to origin2
+		CG_FX_PlayEffectLine( "dk/lightning_bolt", cent->lerpOrigin, es->origin2 );
+		break;
+
 	case EV_MODEL_FX:
 		DEBUGNAME("EV_MODEL_FX");
 		// a monster's death, its muzzle's flash... (playModelFx, g_script_events.c)

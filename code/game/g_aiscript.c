@@ -177,3 +177,12 @@ void SP_monster_path_corner( gentity_t *ent ) {
 		ent->use = Use_PathCornerScript;
 	}
 }
+
+/*QUAKED info_aiscript (0 .5 .8) (-8 -8 -8) (8 8 8)
+Daikatana's: a name ("uniqueid") for action scripts that aren't any
+monster's own to go by.
+*/
+void SP_info_aiscript( gentity_t *ent ) {
+	ent->r.svFlags |= SVF_NOCLIENT;
+	G_SetOrigin( ent, ent->s.origin );
+}

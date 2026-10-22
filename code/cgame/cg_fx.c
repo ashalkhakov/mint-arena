@@ -1103,6 +1103,31 @@ void CG_FX_PlayEffect( const char *name, const vec3_t origin, const vec3_t fwd )
 	CG_FX_PlayEffectID( CG_FX_RegisterEffect( name ), origin, fwd );
 }
 
+// a line's or electricity's end, given (CG_FX_PlayEffectLine): in place of
+// its origin2
+static qboolean	fx_lineEndGiven;
+static vec3_t	fx_lineEnd;
+
+/*
+================
+CG_FX_PlayEffectLine
+
+an effect from start to end: its lines and electricity reach end
+================
+*/
+void CG_FX_PlayEffectLine( const char *name, const vec3_t start, const vec3_t end ) {
+	vec3_t fwd;
+
+	VectorSubtract( end, start, fwd );
+	if ( VectorNormalize( fwd ) == 0 ) {
+		VectorSet( fwd, 0, 0, 1 );
+	}
+	fx_lineEndGiven = qtrue;
+	VectorCopy( end, fx_lineEnd );
+	CG_FX_PlayEffect( name, start, fwd );
+	fx_lineEndGiven = qfalse;
+}
+
 static int FX_PickMedia( const fxMedia_t *m ) {
 	if ( m->count <= 0 ) {
 		return 0;
@@ -1261,6 +1286,8 @@ static void FX_CreatePrim( const fxPrimTemplate_t *prim, const vec3_t origin, ve
 			if ( prim->spawnFlags & FX_TRACE_IMPACT_FX ) {
 				CG_FX_PlayEffectID( FX_PickMedia( &prim->impactFx ), org2, tr.plane.normal );
 			}
+		} else if ( fx_lineEndGiven ) {
+			VectorCopy( fx_lineEnd, org2 );
 		} else {
 			FX_AxisVector( prim->origin2, ax, ( prim->spawnFlags & FX_CHEAP_ORG2_CALC ) != 0, org2 );
 			VectorAdd( org2, origin, org2 );
@@ -1284,9 +1311,19 @@ static void FX_CreatePrim( const fxPrimTemplate_t *prim, const vec3_t origin, ve
 			sRGB[0], sRGB[1], sRGB[2], FX_RangeVal( &prim->alpha.start ), qtrue, FX_RangeVal( &prim->size.start ), qfalse );
 		return;
 
-	case FXP_CYLINDER:
-	case FXP_ELECTRICITY:
 	case FXP_CAMERASHAKE:
+		// JKA's: "size" its intensity (degrees), "radius" how far it's felt, "life" how long
+		{
+			float radius = FX_RangeVal( &prim->radius );
+			float dist = Distance( cg.refdef.vieworg, org );
+
+			if ( radius <= 0 || dist < radius ) {
+				CG_StartViewShake( FX_RangeVal( &prim->size.start ) * ( radius > 0 ? 1 - dist / radius : 1 ), life );
+			}
+		}
+		return;
+
+	case FXP_CYLINDER:
 	case FXP_FLASH:
 		if ( fx_debug.integer && !fx.warned[prim->type] ) {
 			fx.warned[prim->type] = qtrue;
@@ -1681,6 +1718,34 @@ void CG_FX_AddToScene( void ) {
 		case FXP_LINE:
 			FX_EffectColor( e, rgba );
 			FX_AddLineQuad( e->media, e->origin, e->origin2, size, rgba );
+			break;
+
+		case FXP_ELECTRICITY:
+			// JKA's: a jagged bolt from origin to origin2, its kinks anew each
+			// frame, as far off the straight as a twentieth of its length
+			{
+				vec3_t	dir, right, up, prev, next;
+				float	len, dev;
+				int		i, segs;
+
+				FX_EffectColor( e, rgba );
+				VectorSubtract( e->origin2, e->origin, dir );
+				len = VectorNormalize( dir );
+				PerpendicularVector( right, dir );
+				CrossProduct( dir, right, up );
+				segs = Com_Clamp( 4, 24, len / 32 );
+				dev = len * 0.05f;
+				VectorCopy( e->origin, prev );
+				for ( i = 1; i <= segs; i++ ) {
+					VectorMA( e->origin, len * i / segs, dir, next );
+					if ( i < segs ) {
+						VectorMA( next, crandom() * dev, right, next );
+						VectorMA( next, crandom() * dev, up, next );
+					}
+					FX_AddLineQuad( e->media, prev, next, size, rgba );
+					VectorCopy( next, prev );
+				}
+			}
 			break;
 
 		case FXP_TAIL:

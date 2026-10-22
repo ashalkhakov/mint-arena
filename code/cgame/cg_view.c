@@ -454,6 +454,23 @@ static void CG_SwimView( vec3_t origin, vec3_t angles ) {
 	angles[ROLL] += cg.cur_lc->swimRoll;
 }
 
+/*
+=================
+CG_StartViewShake
+
+the view shakes up to intensity degrees for msec, as an earthquake; a
+stronger shake takes over a weaker one
+=================
+*/
+void CG_StartViewShake( float intensity, int msec ) {
+	if ( cg.time < cg.shakeEndTime && cg.shakeIntensity > intensity ) {
+		return;
+	}
+	cg.shakeIntensity = MIN( intensity, 10 );
+	cg.shakeStartTime = cg.time;
+	cg.shakeEndTime = cg.time + msec;
+}
+
 static void CG_OffsetFirstPersonView( void ) {
 	qboolean		swimming;
 	float			*origin;
@@ -499,6 +516,16 @@ static void CG_OffsetFirstPersonView( void ) {
 				angles[ROLL] += ratio * cg.cur_lc->v_dmg_roll;
 			}
 		}
+	}
+
+	// the view shaking (an earthquake): fading in and out
+	if ( cg.time < cg.shakeEndTime && cg.shakeIntensity > 0 ) {
+		float frac = (float)( cg.time - cg.shakeStartTime ) / MAX( 1, cg.shakeEndTime - cg.shakeStartTime );
+		float amount = cg.shakeIntensity * MIN( 1.0f, MIN( frac * 8, ( 1.0f - frac ) * 4 ) );
+
+		angles[PITCH] += crandom() * amount;
+		angles[YAW] += crandom() * amount * 0.5f;
+		angles[ROLL] += crandom() * amount;
 	}
 
 	// add pitch based on fall kick

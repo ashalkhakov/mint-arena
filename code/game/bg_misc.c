@@ -839,7 +839,9 @@ char *eventnames[] = {
 	"EV_ALT_FIRE_WEAPON",
 
 	"EV_INVENTORY_FULL",
-	"EV_MODEL_FX"
+	"EV_MODEL_FX",
+	"EV_DK_EARTHQUAKE",
+	"EV_DK_BOLT"
 };
 
 const char *bg_modelFxKeys[MODELFX_NUM] = { "fx_death", "fx_muzzle", "fx_attack", "fx_special" };
