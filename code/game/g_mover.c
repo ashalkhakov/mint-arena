@@ -1857,7 +1857,15 @@ void SP_func_train (gentity_t *self) {
 		return;
 	}
 
-	G_SetBrushModel( self, self->model );
+	if ( self->model ) {
+		G_SetBrushModel( self, self->model );
+	} else {
+		// no brushes (Daikatana's intro truck): a point carried along its
+		// path, its sound with it, as Daikatana's were
+		VectorSet( self->s.mins, -1, -1, -1 );
+		VectorSet( self->s.maxs, 1, 1, 1 );
+		self->s.contents = 0;
+	}
 	InitMover( self );
 
 	self->reached = Reached_Train;
