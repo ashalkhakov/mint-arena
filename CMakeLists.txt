@@ -1136,6 +1136,7 @@ set(Q3CGOBJ
   game/bg_model.c
   game/bg_sound.c
   cgame/cg_atmospheric.c
+  cgame/cg_fireflies.c
   cgame/cg_console.c
   cgame/cg_cinematic.c
   cgame/cg_consolecmds.c

@@ -2123,6 +2123,13 @@ void CG_InitParticles( void );
 void CG_AddAtmosphericEffects(void);
 
 //
+// cg_fireflies.c
+//
+void CG_ClearFireflies( void );
+void SP_monster_firefly( void );
+void CG_AddFireflies( void );
+
+//
 // cg_fx.c
 //
 void	CG_FX_Init( void );

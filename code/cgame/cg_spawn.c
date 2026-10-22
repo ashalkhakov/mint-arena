@@ -322,7 +322,8 @@ spawn_t spawns[] = {
 	{"misc_gamemodel",               SP_misc_gamemodel},
 	{"props_skyportal",              SP_skyportal},
 	{"effect_rain", SP_effect_rain},
-	{"effect_snow", SP_effect_snow}
+	{"effect_snow", SP_effect_snow},
+	{"monster_firefly", SP_monster_firefly}		// only looks (cg_fireflies.c)
 };
 
 int numSpawns = ARRAY_LEN( spawns );
@@ -486,6 +487,7 @@ void CG_ParseEntitiesFromString( void ) {
 	cg.numSpawnVars = 0;
 	cg.spawnEntityOffset = 0;
 	cg.numMiscGameModels = 0;
+	CG_ClearFireflies();
 
 	// the worldspawn is not an actual entity, but it still
 	// has a "spawn" function to perform any global setup

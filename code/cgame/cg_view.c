@@ -1234,6 +1234,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 			CG_FX_AddToScene();
 			CG_DrawAAS();
 			CG_AddAtmosphericEffects();
+			CG_AddFireflies();
 		}
 		CG_AddViewWeapon( &cg.cur_lc->predictedPlayerState );
 

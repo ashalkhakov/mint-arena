@@ -723,6 +723,7 @@ gentity_t		*G_ScriptPlayer( void );						// $player1
 void			G_ScriptActivate( gentity_t *ent, gentity_t *activator );	// EV_Activate: its use
 qboolean		G_ScriptSetCallback( gentity_t *ent );		// EV_Thread_SetCallback: sys.waitFor() waits for it
 gentity_t		*G_SpawnEntityFromKeys( int numKeys, const char **keys, const char **values );	// g_spawn.c
+const dict_t	*G_ScriptSpawnArgs( gentity_t *ent );
 const char		*G_ScriptGetSpawnArg( gentity_t *ent, const char *key, const char *defaultValue );
 void			G_ScriptSetSpawnArg( gentity_t *ent, const char *key, const char *value );
 void			G_ScriptPlayerSpawned( gentity_t *ent );		// $player1...

@@ -297,8 +297,8 @@ void Cmd_SpawnItem_f( gentity_t *ent ) {
 ==================
 Cmd_UseEnt_f
 
-useent <entity number>: uses it as the player looking at it would (cheat,
-for tests)
+useent <entity number or targetname>: uses it as the player looking at it
+would (cheat, for tests)
 ==================
 */
 void Cmd_UseEnt_f( gentity_t *ent ) {
@@ -311,6 +311,10 @@ void Cmd_UseEnt_f( gentity_t *ent ) {
 	}
 	trap_Argv( 1, buf, sizeof( buf ) );
 	num = atoi( buf );
+	if ( !isdigit( buf[0] ) ) {
+		target = G_Find( NULL, FOFS( targetname ), buf );
+		num = target ? target->s.number : -1;
+	}
 	if ( num < 0 || num >= level.num_entities || !g_entities[num].inuse || !g_entities[num].use ) {
 		trap_SendServerCommand( ent - g_entities, va( "print \"entity %d can't be used\n\"", num ) );
 		return;
@@ -324,16 +328,30 @@ void Cmd_UseEnt_f( gentity_t *ent ) {
 ==================
 Cmd_Hurt_f
 
-hurt <damage>: hurts the player, armor taking its share (cheat)
+hurt <damage> [entity number or classname]: hurts the player, armor taking
+its share, or the first entity of that class (cheat)
 ==================
 */
 void Cmd_Hurt_f( gentity_t *ent ) {
-	char buf[MAX_TOKEN_CHARS];
+	char buf[MAX_TOKEN_CHARS], name[MAX_TOKEN_CHARS];
+	gentity_t *target = ent;
 
 	if ( !CheatsOk( ent ) ) {
 		return;
 	}
 	trap_Argv( 1, buf, sizeof( buf ) );
+	trap_Argv( 2, name, sizeof( name ) );
+	if ( name[0] ) {
+		target = isdigit( name[0] ) ? &g_entities[(int)Com_Clamp( 0, MAX_GENTITIES - 1, atoi( name ) )]
+									: G_Find( NULL, FOFS( classname ), name );
+		if ( !target || !target->inuse || !target->takedamage ) {
+			trap_SendServerCommand( ent - g_entities, va( "print \"%s can't be hurt\n\"", name ) );
+			return;
+		}
+		G_Damage( target, ent, ent, NULL, NULL, atoi( buf ), DAMAGE_NO_KNOCKBACK, MOD_UNKNOWN );
+		G_Printf( "hurt: %d %s health %d\n", target->s.number, target->classname, target->health );
+		return;
+	}
 	G_Damage( ent, NULL, NULL, NULL, NULL, atoi( buf ), DAMAGE_NO_KNOCKBACK, MOD_FALLING );
 	G_Printf( "hurt: health %d, armor %d\n", ent->health, ent->player->ps.stats[STAT_ARMOR] );
 }

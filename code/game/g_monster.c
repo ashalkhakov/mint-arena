@@ -1142,6 +1142,30 @@ void G_MonsterDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, i
 		self->health = 1 << 30;
 	}
 
+	// Daikatana's: what its death triggers, and what it leaves
+	{
+		const char	*name = G_MonsterKey( self, "deathtarget", "" );
+		gentity_t	*t = NULL;
+		gitem_t		*item;
+		vec3_t		up = { 0, 0, 200 };
+
+		while ( name[0] && ( t = G_Find( t, FOFS( targetname ), name ) ) != NULL ) {
+			if ( t != self && t->use ) {
+				G_DPrintf( "%s %d dies: uses %d %s\n", self->classname, self->s.number, t->s.number, t->classname );
+				t->use( t, self, attacker );
+			}
+		}
+		name = G_MonsterKey( self, "spawnname", "" );
+		if ( name[0] && ( item = BG_FindItemByClassname( name ) ) != NULL ) {
+			gentity_t *drop = LaunchItem( item, self->r.currentOrigin, up );
+
+			G_DPrintf( "%s %d dies: leaves %s\n", self->classname, self->s.number, name );
+
+			drop->think = NULL;		// it stays, as a map's item
+			drop->nextthink = 0;
+		}
+	}
+
 	G_MonsterUpdateFields( self );
 	if ( ScriptObject_GetFunction( &self->scriptObject, "state_Killed" ) ) {
 		G_MonsterSetState( self, "state_Killed" );
@@ -1342,4 +1366,60 @@ void SP_monster( gentity_t *ent ) {
 	ent->nextthink = level.time + FRAMETIME;
 	G_CharacterRecord( ent );
 	G_LinkEntity( ent );
+}
+
+/*
+================
+target_monster_spawn
+
+Daikatana's (target.cpp): used, it spawns its "monsterclass" where it is,
+facing its way, with its keys (Daikatana copies them all: "deathtarget",
+"spawnname", "uniqueid"...), plays its "sound", and is gone.
+================
+*/
+void Use_TargetMonsterSpawn( gentity_t *self, gentity_t *other, gentity_t *activator ) {
+	const char		*keys[MAX_SPAWN_VARS], *values[MAX_SPAWN_VARS];
+	const dict_t	*args = G_ScriptSpawnArgs( self );
+	const dictKeyValue_t *kv;
+	const char		*monsterClass = G_ScriptGetSpawnArg( self, "monsterclass", "" );
+	const char		*sound = G_ScriptGetSpawnArg( self, "sound", "" );
+	int				i, n = 0;
+
+	keys[n] = "classname";
+	values[n++] = monsterClass;
+	for ( i = 0; args && i < DictGetNumKeyVals( args ) && n < MAX_SPAWN_VARS; i++ ) {
+		kv = DictGetKeyVal( args, i );
+		if ( !Q_stricmp( PoolStrGetString( kv->key ), "classname" ) || !Q_stricmp( PoolStrGetString( kv->key ), "targetname" )
+			|| !Q_stricmp( PoolStrGetString( kv->key ), "monsterclass" ) || !Q_stricmp( PoolStrGetString( kv->key ), "sound" ) ) {
+			continue;
+		}
+		keys[n] = PoolStrGetString( kv->key );
+		values[n++] = PoolStrGetString( kv->value );
+	}
+	if ( !G_SpawnEntityFromKeys( n, keys, values ) ) {
+		G_Printf( S_COLOR_YELLOW "target_monster_spawn: can't spawn %s\n", monsterClass );
+	}
+	if ( sound[0] ) {
+		G_Sound( self, CHAN_AUTO, G_SoundIndex( sound ) );
+	}
+	self->use = NULL;
+	self->think = G_FreeEntity;
+	self->nextthink = level.time + FRAMETIME;
+}
+
+/*QUAKED target_monster_spawn (1 0 0) (-8 -8 -8) (8 8 8)
+Daikatana's: when used, a "monsterclass" here, with this entity's keys.
+"sound" played as it comes.
+*/
+void SP_target_monster_spawn( gentity_t *ent ) {
+	char *monsterClass;
+
+	G_SpawnString( "monsterclass", "", &monsterClass );
+	if ( !monsterClass[0] ) {
+		G_DPrintf( "target_monster_spawn without a monsterclass at %s\n", vtos( ent->s.origin ) );
+		G_FreeEntity( ent );
+		return;
+	}
+	ent->use = Use_TargetMonsterSpawn;
+	ent->r.svFlags |= SVF_NOCLIENT;
 }

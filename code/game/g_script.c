@@ -136,6 +136,11 @@ const char *G_ScriptGetSpawnArg( gentity_t *ent, const char *key, const char *de
 	return defaultValue;
 }
 
+// all of them (the map's keys), NULL for none
+const dict_t *G_ScriptSpawnArgs( gentity_t *ent ) {
+	return entitySpawnArgs[ ent - g_entities ];
+}
+
 void G_ScriptSetSpawnArg( gentity_t *ent, const char *key, const char *value ) {
 	dict_t	**args;
 
