@@ -169,11 +169,12 @@ CG_TestLight_f
 
 testlight <radius> <r> <g> <b> [count]: a light where you look, 128 ahead,
 or a ring of count of them around you, left until "testlight clear"; for
-checking dynamic lights
+checking dynamic lights. testlight spot <radius> <cone> <r> <g> <b>: a spot
+light from your eye where you look
 =================
 */
 #define MAX_TEST_LIGHTS	256
-static struct { vec3_t origin; float radius; vec3_t color; } cg_testLights[MAX_TEST_LIGHTS];
+static struct { vec3_t origin; float radius; vec3_t color; vec3_t dir; float cone; } cg_testLights[MAX_TEST_LIGHTS];
 static int cg_numTestLights;
 
 void CG_TestLight_f( void ) {
@@ -183,6 +184,19 @@ void CG_TestLight_f( void ) {
 
 	if ( !Q_stricmp( CG_Argv( 1 ), "clear" ) || trap_Argc() < 2 ) {
 		cg_numTestLights = 0;
+		return;
+	}
+	if ( !Q_stricmp( CG_Argv( 1 ), "spot" ) ) {
+		if ( cg_numTestLights >= MAX_TEST_LIGHTS ) {
+			return;
+		}
+		VectorCopy( cg.refdef.vieworg, cg_testLights[cg_numTestLights].origin );
+		VectorCopy( cg.refdef.viewaxis[0], cg_testLights[cg_numTestLights].dir );
+		cg_testLights[cg_numTestLights].radius = atof( CG_Argv( 2 ) );
+		cg_testLights[cg_numTestLights].cone = atof( CG_Argv( 3 ) );
+		VectorSet( cg_testLights[cg_numTestLights].color, atof( CG_Argv( 4 ) ), atof( CG_Argv( 5 ) ), atof( CG_Argv( 6 ) ) );
+		cg_numTestLights++;
+		CG_Printf( "%d test lights\n", cg_numTestLights );
 		return;
 	}
 	radius = atof( CG_Argv( 1 ) );
@@ -201,6 +215,7 @@ void CG_TestLight_f( void ) {
 			VectorMA( cg.refdef.vieworg, radius * 0.75f, dir, origin );
 		}
 		VectorCopy( origin, cg_testLights[cg_numTestLights].origin );
+		cg_testLights[cg_numTestLights].cone = 0;
 		cg_testLights[cg_numTestLights].radius = radius;
 		VectorCopy( color, cg_testLights[cg_numTestLights].color );
 		cg_numTestLights++;
@@ -212,8 +227,13 @@ static void CG_AddTestLights( void ) {
 	int i;
 
 	for ( i = 0; i < cg_numTestLights; i++ ) {
-		trap_R_AddLightToScene( cg_testLights[i].origin, cg_testLights[i].radius, 1.0f,
-			cg_testLights[i].color[0], cg_testLights[i].color[1], cg_testLights[i].color[2], 0 );
+		if ( cg_testLights[i].cone > 0 ) {
+			trap_R_AddSpotLightToScene( cg_testLights[i].origin, cg_testLights[i].dir, cg_testLights[i].radius, cg_testLights[i].cone, 1.0f,
+				cg_testLights[i].color[0], cg_testLights[i].color[1], cg_testLights[i].color[2], 0 );
+		} else {
+			trap_R_AddLightToScene( cg_testLights[i].origin, cg_testLights[i].radius, 1.0f,
+				cg_testLights[i].color[0], cg_testLights[i].color[1], cg_testLights[i].color[2], 0 );
+		}
 	}
 }
 

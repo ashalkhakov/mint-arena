@@ -427,6 +427,10 @@ typedef enum {
 							//   const traceModel_t *trm, const vec3_t trmAxis[3], int contentMask,
 							//   cmHandle_t model, const vec3_t modelOrigin, const vec3_t modelAxis[3] );
 
+	// 1.3
+	CG_R_ADDSPOTLIGHTTOSCENE,	// ( const vec3_t org, const vec3_t dir, float radius, float cone, float intensity,
+								//   float r, float g, float b, qhandle_t hShader ); a light within cone degrees of dir
+
 
 	CG_CIN_PLAYCINEMATIC = 700,
 	CG_CIN_STOPCINEMATIC,

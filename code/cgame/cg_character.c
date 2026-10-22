@@ -574,12 +574,14 @@ void CG_Character( centity_t *cent ) {
 	sscanf( BG_ModelKey( model, "light_ambient", "0 0 0" ), "%f %f %f", &ent.ambientLight[0], &ent.ambientLight[1], &ent.ambientLight[2] );
 
 	// its light ("light_radius", "light_color", "light_offset" forward,
-	// left, up): a cambot's lamp
+	// left, up; "light_cone" degrees makes it a spot light along "light_dir",
+	// forward, left, up): a cambot's lamp
 	{
 		float radius = atof( BG_ModelKey( model, "light_radius", "0" ) );
 
 		if ( radius > 0 ) {
-			vec3_t color, offset, org;
+			vec3_t color, offset, org, dirLocal, dir;
+			float cone = atof( BG_ModelKey( model, "light_cone", "0" ) );
 
 			color[0] = color[1] = color[2] = 1;
 			offset[0] = offset[1] = offset[2] = 0;
@@ -589,7 +591,16 @@ void CG_Character( centity_t *cent ) {
 			VectorMA( org, offset[0], ent.axis[0], org );
 			VectorMA( org, offset[1], ent.axis[1], org );
 			VectorMA( org, offset[2], ent.axis[2], org );
-			trap_R_AddLightToScene( org, radius, 1.0f, color[0], color[1], color[2], 0 );
+			if ( cone > 0 ) {
+				VectorSet( dirLocal, 1, 0, 0 );
+				sscanf( BG_ModelKey( model, "light_dir", "1 0 0" ), "%f %f %f", &dirLocal[0], &dirLocal[1], &dirLocal[2] );
+				VectorScale( ent.axis[0], dirLocal[0], dir );
+				VectorMA( dir, dirLocal[1], ent.axis[1], dir );
+				VectorMA( dir, dirLocal[2], ent.axis[2], dir );
+				trap_R_AddSpotLightToScene( org, dir, radius, cone, 1.0f, color[0], color[1], color[2], 0 );
+			} else {
+				trap_R_AddLightToScene( org, radius, 1.0f, color[0], color[1], color[2], 0 );
+			}
 		}
 	}
 	if ( s1->origin2[0] > 0.0f && s1->origin2[0] != 1.0f ) {
