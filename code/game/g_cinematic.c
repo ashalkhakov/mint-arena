@@ -259,7 +259,7 @@ static void G_CinematicPlayers( qboolean in ) {
 				ent->player->cinematicHidden = qfalse;
 				if ( ent->health > 0 ) {
 					ent->s.contents = CONTENTS_BODY;
-					trap_LinkEntity( ent );
+					G_LinkEntity( ent );
 				}
 			}
 			continue;
@@ -268,7 +268,7 @@ static void G_CinematicPlayers( qboolean in ) {
 			ent->player->cinematicHidden = qtrue;
 			ent->player->ps.eFlags |= EF_NODRAW;
 			ent->s.contents = 0;
-			trap_LinkEntity( ent );
+			G_LinkEntity( ent );
 		}
 		if ( !eye ) {
 			eye = level.cinematicEyes[i] = G_Spawn();
@@ -280,7 +280,7 @@ static void G_CinematicPlayers( qboolean in ) {
 		}
 		G_SetOrigin( eye, ent->r.currentOrigin );
 		VectorCopy( level.cameraLastOrigin, eye->s.origin2 );
-		trap_LinkEntity( eye );
+		G_LinkEntity( eye );
 	}
 }
 
@@ -396,7 +396,7 @@ void G_RunCinematic( void ) {
 
 		while ( ( loop = G_Find( loop, FOFS( classname ), "cinematic_loop" ) ) != NULL ) {
 			G_SetOrigin( loop, origin );
-			trap_LinkEntity( loop );
+			G_LinkEntity( loop );
 		}
 	}
 }
@@ -439,7 +439,7 @@ void G_GlobalLoop( const char *sound ) {
 	ent->s.loopSound = G_SoundIndex( sound );
 	ent->r.svFlags |= SVF_BROADCAST;
 	G_SetOrigin( ent, level.cameraLastOrigin );
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 void G_StopGlobalLoops( void ) {

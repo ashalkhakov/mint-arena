@@ -734,7 +734,7 @@ qboolean G_MonsterPerch( gentity_t *ent, const vec3_t pos, const vec3_t normal )
 	m->roll = 0;
 	m->moveStatus = MOVE_STATUS_DONE;
 	G_SetOrigin( ent, origin );
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 	return qtrue;
 }
 
@@ -758,7 +758,7 @@ static void G_MonsterTakeOff( gentity_t *ent ) {
 	VectorCopy( ent->r.currentOrigin, origin );
 	G_MonsterUnstick( ent, origin );
 	G_SetOrigin( ent, origin );
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 /*

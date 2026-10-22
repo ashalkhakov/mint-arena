@@ -149,7 +149,7 @@ void SP_trigger_script( gentity_t *ent ) {
 	if ( !( ent->spawnflags & SCRIPT_NOTOUCH ) ) {
 		ent->touch = Touch_TriggerScript;
 	}
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 /*

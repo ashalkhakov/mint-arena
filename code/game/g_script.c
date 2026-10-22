@@ -85,12 +85,31 @@ gentity_t *G_ScriptPlayer( void ) {
 ================
 G_ScriptActivate
 
-EV_Activate: its use, as a trigger of it would
+EV_Activate: its use, as a trigger of it would. A door's other half (a
+door touching it, Daikatana's double doors: one of them named, each its own
+team) opens with it
 ================
 */
 void G_ScriptActivate( gentity_t *ent, gentity_t *activator ) {
 	if ( ent->use ) {
 		ent->use( ent, activator, activator );
+	}
+	if ( ent->classname && !Q_stricmp( ent->classname, "func_door" ) ) {
+		gentity_t	*other;
+		int			i;
+
+		for ( i = MAX_CLIENTS, other = &g_entities[MAX_CLIENTS]; i < level.num_entities; i++, other++ ) {
+			if ( other == ent || !other->inuse || !other->use || !other->classname || Q_stricmp( other->classname, "func_door" )
+				|| ( other->flags & FL_TEAMSLAVE ) || other->teammaster == ent ) {
+				continue;
+			}
+			if ( other->r.absmin[0] > ent->r.absmax[0] || other->r.absmax[0] < ent->r.absmin[0]
+				|| other->r.absmin[1] > ent->r.absmax[1] || other->r.absmax[1] < ent->r.absmin[1]
+				|| other->r.absmin[2] > ent->r.absmax[2] || other->r.absmax[2] < ent->r.absmin[2] ) {
+				continue;
+			}
+			other->use( other, activator, activator );
+		}
 	}
 }
 

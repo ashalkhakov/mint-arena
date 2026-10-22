@@ -134,7 +134,7 @@ void SP_func_event_generator( gentity_t *ent ) {
 		ent->s.contents = 0;
 	}
 	ent->r.svFlags |= SVF_NOCLIENT;
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 /*
@@ -181,7 +181,7 @@ void SP_target_earthquake( gentity_t *ent ) {
 	ent->use = Use_Earthquake;
 	ent->r.svFlags |= SVF_NOCLIENT;
 	G_SetOrigin( ent, ent->s.origin );
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }
 
 /*
@@ -445,5 +445,5 @@ void SP_func_monitor( gentity_t *ent ) {
 		G_SetBrushModel( ent, ent->model );		// the screen
 	}
 	ent->use = Use_Monitor;
-	trap_LinkEntity( ent );
+	G_LinkEntity( ent );
 }

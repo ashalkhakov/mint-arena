@@ -662,9 +662,12 @@ void Reached_BinaryMover( gentity_t *ent ) {
 			G_AddEvent( ent, EV_GENERAL_SOUND, ent->soundPos2 );
 		}
 
-		// return to pos1 after a delay
-		ent->think = ReturnToPos1;
-		ent->nextthink = level.time + ent->wait;
+		// return to pos1 after a delay; a wait of -1 stays (Quake 2's and
+		// Daikatana's doors)
+		if ( ent->wait >= 0 ) {
+			ent->think = ReturnToPos1;
+			ent->nextthink = level.time + ent->wait;
+		}
 
 		// fire targets
 		if ( !ent->activator ) {
@@ -738,9 +741,11 @@ void Use_BinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 		return;
 	}
 
-	// if all the way up, just delay before coming down
+	// if all the way up, just delay before coming down (a wait of -1 stays)
 	if ( ent->moverState == MOVER_POS2 ) {
-		ent->nextthink = level.time + ent->wait;
+		if ( ent->wait >= 0 ) {
+			ent->nextthink = level.time + ent->wait;
+		}
 		return;
 	}
 

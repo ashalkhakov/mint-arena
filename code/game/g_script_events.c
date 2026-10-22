@@ -239,7 +239,7 @@ static void Event_SetWorldOrigin( gentity_t *self, const intptr_t *args ) {
 	}
 	G_SetOrigin( self, EVARG_VECTOR( 0 ) );
 	if ( self->r.linked ) {
-		trap_LinkEntity( self );
+		G_LinkEntity( self );
 	}
 }
 
@@ -307,7 +307,7 @@ static void Event_SetSize( gentity_t *self, const intptr_t *args ) {
 	VectorCopy( EVARG_VECTOR( 0 ), self->s.mins );
 	VectorCopy( EVARG_VECTOR( 1 ), self->s.maxs );
 	if ( self->r.linked ) {
-		trap_LinkEntity( self );
+		G_LinkEntity( self );
 	}
 }
 
