@@ -211,6 +211,9 @@ typedef struct cg_particle_s
 } cg_particle_t;
 
 #define MAX_PARTICLES 8192
+// particles rain and snow leave for the splashes where drops land, so a big
+// rain volume doesn't take them all (Daikatana's pool is its own)
+#define SPLASH_RESERVE 2048
 
 typedef struct cg_atmosphericEffect_s {
 	cg_atmosphericParticle_t atmoParticles[MAX_ATMOSPHERIC_PARTICLES];
@@ -238,6 +241,7 @@ typedef struct cg_atmosphericEffect_s {
 
 	cg_particle_t		*activeParticles, *freeParticles;
 	int         		numParticles;
+	int					numUsed;			// active ones
 
 	cg_particle_t		particles[MAX_PARTICLES]; 
 	cg_particleType_t	particleTypes[NUM_PARTICLETYPES];
@@ -294,6 +298,7 @@ void CG_InitParticles( void ) {
 
 	Com_Memset( cg_atmFx.particles, 0, sizeof( cg_atmFx.particles ) );
 
+    cg_atmFx.numUsed = 0;
     cg_atmFx.freeParticles = &cg_atmFx.particles[0];
     cg_atmFx.activeParticles = NULL;
 	cg_atmFx.numParticles = MAX_PARTICLES;
@@ -423,11 +428,12 @@ static void CG_GenerateSnowParticles( cg_effect_t *effect ) {
 	}
 
 	for ( i = 0 ; i < count ; i++ ) {
-		if ( !cg_atmFx.freeParticles ) {
+		if ( !cg_atmFx.freeParticles || cg_atmFx.numUsed >= MAX_PARTICLES - SPLASH_RESERVE ) {
 			return;
 		}
 		p = cg_atmFx.freeParticles;
 		cg_atmFx.freeParticles = p->next;
+		cg_atmFx.numUsed++;
 		p->next = cg_atmFx.activeParticles;
 		cg_atmFx.activeParticles = p;
 
@@ -508,12 +514,13 @@ static void CG_GenerateEffectParticles( cg_effect_t *effect ) {
 
 	for ( i = 0 ; i < count ; i++ )
 	{
-		if ( !cg_atmFx.freeParticles ) {
+		if ( !cg_atmFx.freeParticles || cg_atmFx.numUsed >= MAX_PARTICLES - SPLASH_RESERVE ) {
 			return;
 		}
 
 		p = cg_atmFx.freeParticles;
 		cg_atmFx.freeParticles = p->next;
+		cg_atmFx.numUsed++;
 		p->next = cg_atmFx.activeParticles;
 		cg_atmFx.activeParticles = p;
 
@@ -565,6 +572,7 @@ static void CG_GenerateEffectParticles( cg_effect_t *effect ) {
 
 		p = cg_atmFx.freeParticles;
 		cg_atmFx.freeParticles = p->next;
+		cg_atmFx.numUsed++;
 		p->next = cg_atmFx.activeParticles;
 		cg_atmFx.activeParticles = p;
 
@@ -620,6 +628,7 @@ static void CG_UpdateParticles( void ) {
             p->next = cg_atmFx.freeParticles;
             p->effect = NULL;
             cg_atmFx.freeParticles = p;
+            cg_atmFx.numUsed--;
 
             continue;
         }
@@ -634,6 +643,7 @@ static void CG_UpdateParticles( void ) {
 			p->next = cg_atmFx.freeParticles;
 			p->effect = NULL;
 			cg_atmFx.freeParticles = p;
+			cg_atmFx.numUsed--;
 			continue;
         } 
 
