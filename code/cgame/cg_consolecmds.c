@@ -1637,6 +1637,7 @@ static consoleCommand_t	cg_commands[] = {
 	{ "-vstr", CG_VstrUp_f, 0, CG_VstrComplete },
 	{ "testgun", CG_TestGun_f, CMD_INGAME, CG_TestModelComplete },
 	{ "testmodel", CG_TestModel_f, CMD_INGAME, CG_TestModelComplete },
+	{ "testlight", CG_TestLight_f, CMD_INGAME },
 	{ "nextframe", CG_TestModelNextFrame_f, CMD_INGAME },
 	{ "prevframe", CG_TestModelPrevFrame_f, CMD_INGAME },
 	{ "nextskin", CG_TestModelNextSkin_f, CMD_INGAME },

@@ -163,6 +163,60 @@ void CG_TestModelPrevSkin_f (void) {
 	CG_Printf( "skin %i\n", cg.testModelEntity.skinNum );
 }
 
+/*
+=================
+CG_TestLight_f
+
+testlight <radius> <r> <g> <b> [count]: a light where you look, 128 ahead,
+or a ring of count of them around you, left until "testlight clear"; for
+checking dynamic lights
+=================
+*/
+#define MAX_TEST_LIGHTS	256
+static struct { vec3_t origin; float radius; vec3_t color; } cg_testLights[MAX_TEST_LIGHTS];
+static int cg_numTestLights;
+
+void CG_TestLight_f( void ) {
+	vec3_t	color, dir, origin;
+	float	radius;
+	int		i, count;
+
+	if ( !Q_stricmp( CG_Argv( 1 ), "clear" ) || trap_Argc() < 2 ) {
+		cg_numTestLights = 0;
+		return;
+	}
+	radius = atof( CG_Argv( 1 ) );
+	VectorSet( color, atof( CG_Argv( 2 ) ), atof( CG_Argv( 3 ) ), atof( CG_Argv( 4 ) ) );
+	if ( VectorLength( color ) <= 0 ) {
+		VectorSet( color, 1, 1, 1 );
+	}
+	count = trap_Argc() > 5 ? atoi( CG_Argv( 5 ) ) : 1;
+	for ( i = 0; i < count && cg_numTestLights < MAX_TEST_LIGHTS; i++ ) {
+		if ( count == 1 ) {
+			VectorMA( cg.refdef.vieworg, 128, cg.refdef.viewaxis[0], origin );
+		} else {
+			float a = 2 * M_PI * i / count;
+
+			VectorSet( dir, cos( a ), sin( a ), 0 );
+			VectorMA( cg.refdef.vieworg, radius * 0.75f, dir, origin );
+		}
+		VectorCopy( origin, cg_testLights[cg_numTestLights].origin );
+		cg_testLights[cg_numTestLights].radius = radius;
+		VectorCopy( color, cg_testLights[cg_numTestLights].color );
+		cg_numTestLights++;
+	}
+	CG_Printf( "%d test lights\n", cg_numTestLights );
+}
+
+static void CG_AddTestLights( void ) {
+	int i;
+
+	for ( i = 0; i < cg_numTestLights; i++ ) {
+		trap_R_AddLightToScene( cg_testLights[i].origin, cg_testLights[i].radius, 1.0f,
+			cg_testLights[i].color[0], cg_testLights[i].color[1], cg_testLights[i].color[2], 0 );
+	}
+}
+
 static void CG_AddTestModel (void) {
 	int		i;
 
@@ -1269,6 +1323,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		if ( cg.testModelEntity.hModel ) {
 			CG_AddTestModel();
 		}
+		CG_AddTestLights();
 		cg.refdef.time = cg.time;
 		memcpy( cg.refdef.areamask, cg.snap->areamask[i], sizeof( cg.refdef.areamask ) );
 
