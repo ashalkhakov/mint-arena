@@ -35,7 +35,6 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "g_local.h"
 
-char *G_AddSpawnVarToken( const char *string );
 
 #define CHARACTER_HISTORY	32		// frames, a bit over a second and a half
 

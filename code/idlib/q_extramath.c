@@ -536,7 +536,9 @@ void Mat3ToRotation( const vec3_t mat[3], rotation_t *r ) {
 	// a physics step to zero. atan2 keeps them, so they still get collision checks.
 	len = sqrt( q[0] * q[0] + q[1] * q[1] + q[2] * q[2] );
 	r->angle = 2.0 * atan2( len, q[3] ) * ( 180.0 / M_PI );
-	if ( len < 1e-12 || fabs( r->angle ) < 1e-10f ) {
+	// a matrix that isn't a rotation (NaNs, or one so far off that t goes
+	// negative) is taken for none, rather than a NaN angle for the traces
+	if ( len < 1e-12 || fabs( r->angle ) < 1e-10f || IS_NAN( r->angle ) ) {
 		VectorSet( r->vec, 0.0f, 0.0f, 1.0f );
 		r->angle = 0.0f;
 	} else {

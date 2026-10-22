@@ -252,19 +252,36 @@ void Cmd_SpawnItem_f( gentity_t *ent ) {
 	char name[MAX_TOKEN_CHARS];
 	gitem_t *it;
 	gentity_t *it_ent;
-	vec3_t forward, angles;
+	vec3_t forward, angles, origin;
 
 	if ( !CheatsOk( ent ) ) {
 		return;
 	}
 	trap_Argv( 1, name, sizeof( name ) );
 	it = BG_FindItemByClassname( name );
-	if ( !it ) {
-		trap_SendServerCommand( ent - g_entities, va( "print \"no item %s\n\"", name ) );
-		return;
-	}
 	VectorSet( angles, 0, ent->player->ps.viewangles[YAW], 0 );
 	AngleVectors( angles, forward, NULL, NULL );
+	if ( !it ) {
+		// any other entity def (a monster), 96 ahead on the floor, facing
+		// the player, as a map would spawn it
+		if ( !EntityDef_Find( name ) ) {
+			trap_SendServerCommand( ent - g_entities, va( "print \"no item or entity def %s\n\"", name ) );
+			return;
+		}
+		VectorMA( ent->r.currentOrigin, 96, forward, origin );
+		level.numSpawnVars = 0;
+		level.numSpawnVarChars = 0;
+		level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "classname" );
+		level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( name );
+		level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "origin" );
+		level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( va( "%f %f %f", origin[0], origin[1], origin[2] ) );
+		level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "angle" );
+		level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( va( "%f", angles[YAW] + 180 ) );
+		it_ent = G_SpawnGEntityFromSpawnVars();
+		level.numSpawnVars = 0;
+		G_Printf( "spawnitem: %s is entity %d\n", name, it_ent ? it_ent->s.number : -1 );
+		return;
+	}
 	it_ent = G_Spawn();
 	VectorMA( ent->r.currentOrigin, 56, forward, it_ent->s.origin );
 	it_ent->s.origin[2] += ent->player->ps.viewheight;		// at the eye, hanging

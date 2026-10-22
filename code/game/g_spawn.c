@@ -448,7 +448,6 @@ gentity_t *G_SpawnGEntityFromSpawnVars( void ) {
 	return ent;
 }
 
-char *G_AddSpawnVarToken( const char *string );
 
 /*
 ===================

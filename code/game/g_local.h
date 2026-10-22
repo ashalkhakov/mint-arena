@@ -632,6 +632,8 @@ qboolean	G_SpawnInt( const char *key, const char *defaultString, int *out );
 qboolean	G_SpawnVector( const char *key, const char *defaultString, float *out );
 void		G_SpawnEntitiesFromString( void );
 char *G_NewString( const char *string );
+char		*G_AddSpawnVarToken( const char *string );
+gentity_t	*G_SpawnGEntityFromSpawnVars( void );		// from level.spawnVars, as a map's
 
 //
 // g_cmds.c

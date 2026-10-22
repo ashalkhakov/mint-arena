@@ -2493,6 +2493,21 @@ static void AF_VerifyContactConstraints( afPhysics_t *af ) {
 	}
 }
 
+// qfalse when a state has a NaN or an infinity in it
+static qboolean AF_StateFinite( const afBodyPState_t *state ) {
+	const float *f = &state->worldOrigin[0];
+	int i;
+
+	for ( i = 0; i < 3 + 9 + 6; i++ ) {
+		float v = f[i];
+
+		if ( IS_NAN( v ) ) {
+			return qfalse;
+		}
+	}
+	return qtrue;
+}
+
 static void AF_Evolve( afPhysics_t *af, float timeStep ) {
 	int i, k;
 	float angle, vSqr, maxLinearVelocity, maxAngularVelocity;
@@ -2560,6 +2575,15 @@ static void AF_Evolve( afPhysics_t *af, float timeStep ) {
 		// linear and angular friction
 		VectorMA( body->next->spatialVelocity, -body->linearFriction, body->next->spatialVelocity, body->next->spatialVelocity );
 		VectorMA( body->next->spatialVelocity + 3, -body->angularFriction, body->next->spatialVelocity + 3, body->next->spatialVelocity + 3 );
+
+		// a solve that blew up (Doom 3 lets it through, to assert in the
+		// rotation trace): the body stays where it was, at rest
+		if ( !AF_StateFinite( body->next ) ) {
+			Com_DPrintf( S_COLOR_YELLOW "AF_Evolve: body %s's state isn't finite, kept where it was\n", body->name );
+			VectorCopy( body->current->worldOrigin, body->next->worldOrigin );
+			AxisCopy( body->current->worldAxis, body->next->worldAxis );
+			memset( body->next->spatialVelocity, 0, sizeof( body->next->spatialVelocity ) );
+		}
 	}
 }
 
