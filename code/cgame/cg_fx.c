@@ -1733,6 +1733,9 @@ void CG_FX_AddToScene( void ) {
 				FX_EffectColor( e, rgba );
 				VectorSubtract( e->origin2, e->origin, dir );
 				len = VectorNormalize( dir );
+				if ( len == 0 ) {
+					break;		// from where it ends: nothing to draw
+				}
 				if ( e->flags & FX_GROWING ) {
 					// from its start to its end over the first half of its life
 					len *= Com_Clamp( 0, 1, 2.0f * ( fx.time - e->timeStart ) / MAX( 1, e->timeEnd - e->timeStart ) );
