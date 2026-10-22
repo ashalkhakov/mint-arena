@@ -158,7 +158,8 @@ static void G_TargetEye( const gentity_t *ent, vec3_t eye ) {
 ================
 G_MonsterCanSee
 
-nothing opaque between its eye and the other's
+nothing opaque between its eye and the other's; a player with Daikatana's
+wraith orb is never seen
 ================
 */
 qboolean G_MonsterCanSee( gentity_t *ent, gentity_t *other ) {
@@ -166,6 +167,9 @@ qboolean G_MonsterCanSee( gentity_t *ent, gentity_t *other ) {
 	vec3_t	start, end;
 
 	if ( !other || !other->inuse ) {
+		return qfalse;
+	}
+	if ( other->player && other->player->ps.powerups[PW_INVIS] ) {
 		return qfalse;
 	}
 	G_MonsterEye( ent, start );

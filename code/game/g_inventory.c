@@ -461,6 +461,12 @@ static qboolean G_InventoryApply( gentity_t *ent, gitem_t *item, int value ) {
 			player->ps.powerups[item->giTag] = level.time - ( level.time % 1000 );
 		}
 		player->ps.powerups[item->giTag] += quantity * 1000;
+		// Daikatana's vita boost raises the limit and heals 75 up to it
+		if ( item->giTag == PW_VITABOOST ) {
+			player->ps.stats[STAT_MAX_HEALTH] = player->pers.maxHealth + 250;
+			ent->health = MIN( ent->health + 75, player->ps.stats[STAT_MAX_HEALTH] );
+			player->ps.stats[STAT_HEALTH] = ent->health;
+		}
 		return qtrue;
 
 	case IT_HOLDABLE:
@@ -806,6 +812,12 @@ void Cmd_Inventory_f( gentity_t *ent, const char *cmd ) {
 			G_Printf( "  slot %d: %s x%d value %d at %d,%d size %dx%d\n", slot,
 				BG_ItemForItemNum( ps->invItem[slot] )->classname, ps->invCount[slot], ps->invValue[slot], x, y, w, h );
 		}
+		for ( i = 1; i < PW_NUM_POWERUPS; i++ ) {
+			if ( ps->powerups[i] > level.time ) {
+				G_Printf( "  powerup %s: %d s\n", bg_powerupNames[i], ( ps->powerups[i] - level.time + 999 ) / 1000 );
+			}
+		}
+		G_Printf( "  health %d of %d, speed %d\n", ent->health, ps->stats[STAT_MAX_HEALTH], ps->speed );
 		for ( i = 0; i < MAX_BELT_SLOTS; i++ ) {
 			if ( ps->invBelt[i] ) {
 				G_Printf( "  belt %d: %s\n", ( i + 1 ) % MAX_BELT_SLOTS, BG_ItemForItemNum( ps->invBelt[i] )->classname );

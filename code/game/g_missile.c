@@ -378,6 +378,9 @@ gentity_t *fire_projectile( gentity_t *self, const dict_t *def, int weapon, vec3
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;		// move a bit on the very first frame
 	VectorCopy( start, bolt->s.pos.trBase );
 	DictGetVector( def, "velocity", "900 0 0", velocity );
+	if ( self->player && self->player->ps.powerups[PW_ATTACKBOOST] ) {
+		VectorScale( velocity, 2.5f, velocity );		// Daikatana's attack boost: +30% a level
+	}
 	PerpendicularVector( right, dir );
 	CrossProduct( dir, right, up );
 	VectorScale( dir, velocity[0], bolt->s.pos.trDelta );

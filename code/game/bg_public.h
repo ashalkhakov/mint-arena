@@ -319,7 +319,7 @@ typedef enum {
 // array limits (engine will only network arrays <= 1024 elements)
 #define	MAX_STATS				16
 #define	MAX_PERSISTANT			16
-#define	MAX_POWERUPS			16 // entityState_t::powerups bit field limits this to <= 32.
+#define	MAX_POWERUPS			32 // entityState_t::powerups bit field limits this to <= 32.
 #define	MAX_WEAPONS				(1<<WEAPONNUM_BITS) // the STAT_WEAPONS stats hold 16 each, WEAPON_STATS of them
 #define	WEAPON_STATS			( MAX_WEAPONS / 16 )
 
@@ -576,6 +576,7 @@ typedef struct {
 	qboolean	noFootsteps;		// if the game is setup for no footsteps by the server
 	qboolean	gauntletHit;		// true if a gauntlet attack would actually hit something
 	int			playerModel;		// the player's model def (bg_models): its box; 0 Quake 3's
+	int			gametype;			// the game's (gametype_t)
 
 	int			framecount;
 
@@ -706,6 +707,15 @@ typedef enum {
 	PW_DOUBLER,
 	PW_AMMOREGEN,
 	PW_INVULNERABILITY,
+
+	// Daikatana's (artifacts.cpp): a boost raises one of the five stats to
+	// its top level a while, the skull makes you invulnerable
+	PW_POWERBOOST,		// damage x2.5
+	PW_ATTACKBOOST,		// firing x3, projectiles x2.5 as fast
+	PW_SPEEDBOOST,		// running x2
+	PW_ACROBOOST,		// jumping x1.75 (x2.5 in deathmatch), half the falling damage
+	PW_VITABOOST,		// health's limit +250
+	PW_INVINCIBLE,		// no damage at all
 
 	PW_NUM_POWERUPS
 

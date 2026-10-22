@@ -262,13 +262,9 @@ void Cmd_SpawnItem_f( gentity_t *ent ) {
 	VectorSet( angles, 0, ent->player->ps.viewangles[YAW], 0 );
 	AngleVectors( angles, forward, NULL, NULL );
 	if ( !it ) {
-		// any other entity def (a monster), 96 ahead on the floor, facing
-		// the player, as a map would spawn it
-		if ( !EntityDef_Find( name ) ) {
-			trap_SendServerCommand( ent - g_entities, va( "print \"no item or entity def %s\n\"", name ) );
-			return;
-		}
-		VectorMA( ent->r.currentOrigin, 96, forward, origin );
+		// anything else (a monster, a health tree), 64 ahead, facing the
+		// player, as a map would spawn it
+		VectorMA( ent->r.currentOrigin, 64, forward, origin );
 		level.numSpawnVars = 0;
 		level.numSpawnVarChars = 0;
 		level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "classname" );
@@ -279,7 +275,11 @@ void Cmd_SpawnItem_f( gentity_t *ent ) {
 		level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( va( "%f", angles[YAW] + 180 ) );
 		it_ent = G_SpawnGEntityFromSpawnVars();
 		level.numSpawnVars = 0;
-		G_Printf( "spawnitem: %s is entity %d\n", name, it_ent ? it_ent->s.number : -1 );
+		if ( !it_ent ) {
+			trap_SendServerCommand( ent - g_entities, va( "print \"can't spawn %s\n\"", name ) );
+			return;
+		}
+		G_Printf( "spawnitem: %s is entity %d\n", name, it_ent->s.number );
 		return;
 	}
 	it_ent = G_Spawn();
@@ -291,6 +291,33 @@ void Cmd_SpawnItem_f( gentity_t *ent ) {
 	FinishSpawningItem( it_ent );
 	G_Printf( "spawnitem: %s is entity %d at %s, the player at %s\n", it->classname, it_ent->s.number,
 		vtos( it_ent->r.currentOrigin ), vtos( ent->r.currentOrigin ) );
+}
+
+/*
+==================
+Cmd_UseEnt_f
+
+useent <entity number>: uses it as the player looking at it would (cheat,
+for tests)
+==================
+*/
+void Cmd_UseEnt_f( gentity_t *ent ) {
+	char buf[MAX_TOKEN_CHARS];
+	gentity_t *target;
+	int num;
+
+	if ( !CheatsOk( ent ) ) {
+		return;
+	}
+	trap_Argv( 1, buf, sizeof( buf ) );
+	num = atoi( buf );
+	if ( num < 0 || num >= level.num_entities || !g_entities[num].inuse || !g_entities[num].use ) {
+		trap_SendServerCommand( ent - g_entities, va( "print \"entity %d can't be used\n\"", num ) );
+		return;
+	}
+	target = &g_entities[num];
+	target->use( target, ent, ent );
+	G_Printf( "useent: %d %s, health %d\n", num, target->classname, ent->health );
 }
 
 /*
@@ -2151,6 +2178,8 @@ void ClientCommand( int connectionNum ) {
 		Cmd_SpawnItem_f( ent );
 	else if (Q_stricmp (cmd, "hurt") == 0)
 		Cmd_Hurt_f( ent );
+	else if (Q_stricmp (cmd, "useent") == 0)
+		Cmd_UseEnt_f( ent );
 	else if ( !Q_stricmpn( cmd, "inv", 3 ) )
 		Cmd_Inventory_f( ent, cmd );
 	else if (Q_stricmp (cmd, "contents") == 0)

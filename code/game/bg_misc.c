@@ -74,7 +74,13 @@ const char *bg_powerupNames[PW_NUM_POWERUPS] = {
 	"guard",
 	"doubler",
 	"ammoregen",
-	"invulnerability"
+	"invulnerability",
+	"power_boost",
+	"attack_boost",
+	"speed_boost",
+	"acro_boost",
+	"vita_boost",
+	"invincible"
 };
 
 const char *bg_holdableNames[HI_NUM_HOLDABLE] = {

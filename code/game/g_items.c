@@ -860,8 +860,9 @@ void FinishSpawningItem( gentity_t *ent ) {
 		return;
 	}
 
-	// powerups don't spawn in for a while
-	if ( ent->item->giType == IT_POWERUP ) {
+	// powerups don't spawn in for a while, in a deathmatch's map; Daikatana's
+	// campaign has its artifacts there from the start, as has one spawned later
+	if ( ent->item->giType == IT_POWERUP && g_gametype.integer != GT_CAMPAIGN && level.time - level.startTime < 1000 ) {
 		float	respawn;
 
 		respawn = 45 + crandom() * 15;

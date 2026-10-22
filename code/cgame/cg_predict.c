@@ -595,6 +595,7 @@ void CG_PredictPlayerState( void ) {
 		cg_pmove.tracemask &= ~CONTENTS_BODY;	// spectators can fly through bodies
 	}
 	cg_pmove.noFootsteps = ( cgs.dmflags & DF_NO_FOOTSTEPS ) > 0;
+	cg_pmove.gametype = cgs.gametype;
 
 	// save the state before the pmove so we can detect transitions
 	oldPlayerState = cg.cur_lc->predictedPlayerState;

@@ -546,6 +546,9 @@ void PlayerEvents( gentity_t *ent, int oldEventSequence ) {
 			} else {
 				damage = 5;
 			}
+			if ( ent->player->ps.powerups[PW_ACROBOOST] ) {
+				damage /= 2;		// Daikatana's acro boost: ( 10 - level ) / 10
+			}
 			ent->pain_debounce_time = level.time + 200;	// no normal pain sound
 			G_Damage (ent, NULL, NULL, NULL, NULL, damage, 0, MOD_FALLING);
 			break;
@@ -834,6 +837,12 @@ void PlayerThink_real( gentity_t *ent ) {
 	if ( player->ps.powerups[PW_HASTE] ) {
 		player->ps.speed *= 1.3;
 	}
+	// Daikatana's speed boost: +20% a level, five levels; the vita boost's
+	// health limit, +50 a level (com_CalcBoosts)
+	if ( player->ps.powerups[PW_SPEEDBOOST] ) {
+		player->ps.speed *= 2;
+	}
+	player->ps.stats[STAT_MAX_HEALTH] = player->pers.maxHealth + ( player->ps.powerups[PW_VITABOOST] ? 250 : 0 );
 
 	// set up for pmove
 	oldEventSequence = player->ps.eventSequence;
@@ -892,6 +901,7 @@ void PlayerThink_real( gentity_t *ent ) {
 	pm.pointcontents = G_PointContents;
 	pm.debugLevel = g_debugMove.integer;
 	pm.noFootsteps = ( g_dmflags.integer & DF_NO_FOOTSTEPS ) > 0;
+	pm.gametype = g_gametype.integer;
 
 	pm.pmove_fixed = pmove_fixed.integer | player->pers.pmoveFixed;
 	pm.pmove_msec = pmove_msec.integer;

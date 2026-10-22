@@ -439,6 +439,10 @@ static qboolean PM_CheckJump( void ) {
 
 	pm->ps->groundEntityNum = ENTITYNUM_NONE;
 	pm->ps->velocity[2] = JUMP_VELOCITY;
+	// Daikatana's acro boost: +15% a level, five levels (+30% in deathmatch)
+	if ( pm->ps->powerups[PW_ACROBOOST] ) {
+		pm->ps->velocity[2] *= pm->gametype == GT_CAMPAIGN ? 1.75f : 2.5f;
+	}
 	PM_AddEvent( EV_JUMP );
 
 	if ( pm->cmd.forwardmove >= 0 ) {
@@ -2228,6 +2232,10 @@ static int PM_WeaponAddTime( int addTime ) {
 #endif
 	if ( pm->ps->powerups[PW_HASTE] ) {
 		addTime /= 1.3;
+	}
+	// Daikatana's attack boost at its top level: three times as fast
+	if ( pm->ps->powerups[PW_ATTACKBOOST] ) {
+		addTime /= 3;
 	}
 	return addTime;
 }

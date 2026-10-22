@@ -714,13 +714,18 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	// reduce damage by the attacker's handicap value
 	// unless they are rocket jumping
 	if ( attacker->player && attacker != targ ) {
-		max = attacker->player->ps.stats[STAT_MAX_HEALTH];
+		max = attacker->player->pers.maxHealth;		// the handicap, not a vita boost's limit
 #ifdef MISSIONPACK
 		if( BG_ItemForItemNum( attacker->player->ps.stats[STAT_PERSISTANT_POWERUP] )->giTag == PW_GUARD ) {
 			max /= 2;
 		}
 #endif
 		damage = damage * max / 100;
+	}
+
+	// Daikatana's power boost: +30% a level, five levels (com_sub.cpp)
+	if ( attacker->player && attacker != targ && attacker->player->ps.powerups[PW_POWERBOOST] ) {
+		damage = damage * 5 / 2;
 	}
 
 	player = targ->player;
@@ -809,8 +814,11 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 			}
 		}
 
-		// check for godmode
+		// check for godmode, or Daikatana's skull of invincibility
 		if ( targ->flags & FL_GODMODE ) {
+			return;
+		}
+		if ( player && player->ps.powerups[PW_INVINCIBLE] ) {
 			return;
 		}
 	}

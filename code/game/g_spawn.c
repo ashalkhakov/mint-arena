@@ -173,6 +173,7 @@ void SP_path_corner (gentity_t *self);
 
 void SP_misc_teleporter_dest (gentity_t *self);
 void SP_misc_gamemodel (gentity_t *ent);
+void SP_misc_healthtree( gentity_t *ent );
 
 void SP_dlight( gentity_t *ent );
 
@@ -235,6 +236,7 @@ spawn_t	spawns[] = {
 
 	{"misc_teleporter_dest", SP_misc_teleporter_dest},
 	{"misc_gamemodel", SP_misc_gamemodel},
+	{"misc_healthtree", SP_misc_healthtree},
 
 	{"dlight", SP_dlight},
 

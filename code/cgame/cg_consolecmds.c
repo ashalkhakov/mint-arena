@@ -1835,6 +1835,7 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "contents", CG_ForwardToServer_f, CMD_INGAME },
 	{ "spawnitem", CG_ForwardToServer_f, CMD_INGAME },
 	{ "hurt", CG_ForwardToServer_f, CMD_INGAME },
+	{ "useent", CG_ForwardToServer_f, CMD_INGAME },
 	{ "inventory", CG_Inventory_f, CMD_INGAME },
 	{ "invuse", CG_ForwardToServer_f, CMD_INGAME },
 	{ "invwear", CG_ForwardToServer_f, CMD_INGAME },
