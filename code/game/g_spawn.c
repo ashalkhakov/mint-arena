@@ -173,6 +173,9 @@ void SP_path_corner (gentity_t *self);
 
 void SP_misc_teleporter_dest (gentity_t *self);
 void SP_misc_gamemodel (gentity_t *ent);
+void SP_monster_path_corner( gentity_t *ent );
+void SP_func_event_generator( gentity_t *ent );
+void SP_trigger_script( gentity_t *ent );
 void SP_target_monster_spawn( gentity_t *ent );
 void SP_misc_healthtree( gentity_t *ent );
 
@@ -234,7 +237,9 @@ spawn_t	spawns[] = {
 	{"target_location", SP_target_location},
 
 	{"path_corner", SP_path_corner},
-	{"monster_path_corner", SP_path_corner},		// Daikatana's, for monsters' patrols
+	{"monster_path_corner", SP_monster_path_corner},		// Daikatana's, for monsters' patrols
+	{"trigger_script", SP_trigger_script},
+	{"func_event_generator", SP_func_event_generator},
 	{"target_monster_spawn", SP_target_monster_spawn},
 	{"monster_firefly", SP_misc_gamemodel},		// the cgame makes them (cg_fireflies.c)
 

@@ -193,6 +193,10 @@ void G_ScriptEntitySpawned( gentity_t *ent ) {
 		G_ScriptSetSpawnArg( ent, level.spawnVars[ i ][ 0 ], level.spawnVars[ i ][ 1 ] );
 	}
 
+	// Daikatana's "uniqueid" names it for its action scripts (g_aiscript.c)
+	if ( !ent->targetname && G_ScriptGetSpawnArg( ent, "uniqueid", NULL ) ) {
+		ent->targetname = G_NewString( G_ScriptGetSpawnArg( ent, "uniqueid", "" ) );
+	}
 	if ( ent->targetname ) {
 		Program_SetEntity( ent->targetname, ent );
 	}
@@ -385,6 +389,16 @@ void G_ScriptWorldSpawn( void ) {
 	// and the cinematics it plays (./dk assembles cine/maps/<map>.script: all
 	// of them at once would be more than the scripts' memory)
 	scriptname = va( "cine/maps/%s.script", mapname );
+	f = 0;
+	if ( trap_FS_FOpenFile( scriptname, &f, FS_READ ) > 0 && f ) {
+		trap_FS_FCloseFile( f );
+		Program_CompileFile( scriptname );
+	} else if ( f ) {
+		trap_FS_FCloseFile( f );
+	}
+
+	// and Daikatana's action scripts (./dk converts its cin/aiscripts/<map>.sca)
+	scriptname = va( "ai/maps/%s.script", mapname );
 	f = 0;
 	if ( trap_FS_FOpenFile( scriptname, &f, FS_READ ) > 0 && f ) {
 		trap_FS_FCloseFile( f );

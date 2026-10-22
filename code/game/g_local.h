@@ -948,6 +948,12 @@ void		G_AirNavShutdown( void );
 // g_monster.c
 void		SP_monster( gentity_t *ent );
 qboolean	G_IsMonster( const gentity_t *ent );
+
+//
+// g_aiscript.c
+//
+qboolean	G_RunAiScript( const char *name, gentity_t *actor, qboolean delayed );
+void		G_AiScriptLevelStart( void );
 void		G_TargetEye( const gentity_t *ent, vec3_t eye );		// where a monster aims at it
 qboolean	G_BotLibLoaded( void );		// g_main.c: the bots' AI and the map's AAS worlds, loaded when first needed
 qboolean	G_MonsterPerch( gentity_t *ent, const vec3_t pos, const vec3_t normal );

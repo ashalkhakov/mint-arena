@@ -627,6 +627,7 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	// parse the key/value pairs and spawn gentities
 	G_SpawnEntitiesFromString();
+	G_AiScriptLevelStart();		// Daikatana's Level_start (g_aiscript.c)
 
 	// general initialization
 	G_FindTeams();

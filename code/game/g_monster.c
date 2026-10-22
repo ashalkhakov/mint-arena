@@ -1366,6 +1366,12 @@ void SP_monster( gentity_t *ent ) {
 	ent->nextthink = level.time + FRAMETIME;
 	G_CharacterRecord( ent );
 	G_LinkEntity( ent );
+
+	// Daikatana's: the action script it starts with (SPAWN_CallInitFunction)
+	name = G_MonsterKey( ent, "aiscript", "" );
+	if ( name[0] ) {
+		G_RunAiScript( name, ent, qtrue );
+	}
 }
 
 /*
@@ -1374,7 +1380,7 @@ target_monster_spawn
 
 Daikatana's (target.cpp): used, it spawns its "monsterclass" where it is,
 facing its way, with its keys (Daikatana copies them all: "deathtarget",
-"spawnname", "uniqueid"...), plays its "sound", and is gone.
+"spawnname"...; "muniqueid" is its name), plays its "sound", and is gone.
 ================
 */
 void Use_TargetMonsterSpawn( gentity_t *self, gentity_t *other, gentity_t *activator ) {
@@ -1393,7 +1399,8 @@ void Use_TargetMonsterSpawn( gentity_t *self, gentity_t *other, gentity_t *activ
 			|| !Q_stricmp( PoolStrGetString( kv->key ), "monsterclass" ) || !Q_stricmp( PoolStrGetString( kv->key ), "sound" ) ) {
 			continue;
 		}
-		keys[n] = PoolStrGetString( kv->key );
+		// its "muniqueid" is the monster's "uniqueid", its name for the action scripts
+		keys[n] = !Q_stricmp( PoolStrGetString( kv->key ), "muniqueid" ) ? "uniqueid" : PoolStrGetString( kv->key );
 		values[n++] = PoolStrGetString( kv->value );
 	}
 	if ( !G_SpawnEntityFromKeys( n, keys, values ) ) {
