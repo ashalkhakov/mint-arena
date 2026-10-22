@@ -1435,6 +1435,7 @@ typedef struct {
 
 typedef struct {
 	const struct dict_s	*def;
+	const struct dict_s	*extra;		// "<name>_extra": what a rigged model def taking the md3's place keeps (fx_*, light_*, frames)
 	const char			*name;
 	char				mesh[MAX_QPATH];
 	int					numAnims;
@@ -1486,6 +1487,7 @@ extern int			bg_numModels;
 #define BG_ValidModel( m )		( (m) > 0 && (m) < bg_numModels )
 void		BG_InitModels( void );
 int			BG_ModelForName( const char *name );
+const char	*BG_ModelKey( const bgModel_t *model, const char *key, const char *defaultValue );	// its def's, else its extra def's
 int			BG_ModelAnimForName( const bgModel_t *model, const char *name );
 void		BG_ModelFrameRate( const bgModel_t *model, int animNum, int animTime, int time, float rate,
 							   int *frame, int *oldFrame, float *backlerp, int *animFrame );

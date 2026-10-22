@@ -569,6 +569,29 @@ void CG_Character( centity_t *cent ) {
 	VectorCopy( cent->lerpOrigin, ent.oldorigin );
 	VectorCopy( cent->lerpOrigin, ent.lightingOrigin );
 	AnglesToAxis( cent->lerpAngles, ent.axis );
+	// light added to the light grid's ("light_ambient" r g b, 0-255): a
+	// rockgat in the rock, where the grid is black
+	sscanf( BG_ModelKey( model, "light_ambient", "0 0 0" ), "%f %f %f", &ent.ambientLight[0], &ent.ambientLight[1], &ent.ambientLight[2] );
+
+	// its light ("light_radius", "light_color", "light_offset" forward,
+	// left, up): a cambot's lamp
+	{
+		float radius = atof( BG_ModelKey( model, "light_radius", "0" ) );
+
+		if ( radius > 0 ) {
+			vec3_t color, offset, org;
+
+			color[0] = color[1] = color[2] = 1;
+			offset[0] = offset[1] = offset[2] = 0;
+			sscanf( BG_ModelKey( model, "light_color", "1 1 1" ), "%f %f %f", &color[0], &color[1], &color[2] );
+			sscanf( BG_ModelKey( model, "light_offset", "0 0 0" ), "%f %f %f", &offset[0], &offset[1], &offset[2] );
+			VectorCopy( cent->lerpOrigin, org );
+			VectorMA( org, offset[0], ent.axis[0], org );
+			VectorMA( org, offset[1], ent.axis[1], org );
+			VectorMA( org, offset[2], ent.axis[2], org );
+			trap_R_AddLightToScene( org, radius, 1.0f, color[0], color[1], color[2], 0 );
+		}
+	}
 	if ( s1->origin2[0] > 0.0f && s1->origin2[0] != 1.0f ) {
 		// "modelscale"
 		VectorScale( ent.axis[0], s1->origin2[0], ent.axis[0] );

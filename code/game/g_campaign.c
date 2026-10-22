@@ -155,7 +155,7 @@ void G_CampaignDelayedUse( gentity_t *ent ) {
 G_CampaignUseTargets
 
 Quake 2's G_UseTargets: after "delay" seconds the "message" to the
-activator, "killtarget"s removed, the "target"s used.
+activator, "killtarget"s removed (a monster killed), the "target"s used.
 ================
 */
 void G_CampaignUseTargets( gentity_t *ent, gentity_t *activator ) {
@@ -184,7 +184,12 @@ void G_CampaignUseTargets( gentity_t *ent, gentity_t *activator ) {
 	if ( ent->killtarget ) {
 		t = NULL;
 		while ( ( t = G_Find( t, FOFS( targetname ), ent->killtarget ) ) != NULL ) {
-			G_FreeEntity( t );
+			if ( G_IsMonster( t ) && t->health > 0 ) {
+				// a monster dies of it, as it would (a turret blows up)
+				G_Damage( t, ent, activator, NULL, NULL, t->health + 1000, DAMAGE_NO_PROTECTION, MOD_UNKNOWN );
+			} else {
+				G_FreeEntity( t );
+			}
 			if ( !ent->inuse ) {
 				return;
 			}

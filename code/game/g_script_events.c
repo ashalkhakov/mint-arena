@@ -804,23 +804,68 @@ static int DamageFromDef( const char *name ) {
 
 /*
 ================
+MeleeBiter
+
+where its "melee_hitbox" (its model's hitbox of that joint: a crox's
+"Head") ends in front, posed as it's drawn now: its jaws, what bites. qfalse
+if it has none.
+================
+*/
+static qboolean MeleeBiter( gentity_t *self, vec3_t point ) {
+	const char		*joint = G_ScriptGetSpawnArg( self, "melee_hitbox", "" );
+	const bgModel_t	*model;
+	bgHitboxPose_t	poses[MAX_MODEL_HITBOXES];
+	vec3_t			local;
+	int				num, i;
+
+	if ( !joint[0] || !BG_ValidModel( self->characterDef ) ) {
+		return qfalse;
+	}
+	model = &bg_models[self->characterDef];
+	num = G_CharacterHitboxes( self, level.time, poses );
+	for ( i = 0; i < num; i++ ) {
+		if ( Q_stricmp( model->hitboxes[poses[i].hitbox].joint, joint ) ) {
+			continue;
+		}
+		// the middle of the box's far end along the joint's x, its snout
+		local[0] = poses[i].maxs[0];
+		local[1] = ( poses[i].mins[1] + poses[i].maxs[1] ) * 0.5f;
+		local[2] = ( poses[i].mins[2] + poses[i].maxs[2] ) * 0.5f;
+		VectorCopy( poses[i].origin, point );
+		VectorMA( point, local[0], poses[i].axis[0], point );
+		VectorMA( point, local[1], poses[i].axis[1], point );
+		VectorMA( point, local[2], poses[i].axis[2], point );
+		return qtrue;
+	}
+	return qfalse;
+}
+
+/*
+================
 MeleeReach
 
 whether its enemy is in a melee attack's reach (its def's "range", else the
 monster's "melee_range"): the gap between their boxes, as Doom 3's
-TestMelee, in front of it, and seen
+TestMelee, or with a "melee_hitbox" from its jaws to the enemy's box; in
+front of it, and seen
 ================
 */
 static qboolean MeleeReach( gentity_t *self, gentity_t *enemy, const char *damageDef ) {
 	const dict_t *def = damageDef[0] ? EntityDef_Find( damageDef ) : NULL;
-	vec3_t	gap, dir;
+	vec3_t	gap, dir, jaws;
 	float	range;
 	int		k;
 
 	range = def ? DictGetFloat( def, "range", G_ScriptGetSpawnArg( self, "melee_range", "64" ) )
 				: atof( G_ScriptGetSpawnArg( self, "melee_range", "64" ) );
-	for ( k = 0; k < 3; k++ ) {
-		gap[k] = MAX( 0, MAX( enemy->r.absmin[k] - self->r.absmax[k], self->r.absmin[k] - enemy->r.absmax[k] ) );
+	if ( MeleeBiter( self, jaws ) ) {
+		for ( k = 0; k < 3; k++ ) {
+			gap[k] = MAX( 0, MAX( enemy->r.absmin[k] - jaws[k], jaws[k] - enemy->r.absmax[k] ) );
+		}
+	} else {
+		for ( k = 0; k < 3; k++ ) {
+			gap[k] = MAX( 0, MAX( enemy->r.absmin[k] - self->r.absmax[k], self->r.absmin[k] - enemy->r.absmax[k] ) );
+		}
 	}
 	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
 	return VectorLength( gap ) <= range && fabs( AngleSubtract( vectoyaw( dir ), self->r.currentAngles[YAW] ) ) <= 60
@@ -854,7 +899,10 @@ qboolean G_MonsterAttackMelee( gentity_t *self, const char *damageDef ) {
 	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
 	VectorNormalize( dir );
 
-	VectorMA( self->r.currentOrigin, self->monster.moveMaxs[0], dir, point );
+	if ( !MeleeBiter( self, point ) ) {
+		VectorMA( self->r.currentOrigin, self->monster.moveMaxs[0], dir, point );
+	}
+	G_DPrintf( "%s %d bites %d at %s\n", self->classname, self->s.number, enemy->s.number, vtos( point ) );
 	G_Damage( enemy, self, self, dir, point, DamageFromDef( damageDef ), 0, MOD_UNKNOWN );
 	return qtrue;
 }

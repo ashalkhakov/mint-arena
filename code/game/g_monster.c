@@ -211,6 +211,10 @@ gentity_t *G_MonsterFindEnemy( gentity_t *ent, qboolean useFov ) {
 	float		bestDist, dist;
 	int			i;
 
+	// a cutscene's players are actors, nobody's enemies yet
+	if ( level.inCinematic ) {
+		return NULL;
+	}
 	bestDist = ent->monster.sightRange;
 	for ( i = 0; i < level.maxplayers; i++ ) {
 		other = &g_entities[i];

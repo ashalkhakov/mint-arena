@@ -466,17 +466,23 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 		}
 	}
 
-	// and its frames def's ("<model def>_frames"): a converter's, made from
-	// Daikatana's sound tables (tools/vsc), that a rigged model def taking
-	// the place of the md3's keeps
+	// and those of its frames def ("<model def>_frames": a converter's, made
+	// from Daikatana's sound tables, tools/vsc) and its extra def ("<model
+	// def>_extra": ours, its effects and light too, BG_ModelKey), which a
+	// rigged model def taking the place of the md3's keeps
 	{
-		const dict_t *frames = EntityDef_Find( va( "%s_frames", name ) );
+		const dict_t *more[2];
+		int j;
 
-		for ( i = 0; frames && i < DictGetNumKeyVals( frames ); i++ ) {
-			kv = DictGetKeyVal( frames, i );
-			key = PoolStrGetString( kv->key );
-			if ( !Q_stricmpn( key, "frame ", 6 ) ) {
-				BG_ModelFrameCommand( model, key, PoolStrGetString( kv->value ) );
+		more[0] = EntityDef_Find( va( "%s_frames", name ) );
+		more[1] = model->extra = EntityDef_Find( va( "%s_extra", name ) );
+		for ( j = 0; j < 2; j++ ) {
+			for ( i = 0; more[j] && i < DictGetNumKeyVals( more[j] ); i++ ) {
+				kv = DictGetKeyVal( more[j], i );
+				key = PoolStrGetString( kv->key );
+				if ( !Q_stricmpn( key, "frame ", 6 ) ) {
+					BG_ModelFrameCommand( model, key, PoolStrGetString( kv->value ) );
+				}
 			}
 		}
 	}
@@ -1552,4 +1558,23 @@ void BG_PlayerSwimOrigin( const bgModel_t *model, const vec3_t origin, const vec
 	for ( k = 0; k < 3; k++ ) {
 		VectorMA( out, -model->swimCenter[k], axis[k], out );
 	}
+}
+
+/*
+================
+BG_ModelKey
+
+a key of the model def, else of its extra def ("<model def>_extra")
+================
+*/
+const char *BG_ModelKey( const bgModel_t *model, const char *key, const char *defaultValue ) {
+	const char *value;
+
+	if ( model->def && DictGetString( model->def, key, NULL, &value ) && value ) {
+		return value;
+	}
+	if ( model->extra && DictGetString( model->extra, key, NULL, &value ) && value ) {
+		return value;
+	}
+	return defaultValue;
 }

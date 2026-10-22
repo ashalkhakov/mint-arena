@@ -1909,7 +1909,7 @@ void Break_Breakable(gentity_t *ent, gentity_t *other) {
 
 	ent->takedamage = qfalse;
 	ent->s.eType = ET_INVISIBLE;
-	G_UseTargets( ent, other );
+	G_CampaignUseTargets( ent, other );		// Daikatana's func_explosive: its killtarget too
 
 
 

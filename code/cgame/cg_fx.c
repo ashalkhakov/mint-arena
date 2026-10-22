@@ -85,6 +85,7 @@ static const char *fx_primNames[FXP_NUM] = {
 
 // primitive flags
 #define FX_PAPER_PHYSICS		0x00010000	// emitters only, shared with size2
+#define FX_GROWING				0x00020000	// electricity only, shared with size2: it reaches its end as it goes
 #define FX_DEPTH_HACK			0x00100000
 #define FX_RELATIVE				0x00200000
 #define FX_SET_SHADER_TIME		0x00400000
@@ -130,6 +131,7 @@ static const fxFlagName_t fx_flagNames[] = {
 	{ "impactFx",			FX_IMPACT_RUNS_FX },
 	{ "deathFx",			FX_DEATH_RUNS_FX },
 	{ "useAlpha",			FX_USE_ALPHA },
+	{ "growing",			FX_GROWING },
 	{ "emitFx",				FX_EMIT_FX },
 	{ "depthHack",			FX_DEPTH_HACK },
 	{ "relative",			FX_RELATIVE },
@@ -1731,6 +1733,10 @@ void CG_FX_AddToScene( void ) {
 				FX_EffectColor( e, rgba );
 				VectorSubtract( e->origin2, e->origin, dir );
 				len = VectorNormalize( dir );
+				if ( e->flags & FX_GROWING ) {
+					// from its start to its end over the first half of its life
+					len *= Com_Clamp( 0, 1, 2.0f * ( fx.time - e->timeStart ) / MAX( 1, e->timeEnd - e->timeStart ) );
+				}
 				PerpendicularVector( right, dir );
 				CrossProduct( dir, right, up );
 				segs = Com_Clamp( 4, 24, len / 32 );

@@ -329,6 +329,26 @@ void Cmd_UseEnt_f( gentity_t *ent ) {
 
 /*
 ==================
+Cmd_EntList_f
+
+entlist <classname>: where each of that class is, and its health (cheat)
+==================
+*/
+void Cmd_EntList_f( gentity_t *ent ) {
+	char		name[MAX_TOKEN_CHARS];
+	gentity_t	*t = NULL;
+
+	if ( !CheatsOk( ent ) ) {
+		return;
+	}
+	trap_Argv( 1, name, sizeof( name ) );
+	while ( ( t = G_Find( t, FOFS( classname ), name ) ) != NULL ) {
+		G_Printf( "entlist: %d %s at %s box %s %s health %d enemy %d\n", t->s.number, t->classname, vtos( t->r.currentOrigin ), vtos( t->r.absmin ), vtos( t->r.absmax ), t->health, t->monster.enemy );
+	}
+}
+
+/*
+==================
 Cmd_Hurt_f
 
 hurt <damage> [entity number or classname]: hurts the player, armor taking
@@ -2197,6 +2217,8 @@ void ClientCommand( int connectionNum ) {
 		Cmd_GameCommand_f( ent );
 	else if (Q_stricmp (cmd, "spawnitem") == 0)
 		Cmd_SpawnItem_f( ent );
+	else if (Q_stricmp (cmd, "entlist") == 0)
+		Cmd_EntList_f( ent );
 	else if (Q_stricmp (cmd, "hurt") == 0)
 		Cmd_Hurt_f( ent );
 	else if (Q_stricmp (cmd, "useent") == 0)

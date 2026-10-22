@@ -739,7 +739,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		if ( BG_ValidModel( es->modelindex2 ) && es->eventParm >= 0 && es->eventParm < MODELFX_NUM ) {
 			const char *fx;
 
-			if ( DictGetString( bg_models[es->modelindex2].def, bg_modelFxKeys[es->eventParm], "", &fx ) && fx[0] ) {
+			fx = BG_ModelKey( &bg_models[es->modelindex2], bg_modelFxKeys[es->eventParm], "" );
+			if ( fx[0] ) {
 				vec3_t fwd;
 
 				AngleVectors( cent->lerpAngles, fwd, NULL, NULL );
