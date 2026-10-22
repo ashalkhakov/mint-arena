@@ -284,6 +284,9 @@ static void CG_EntityEffects( centity_t *cent ) {
 
 		if ( cent->dl_stylestring[0] != 0 ) {  // it's probably a dlight
 			CG_AddLightstyle( cent );
+		} else if ( cent->currentState.eType == ET_GENERAL && !trap_Cvar_VariableIntegerValue( "r_noLightmaps" ) ) {
+			// a map's steady light (SP_dlight, Daikatana's) is in its
+			// lightmaps already: only without them is it lit here
 		} else {
 			cl = cent->currentState.constantLight;
 			r = (float) (cl & 0xFF) / 255.0;

@@ -296,6 +296,29 @@ void SP_dlight( gentity_t *ent ) {
 		ent->soundLoop = G_SoundIndex( snd );
 	}
 
+	// Daikatana's lights (bsp-sekai's dkent_light) unless they flicker: a
+	// steady light, as far as its "light" reaches and as bright as its "cap"
+	// (55 without one, as the lightmap bake takes it), switched by use
+	{
+		float reach, cap, scale;
+
+		if ( !style && G_SpawnFloat( "light", "0", &reach ) && reach > 0 ) {
+			G_SpawnFloat( "cap", "55", &cap );
+			scale = MIN( 1.0f, cap * 2.5f / 255.0f );
+			if ( ent->dl_color[0] <= 0 && ent->dl_color[1] <= 0 && ent->dl_color[2] <= 0 ) {
+				VectorSet( ent->dl_color, 1, 1, 1 );
+			}
+			ent->s.constantLight = (int)( ent->dl_color[0] * scale * 255 ) | ( (int)( ent->dl_color[1] * scale * 255 ) << 8 )
+				| ( (int)( ent->dl_color[2] * scale * 255 ) << 16 ) | ( MIN( 255, (int)reach / 4 ) << 24 );
+			ent->dl_stylestring = "";
+			ent->use = use_dlight;
+			if ( !( ent->spawnflags & 2 ) ) {
+				G_LinkEntity( ent );
+			}
+			return;
+		}
+	}
+
 	if ( ent->dl_stylestring && strlen( ent->dl_stylestring ) ) {    // if they're specified in a string, use em
 	} else if ( style )       {
 		style = MAX( 1, style );                                  // clamp to predefined range
