@@ -169,7 +169,6 @@ vmCvar_t	cg_bobup;
 vmCvar_t	cg_bobpitch;
 vmCvar_t	cg_bobroll;
 vmCvar_t	cg_swingSpeed;
-vmCvar_t	cg_shadows;
 vmCvar_t	cg_gibs;
 vmCvar_t	cg_drawTimer;
 vmCvar_t	cg_drawFPS;
@@ -391,7 +390,6 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_fov, "cg_fov", "90", CVAR_ARCHIVE, RANGE_FLOAT(1, 160) },
 	{ &cg_weaponFov, "cg_weaponFov", "90", CVAR_ARCHIVE, RANGE_FLOAT( 0, 160 ) },
 	{ &cg_viewsize, "cg_viewsize", "100", CVAR_ARCHIVE, RANGE_INT( 30, 100 ) },
-	{ &cg_shadows, "cg_shadows", "0", CVAR_ARCHIVE, RANGE_ALL  },
 	{ &cg_gibs, "cg_gibs", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_draw2D, "cg_draw2D", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_drawStatus, "cg_drawStatus", "1", CVAR_ARCHIVE, RANGE_BOOL },
@@ -1734,13 +1732,11 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.burnMarkShader = trap_R_RegisterShader( "gfx/damage/burn_med_mrk" );
 	cgs.media.holeMarkShader = trap_R_RegisterShader( "gfx/damage/hole_lg_mrk" );
 	cgs.media.energyMarkShader = trap_R_RegisterShader( "gfx/damage/plasma_mrk" );
-	cgs.media.shadowMarkShader = trap_R_RegisterShader( "markShadow" );
 
 	// plain images without shader scripts so the vertex colors light them, registered
 	// like vertex lit models: the default 2D shaders of trap_R_RegisterShader don't depth test
 	cgs.media.propCrateShader = trap_R_RegisterShaderEx( "textures/base_object/boxQ3_3b", LIGHTMAP_BY_VERTEX, qtrue );
 	cgs.media.propMetalShader = trap_R_RegisterShaderEx( "textures/base_support/metal1_1", LIGHTMAP_BY_VERTEX, qtrue );
-	cgs.media.wakeMarkShader = trap_R_RegisterShader( "wake" );
 	cgs.media.bloodMarkShader = trap_R_RegisterShader( "bloodMark" );
 
 	// register the inline models

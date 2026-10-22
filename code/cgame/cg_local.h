@@ -1036,7 +1036,6 @@ typedef struct {
 	qhandle_t	blueProxMine;
 #endif
 
-	qhandle_t	shadowMarkShader;
 
 	// physics props
 	qhandle_t	propCrateShader;
@@ -1045,7 +1044,6 @@ typedef struct {
 	qhandle_t	botSkillShaders[5];
 
 	// wall mark shaders
-	qhandle_t	wakeMarkShader;
 	qhandle_t	bloodMarkShader;
 	qhandle_t	bulletMarkShader;
 	qhandle_t	burnMarkShader;
@@ -1447,7 +1445,6 @@ extern	vmCvar_t		cg_bobup;
 extern	vmCvar_t		cg_bobpitch;
 extern	vmCvar_t		cg_bobroll;
 extern	vmCvar_t		cg_swingSpeed;
-extern	vmCvar_t		cg_shadows;
 extern	vmCvar_t		cg_gibs;
 extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
