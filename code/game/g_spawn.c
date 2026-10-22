@@ -233,6 +233,7 @@ spawn_t	spawns[] = {
 	{"target_location", SP_target_location},
 
 	{"path_corner", SP_path_corner},
+	{"monster_path_corner", SP_path_corner},		// Daikatana's, for monsters' patrols
 
 	{"misc_teleporter_dest", SP_misc_teleporter_dest},
 	{"misc_gamemodel", SP_misc_gamemodel},

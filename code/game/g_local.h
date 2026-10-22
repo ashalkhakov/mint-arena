@@ -734,6 +734,7 @@ void G_ExplodeMissile( gentity_t *ent );
 #define MISSILE_DETONATE_ON_WATER	32	// hits water surfaces and goes off there
 
 gentity_t *fire_projectile( gentity_t *self, const struct dict_s *def, int weapon, vec3_t start, vec3_t dir );
+void G_MonsterFireWeapon( gentity_t *ent, int weapon, const vec3_t start, const vec3_t aim );
 
 
 //
@@ -947,6 +948,7 @@ void		G_AirNavShutdown( void );
 // g_monster.c
 void		SP_monster( gentity_t *ent );
 qboolean	G_IsMonster( const gentity_t *ent );
+void		G_TargetEye( const gentity_t *ent, vec3_t eye );		// where a monster aims at it
 qboolean	G_BotLibLoaded( void );		// g_main.c: the bots' AI and the map's AAS worlds, loaded when first needed
 qboolean	G_MonsterPerch( gentity_t *ent, const vec3_t pos, const vec3_t normal );
 gentity_t	*G_MonsterEnemy( gentity_t *ent );

@@ -853,6 +853,81 @@ static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
 	Thread_ReturnInt( 1 );
 }
 
+/*
+================
+Event_AttackWeapon
+
+attackWeapon( weapon def, offset ): fires the weapon def's shots (hitscan
+or projectiles, g_weapon.c) from offset (forward, left, up of its yaw) at
+its enemy's eye, else straight ahead. 0 if there's no such weapon.
+================
+*/
+static void Event_AttackWeapon( gentity_t *self, const intptr_t *args ) {
+	gentity_t	*enemy;
+	vec3_t		angles, forward, right, up, start, aim, target;
+	const float	*offset = EVARG_VECTOR( 1 );
+	int			w;
+
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	w = BG_WeaponForName( EVARG_STRING( 0 ) );
+	if ( !BG_ValidWeapon( w ) ) {
+		G_Printf( S_COLOR_YELLOW "attackWeapon: %s isn't a weapon def\n", EVARG_STRING( 0 ) );
+		Thread_ReturnInt( 0 );
+		return;
+	}
+	VectorSet( angles, 0, self->r.currentAngles[YAW], 0 );
+	AngleVectors( angles, forward, right, up );
+	VectorMA( self->r.currentOrigin, offset[0], forward, start );
+	VectorMA( start, -offset[1], right, start );
+	VectorMA( start, offset[2], up, start );
+
+	enemy = G_MonsterEnemy( self );
+	if ( enemy ) {
+		G_TargetEye( enemy, target );
+		VectorSubtract( target, start, aim );
+	} else {
+		VectorCopy( forward, aim );
+	}
+	G_MonsterFireWeapon( self, w, start, aim );
+	Thread_ReturnInt( 1 );
+}
+
+/*
+================
+Event_AlertMonsters
+
+alertMonsters( range ): the monsters within range that could hear it (in
+its PVS) and have no enemy take its enemy, Daikatana's cambot alarm
+(CAMBOT_AlertNearbyMonsters)
+================
+*/
+static void Event_AlertMonsters( gentity_t *self, const intptr_t *args ) {
+	gentity_t	*enemy, *other;
+	float		range = EVARG_FLOAT( 0 );
+	int			i;
+
+	MONSTER_OR_RETURN( (void)0 );
+	enemy = G_MonsterEnemy( self );
+	if ( !enemy ) {
+		return;
+	}
+	for ( i = MAX_CLIENTS; i < level.num_entities; i++ ) {
+		other = &g_entities[i];
+		if ( other == self || !other->inuse || !G_IsMonster( other ) || other->health <= 0 ) {
+			continue;
+		}
+		if ( G_MonsterEnemy( other ) || Distance( other->r.currentOrigin, self->r.currentOrigin ) > range ) {
+			continue;
+		}
+		if ( !trap_InPVS( self->r.currentOrigin, other->r.currentOrigin ) ) {
+			continue;
+		}
+		other->monster.enemy = enemy->s.number;
+		VectorCopy( enemy->r.currentOrigin, other->monster.lastEnemyPos );
+		other->monster.lastEnemySeen = level.time;
+	}
+}
+
 static void Event_DirectDamage( gentity_t *self, const intptr_t *args ) {
 	gentity_t	*target = EVARG_ENTITY( 0 );
 	vec3_t		dir;
@@ -1062,6 +1137,8 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "testMeleeAttack",	NULL,		'd',	Event_TestMeleeAttack },
 	{ "attackMelee",		"s",		'd',	Event_AttackMelee },
 	{ "directDamage",		"es",		0,		Event_DirectDamage },
+	{ "attackWeapon",		"sv",		'd',	Event_AttackWeapon },
+	{ "alertMonsters",		"f",		0,		Event_AlertMonsters },
 	{ "playAnim",			"ds",		'd',	Event_PlayAnim },
 	{ "playCycle",			"ds",		'd',	Event_PlayAnim },
 	{ "animDone",			"dd",		'd',	Event_AnimDone },

@@ -145,7 +145,7 @@ void G_MonsterEye( const gentity_t *ent, vec3_t eye ) {
 	eye[2] += ent->monster.moveMaxs[2] * 0.75f;
 }
 
-static void G_TargetEye( const gentity_t *ent, vec3_t eye ) {
+void G_TargetEye( const gentity_t *ent, vec3_t eye ) {
 	VectorCopy( ent->r.currentOrigin, eye );
 	if ( ent->player ) {
 		eye[2] += ent->player->ps.viewheight;

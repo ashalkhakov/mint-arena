@@ -223,6 +223,55 @@ static void Weapon_Projectile( gentity_t *ent, const bgWeapon_t *weapon ) {
 }
 
 /*
+================
+G_MonsterFireWeapon
+
+A monster's shot (attackWeapon, g_script_events.c) with a weapon def's
+shots, hitscan or projectiles, from start along aim: its "numProjectiles"
+and "spread", its projectile's damage. The client draws them as the
+weapon's, as it does a player's.
+================
+*/
+void G_MonsterFireWeapon( gentity_t *ent, int w, const vec3_t start, const vec3_t aim ) {
+	const bgWeapon_t *weapon = BG_Weapon( w );
+	gentity_t	*tent;
+	vec3_t		fwd, rt, u, dir;
+	int			seed, i, damage, held;
+
+	if ( !weapon->projectile ) {
+		return;
+	}
+	VectorNormalize2( aim, fwd );
+	PerpendicularVector( rt, fwd );
+	CrossProduct( fwd, rt, u );
+	seed = rand() & 255;
+
+	if ( weapon->hitscan ) {
+		tent = G_TempEntity( start, EV_HITSCAN );
+		VectorScale( fwd, 4096, tent->s.origin2 );
+		SnapVector( tent->s.origin2 );
+		tent->s.eventParm = seed;
+		tent->s.otherEntityNum = ent->s.number;
+		tent->s.weapon = w;
+
+		damage = G_DamageDef( weapon->projectile, "def_damage", NULL );
+		held = ent->s.weapon;
+		ent->s.weapon = w;		// the shots' means of death
+		for ( i = 0; i < weapon->numProjectiles; i++ ) {
+			BG_HitscanDir( fwd, rt, u, weapon->spread, &seed, dir );
+			G_HitscanShot( ent, weapon, start, dir, damage );
+		}
+		ent->s.weapon = held;
+		return;
+	}
+
+	for ( i = 0; i < weapon->numProjectiles; i++ ) {
+		BG_HitscanDir( fwd, rt, u, weapon->spread, &seed, dir );
+		fire_projectile( ent, weapon->projectile, w, (float *)start, dir );
+	}
+}
+
+/*
 ===============
 LogAccuracyHit
 ===============
