@@ -170,7 +170,8 @@ CG_TestLight_f
 testlight <radius> <r> <g> <b> [count]: a light where you look, 128 ahead,
 or a ring of count of them around you, left until "testlight clear"; for
 checking dynamic lights. testlight spot <radius> <cone> <r> <g> <b>: a spot
-light from your eye where you look
+light from your eye where you look. testlight at <x> <y> <z> <radius> <r>
+<g> <b>: one there
 =================
 */
 #define MAX_TEST_LIGHTS	256
@@ -184,6 +185,18 @@ void CG_TestLight_f( void ) {
 
 	if ( !Q_stricmp( CG_Argv( 1 ), "clear" ) || trap_Argc() < 2 ) {
 		cg_numTestLights = 0;
+		return;
+	}
+	if ( !Q_stricmp( CG_Argv( 1 ), "at" ) ) {
+		if ( cg_numTestLights >= MAX_TEST_LIGHTS ) {
+			return;
+		}
+		VectorSet( cg_testLights[cg_numTestLights].origin, atof( CG_Argv( 2 ) ), atof( CG_Argv( 3 ) ), atof( CG_Argv( 4 ) ) );
+		cg_testLights[cg_numTestLights].radius = atof( CG_Argv( 5 ) );
+		cg_testLights[cg_numTestLights].cone = 0;
+		VectorSet( cg_testLights[cg_numTestLights].color, atof( CG_Argv( 6 ) ), atof( CG_Argv( 7 ) ), atof( CG_Argv( 8 ) ) );
+		cg_numTestLights++;
+		CG_Printf( "%d test lights\n", cg_numTestLights );
 		return;
 	}
 	if ( !Q_stricmp( CG_Argv( 1 ), "spot" ) ) {
