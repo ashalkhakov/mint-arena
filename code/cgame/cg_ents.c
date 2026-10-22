@@ -284,9 +284,19 @@ static void CG_EntityEffects( centity_t *cent ) {
 
 		if ( cent->dl_stylestring[0] != 0 ) {  // it's probably a dlight
 			CG_AddLightstyle( cent );
-		} else if ( cent->currentState.eType == ET_GENERAL && !trap_Cvar_VariableIntegerValue( "r_noLightmaps" ) ) {
-			// a map's steady light (SP_dlight, Daikatana's) is in its
-			// lightmaps already: only without them is it lit here
+		} else if ( cent->currentState.eType == ET_GENERAL && cent->currentState.density ) {
+			// a map's steady light (SP_dlight, Daikatana's), falling off as
+			// its light compiler's did, as bright as its cap (density); lit
+			// here when its lightmaps don't have it (frame), or without them
+			if ( cent->currentState.frame || trap_Cvar_VariableIntegerValue( "r_noLightmaps" ) ) {
+				float	cap = cent->currentState.density;
+				float	scale = cap / 255.0f * cg_staticLightScale.value;
+
+				cl = cent->currentState.constantLight;
+				trap_R_AddLinearLightToScene( cent->lerpOrigin, (float)( ( cl >> 24 ) & 0xFF ) * 4.0f, cap, 1.0f,
+					(float)( cl & 0xFF ) / 255.0f * scale, (float)( ( cl >> 8 ) & 0xFF ) / 255.0f * scale,
+					(float)( ( cl >> 16 ) & 0xFF ) / 255.0f * scale );
+			}
 		} else {
 			cl = cent->currentState.constantLight;
 			r = (float) (cl & 0xFF) / 255.0;

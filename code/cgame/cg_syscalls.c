@@ -451,6 +451,10 @@ void	trap_R_AddJuniorLightToScene( const vec3_t org, float radius,float intensit
 	syscall( CG_R_ADDJUNIORLIGHTTOSCENE, org, PASSFLOAT( radius ), PASSFLOAT(intensity), PASSFLOAT(r), PASSFLOAT(g), PASSFLOAT(b) );
 }
 
+void	trap_R_AddLinearLightToScene( const vec3_t org, float radius, float falloff, float intensity, float r, float g, float b ) {
+	syscall( CG_R_ADDLINEARLIGHTTOSCENE, org, PASSFLOAT( radius ), PASSFLOAT( falloff ), PASSFLOAT( intensity ), PASSFLOAT( r ), PASSFLOAT( g ), PASSFLOAT( b ) );
+}
+
 void	trap_R_AddSpotLightToScene( const vec3_t org, const vec3_t dir, float radius, float cone, float intensity, float r, float g, float b, qhandle_t hShader ) {
 	syscall( CG_R_ADDSPOTLIGHTTOSCENE, org, dir, PASSFLOAT( radius ), PASSFLOAT( cone ), PASSFLOAT( intensity ), PASSFLOAT( r ), PASSFLOAT( g ), PASSFLOAT( b ), hShader );
 }

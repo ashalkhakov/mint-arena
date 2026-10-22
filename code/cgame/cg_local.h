@@ -1555,6 +1555,7 @@ extern	vmCvar_t		fx_countScale;
 extern	vmCvar_t		fx_nearCull;
 extern	vmCvar_t		cg_atmosphericEffectsPause;
 extern	vmCvar_t		cg_rainSplashScale;		// rain splashes' size, times Daikatana's
+extern	vmCvar_t		cg_staticLightScale;	// a map's steady lights' brightness, drawn dynamically
 extern	vmCvar_t		cg_teamDmLeadAnnouncements;
 extern	vmCvar_t		cg_voipShowMeter;
 extern	vmCvar_t		cg_voipShowCrosshairMeter;

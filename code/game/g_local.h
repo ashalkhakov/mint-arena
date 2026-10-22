@@ -593,6 +593,7 @@ typedef struct {
 	vec3_t		intermission_angle;
 
 	qboolean	locationLinked;			// target_locations get linked
+	qboolean	bounceLightmaps;		// the map's lightmaps have only the bounce of its steady lights (worldspawn "_bounceLightmaps")
 	gentity_t	*locationHead;			// head of the location list
 	int			bodyQueIndex;			// dead bodies
 	gentity_t	*bodyQue[BODY_QUEUE_SIZE];

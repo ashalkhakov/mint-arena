@@ -430,6 +430,8 @@ typedef enum {
 	// 1.3
 	CG_R_ADDSPOTLIGHTTOSCENE,	// ( const vec3_t org, const vec3_t dir, float radius, float cone, float intensity,
 								//   float r, float g, float b, qhandle_t hShader ); a light within cone degrees of dir
+	CG_R_ADDLINEARLIGHTTOSCENE,	// ( const vec3_t org, float radius, float falloff, float intensity, float r, float g, float b );
+								//   a light falling off as Quake 2's light compiler's did
 
 
 	CG_CIN_PLAYCINEMATIC = 700,

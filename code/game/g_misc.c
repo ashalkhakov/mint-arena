@@ -298,18 +298,22 @@ void SP_dlight( gentity_t *ent ) {
 
 	// Daikatana's lights (bsp-sekai's dkent_light) unless they flicker: a
 	// steady light, as far as its "light" reaches and as bright as its "cap"
-	// (55 without one, as the lightmap bake takes it), switched by use
+	// (55 without one, as the lightmap bake takes it; density), falling off
+	// as Daikatana's light compiler's did (cgame); "frame" when the map's
+	// lightmaps have only their bounce (./dk lightmaps), so cgame draws it
+	// switched by use
 	{
-		float reach, cap, scale;
+		float reach, cap;
 
 		if ( !style && G_SpawnFloat( "light", "0", &reach ) && reach > 0 ) {
 			G_SpawnFloat( "cap", "55", &cap );
-			scale = MIN( 1.0f, cap * 2.5f / 255.0f );
 			if ( ent->dl_color[0] <= 0 && ent->dl_color[1] <= 0 && ent->dl_color[2] <= 0 ) {
 				VectorSet( ent->dl_color, 1, 1, 1 );
 			}
-			ent->s.constantLight = (int)( ent->dl_color[0] * scale * 255 ) | ( (int)( ent->dl_color[1] * scale * 255 ) << 8 )
-				| ( (int)( ent->dl_color[2] * scale * 255 ) << 16 ) | ( MIN( 255, (int)reach / 4 ) << 24 );
+			ent->s.constantLight = (int)( ent->dl_color[0] * 255 ) | ( (int)( ent->dl_color[1] * 255 ) << 8 )
+				| ( (int)( ent->dl_color[2] * 255 ) << 16 ) | ( MIN( 255, (int)reach / 4 ) << 24 );
+			ent->s.density = Com_Clamp( 1, 255, cap );
+			ent->s.frame = level.bounceLightmaps;
 			ent->dl_stylestring = "";
 			ent->use = use_dlight;
 			if ( !( ent->spawnflags & 2 ) ) {

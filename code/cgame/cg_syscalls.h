@@ -184,6 +184,7 @@ void		trap_R_AddAdditiveLightToScene( const vec3_t org, float radius, float inte
 void		trap_R_AddVertexLightToScene( const vec3_t org, float radius, float intensity, float r, float g, float b );
 void		trap_R_AddJuniorLightToScene( const vec3_t org, float radius, float intensity, float r, float g, float b );
 void		trap_R_AddDirectedLightToScene( const vec3_t normal, float intensity, float r, float g, float b );
+void		trap_R_AddLinearLightToScene( const vec3_t org, float radius, float falloff, float intensity, float r, float g, float b );
 void		trap_R_AddSpotLightToScene( const vec3_t org, const vec3_t dir, float radius, float cone, float intensity, float r, float g, float b, qhandle_t hShader );
 void		trap_R_AddCoronaToScene( const vec3_t org, float r, float g, float b, float scale, int id, qboolean visible, qhandle_t hShader );
 int			trap_R_LightForPoint( vec3_t point, vec3_t ambientLight, vec3_t directedLight, vec3_t lightDir );

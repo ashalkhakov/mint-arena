@@ -605,6 +605,9 @@ void SP_worldspawn( void ) {
 
 	trap_SetConfigstring( CS_LEVEL_START_TIME, va("%i", level.startTime ) );
 
+	G_SpawnString( "_bounceLightmaps", "0", &s );
+	level.bounceLightmaps = atoi( s );
+
 	G_SpawnString( "music", "", &s );
 	trap_SetConfigstring( CS_MUSIC, s );
 

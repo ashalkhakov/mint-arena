@@ -278,6 +278,7 @@ vmCvar_t	fx_countScale;
 vmCvar_t	fx_nearCull;
 vmCvar_t	cg_atmosphericEffectsPause;
 vmCvar_t	cg_rainSplashScale;
+vmCvar_t	cg_staticLightScale;
 vmCvar_t	cg_teamDmLeadAnnouncements;
 vmCvar_t	cg_voipShowMeter;
 vmCvar_t	cg_voipShowCrosshairMeter;
@@ -528,6 +529,7 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &fx_nearCull, "fx_nearCull", "16", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_atmosphericEffectsPause, "cg_atmosphericEffectsPause", "0", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_rainSplashScale, "cg_rainSplashScale", "2", CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_staticLightScale, "cg_staticLightScale", "0.6", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_teamDmLeadAnnouncements, "cg_teamDmLeadAnnouncements", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_voipShowMeter, "cg_voipShowMeter", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_voipShowCrosshairMeter, "cg_voipShowCrosshairMeter", "1", CVAR_ARCHIVE, RANGE_BOOL },
