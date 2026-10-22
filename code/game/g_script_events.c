@@ -835,45 +835,53 @@ static void Event_TestMeleeAttack( gentity_t *self, const intptr_t *args ) {
 	Thread_ReturnInt( enemy && MeleeReach( self, enemy, "" ) );
 }
 
-static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
+/*
+================
+G_MonsterAttackMelee
+
+a melee attack of the damage def at its enemy, if it's in reach; qtrue if
+it hit (attackMelee, and the "melee" frame command)
+================
+*/
+qboolean G_MonsterAttackMelee( gentity_t *self, const char *damageDef ) {
 	gentity_t	*enemy;
 	vec3_t		dir, point;
 
-	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
 	enemy = G_MonsterEnemy( self );
-	if ( !enemy || !EntityDef_Find( EVARG_STRING( 0 ) ) || !MeleeReach( self, enemy, EVARG_STRING( 0 ) ) ) {
-		Thread_ReturnInt( 0 );
-		return;
+	if ( !enemy || !EntityDef_Find( damageDef ) || !MeleeReach( self, enemy, damageDef ) ) {
+		return qfalse;
 	}
 	VectorSubtract( enemy->r.currentOrigin, self->r.currentOrigin, dir );
 	VectorNormalize( dir );
 
 	VectorMA( self->r.currentOrigin, self->monster.moveMaxs[0], dir, point );
-	G_Damage( enemy, self, self, dir, point, DamageFromDef( EVARG_STRING( 0 ) ), 0, MOD_UNKNOWN );
-	Thread_ReturnInt( 1 );
+	G_Damage( enemy, self, self, dir, point, DamageFromDef( damageDef ), 0, MOD_UNKNOWN );
+	return qtrue;
+}
+
+static void Event_AttackMelee( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	Thread_ReturnInt( G_MonsterAttackMelee( self, EVARG_STRING( 0 ) ) );
 }
 
 /*
 ================
-Event_AttackWeapon
+G_MonsterAttackWeapon
 
 attackWeapon( weapon def, offset ): fires the weapon def's shots (hitscan
 or projectiles, g_weapon.c) from offset (forward, left, up of its yaw) at
 its enemy's eye, else straight ahead. 0 if there's no such weapon.
 ================
 */
-static void Event_AttackWeapon( gentity_t *self, const intptr_t *args ) {
+qboolean G_MonsterAttackWeapon( gentity_t *self, const char *weaponDef, const vec3_t offset ) {
 	gentity_t	*enemy;
 	vec3_t		angles, forward, right, up, start, aim, target;
-	const float	*offset = EVARG_VECTOR( 1 );
 	int			w;
 
-	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
-	w = BG_WeaponForName( EVARG_STRING( 0 ) );
+	w = BG_WeaponForName( weaponDef );
 	if ( !BG_ValidWeapon( w ) ) {
-		G_Printf( S_COLOR_YELLOW "attackWeapon: %s isn't a weapon def\n", EVARG_STRING( 0 ) );
-		Thread_ReturnInt( 0 );
-		return;
+		G_Printf( S_COLOR_YELLOW "attackWeapon: %s isn't a weapon def\n", weaponDef );
+		return qfalse;
 	}
 	VectorSet( angles, 0, self->r.currentAngles[YAW], 0 );
 	AngleVectors( angles, forward, right, up );
@@ -889,7 +897,12 @@ static void Event_AttackWeapon( gentity_t *self, const intptr_t *args ) {
 		VectorCopy( forward, aim );
 	}
 	G_MonsterFireWeapon( self, w, start, aim );
-	Thread_ReturnInt( 1 );
+	return qtrue;
+}
+
+static void Event_AttackWeapon( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	Thread_ReturnInt( G_MonsterAttackWeapon( self, EVARG_STRING( 0 ), EVARG_VECTOR( 1 ) ) );
 }
 
 /*
@@ -936,6 +949,11 @@ playModelFx( "death" ): its model def's "fx_death" (or "fx_muzzle",
 "fx_attack", "fx_special") played by the clients where it is
 ================
 */
+// setFrame( n ): an md3 model's frame it shows
+static void Event_SetFrame( gentity_t *self, const intptr_t *args ) {
+	self->s.frame = (int)EVARG_FLOAT( 0 );
+}
+
 static void Event_PlayModelFx( gentity_t *self, const intptr_t *args ) {
 	int i;
 
@@ -1160,6 +1178,7 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "attackWeapon",		"sv",		'd',	Event_AttackWeapon },
 	{ "alertMonsters",		"f",		0,		Event_AlertMonsters },
 	{ "playModelFx",		"s",		0,		Event_PlayModelFx },
+	{ "setFrame",			"f",		0,		Event_SetFrame },
 	{ "playAnim",			"ds",		'd',	Event_PlayAnim },
 	{ "playCycle",			"ds",		'd',	Event_PlayAnim },
 	{ "animDone",			"dd",		'd',	Event_AnimDone },

@@ -177,13 +177,12 @@ void SP_monster_path_corner( gentity_t *ent );
 void SP_info_camera( gentity_t *ent );
 void SP_func_monitor( gentity_t *ent );
 void SP_info_aiscript( gentity_t *ent );
+void SP_scripted( gentity_t *ent );
 void SP_target_attractor( gentity_t *ent );
 void SP_effect_lightning( gentity_t *ent );
 void SP_target_earthquake( gentity_t *ent );
 void SP_func_event_generator( gentity_t *ent );
 void SP_trigger_script( gentity_t *ent );
-void SP_target_monster_spawn( gentity_t *ent );
-void SP_misc_healthtree( gentity_t *ent );
 
 void SP_dlight( gentity_t *ent );
 
@@ -252,12 +251,10 @@ spawn_t	spawns[] = {
 	{"info_camera", SP_info_camera},
 	{"func_monitor", SP_func_monitor},
 	{"info_aiscript", SP_info_aiscript},
-	{"target_monster_spawn", SP_target_monster_spawn},
 	{"monster_firefly", SP_misc_gamemodel},		// the cgame makes them (cg_fireflies.c)
 
 	{"misc_teleporter_dest", SP_misc_teleporter_dest},
 	{"misc_gamemodel", SP_misc_gamemodel},
-	{"misc_healthtree", SP_misc_healthtree},
 
 	{"dlight", SP_dlight},
 
@@ -306,10 +303,15 @@ qboolean G_CallSpawn( gentity_t *ent ) {
 	// a monster def's (Doom 3's idAI)
 	{
 		const dict_t *def = EntityDef_Find( ent->classname );
-		const char *spawnclass;
+		const char *spawnclass = "";
 
 		if ( def && DictGetString( def, "spawnclass", "", &spawnclass ) && !Q_stricmp( spawnclass, "monster" ) ) {
 			SP_monster( ent );
+			return qtrue;
+		}
+		// Doom 3's idStaticEntity: what it does is its script object's
+		if ( def && !Q_stricmp( spawnclass, "scripted" ) ) {
+			SP_scripted( ent );
 			return qtrue;
 		}
 	}

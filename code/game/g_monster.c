@@ -1040,6 +1040,72 @@ the entity
 G_MonsterThink
 ================
 */
+/*
+================
+G_MonsterFrameCommands
+
+Doom 3's frame commands, the game's: as its legs' animation passes a frame,
+that frame's "melee <damage def>" (at its enemy, if in reach), "weapon
+<weapon def>" (from its "muzzle" at its enemy) and "call <function>" (of
+its script object). The cgame plays the sounds and effects
+================
+*/
+static void G_MonsterFrameCommands( gentity_t *ent ) {
+	monsterState_t		*m = &ent->monster;
+	const bgModel_t		*model;
+	const bgAnim_t		*a;
+	const bgFrameCommand_t *fc;
+	vec3_t				offset;
+	int					anim = ent->s.legsAnim, frame, from, f, fr, i;
+
+	if ( !BG_ValidModel( ent->s.modelindex2 ) ) {
+		return;
+	}
+	model = &bg_models[ent->s.modelindex2];
+	if ( !model->numFrameCommands || anim < 0 || anim >= model->numAnims ) {
+		return;
+	}
+	a = &model->anims[anim];
+	if ( a->numFrames <= 0 || a->fps <= 0 ) {
+		return;
+	}
+	frame = ( level.time - ent->s.time ) * a->fps / 1000;
+	if ( !a->loop && frame >= a->numFrames ) {
+		frame = a->numFrames - 1;
+	}
+
+	// a new animation: from its start
+	if ( m->fcAnim != anim || m->fcTime != ent->s.time ) {
+		m->fcAnim = anim;
+		m->fcTime = ent->s.time;
+		m->fcFrame = -1;
+	}
+	from = m->fcFrame;
+	if ( frame <= from ) {
+		return;
+	}
+	m->fcFrame = frame;
+
+	for ( f = from + 1; f <= frame; f++ ) {
+		fr = f % a->numFrames;
+		for ( i = 0; i < model->numFrameCommands; i++ ) {
+			fc = &model->frameCommands[i];
+			if ( fc->frame != fr || Q_stricmp( fc->anim, a->name ) ) {
+				continue;
+			}
+			if ( !Q_stricmp( fc->command, "melee" ) ) {
+				G_MonsterAttackMelee( ent, fc->arg );
+			} else if ( !Q_stricmp( fc->command, "weapon" ) ) {
+				VectorClear( offset );
+				sscanf( G_ScriptGetSpawnArg( ent, "muzzle", "0 0 0" ), "%f %f %f", &offset[0], &offset[1], &offset[2] );
+				G_MonsterAttackWeapon( ent, fc->arg, offset );
+			} else if ( !Q_stricmp( fc->command, "call" ) ) {
+				G_ScriptCallObjectFunction( ent, fc->arg, NULL, NULL );
+			}
+		}
+	}
+}
+
 void G_MonsterThink( gentity_t *ent ) {
 	monsterState_t	*m = &ent->monster;
 	float			dt;
@@ -1060,6 +1126,9 @@ void G_MonsterThink( gentity_t *ent ) {
 	G_MonsterUpdateScript( ent );
 	if ( !ent->inuse ) {
 		return;
+	}
+	if ( !( m->flags & MONF_DEAD ) ) {
+		G_MonsterFrameCommands( ent );
 	}
 
 	// a frame's impact is seen by the next one
@@ -1372,61 +1441,4 @@ void SP_monster( gentity_t *ent ) {
 	if ( name[0] ) {
 		G_RunAiScript( name, ent, qtrue );
 	}
-}
-
-/*
-================
-target_monster_spawn
-
-Daikatana's (target.cpp): used, it spawns its "monsterclass" where it is,
-facing its way, with its keys (Daikatana copies them all: "deathtarget",
-"spawnname"...; "muniqueid" is its name), plays its "sound", and is gone.
-================
-*/
-void Use_TargetMonsterSpawn( gentity_t *self, gentity_t *other, gentity_t *activator ) {
-	const char		*keys[MAX_SPAWN_VARS], *values[MAX_SPAWN_VARS];
-	const dict_t	*args = G_ScriptSpawnArgs( self );
-	const dictKeyValue_t *kv;
-	const char		*monsterClass = G_ScriptGetSpawnArg( self, "monsterclass", "" );
-	const char		*sound = G_ScriptGetSpawnArg( self, "sound", "" );
-	int				i, n = 0;
-
-	keys[n] = "classname";
-	values[n++] = monsterClass;
-	for ( i = 0; args && i < DictGetNumKeyVals( args ) && n < MAX_SPAWN_VARS; i++ ) {
-		kv = DictGetKeyVal( args, i );
-		if ( !Q_stricmp( PoolStrGetString( kv->key ), "classname" ) || !Q_stricmp( PoolStrGetString( kv->key ), "targetname" )
-			|| !Q_stricmp( PoolStrGetString( kv->key ), "monsterclass" ) || !Q_stricmp( PoolStrGetString( kv->key ), "sound" ) ) {
-			continue;
-		}
-		// its "muniqueid" is the monster's "uniqueid", its name for the action scripts
-		keys[n] = !Q_stricmp( PoolStrGetString( kv->key ), "muniqueid" ) ? "uniqueid" : PoolStrGetString( kv->key );
-		values[n++] = PoolStrGetString( kv->value );
-	}
-	if ( !G_SpawnEntityFromKeys( n, keys, values ) ) {
-		G_Printf( S_COLOR_YELLOW "target_monster_spawn: can't spawn %s\n", monsterClass );
-	}
-	if ( sound[0] ) {
-		G_Sound( self, CHAN_AUTO, G_SoundIndex( sound ) );
-	}
-	self->use = NULL;
-	self->think = G_FreeEntity;
-	self->nextthink = level.time + FRAMETIME;
-}
-
-/*QUAKED target_monster_spawn (1 0 0) (-8 -8 -8) (8 8 8)
-Daikatana's: when used, a "monsterclass" here, with this entity's keys.
-"sound" played as it comes.
-*/
-void SP_target_monster_spawn( gentity_t *ent ) {
-	char *monsterClass;
-
-	G_SpawnString( "monsterclass", "", &monsterClass );
-	if ( !monsterClass[0] ) {
-		G_DPrintf( "target_monster_spawn without a monsterclass at %s\n", vtos( ent->s.origin ) );
-		G_FreeEntity( ent );
-		return;
-	}
-	ent->use = Use_TargetMonsterSpawn;
-	ent->r.svFlags |= SVF_NOCLIENT;
 }

@@ -237,6 +237,37 @@ static int BG_ZoneNum( bgModel_t *model, const char *name ) {
 
 /*
 ================
+BG_ModelFrameCommand
+
+"frame <anim> <frame>" "<command> <args>[; <command> <args>...]": Doom 3's
+frame commands, the frame counted from 0
+================
+*/
+static void BG_ModelFrameCommand( bgModel_t *model, const char *key, const char *value ) {
+	char word[2][64], cmds[MAX_STRING_CHARS], *cmd, *next;
+	bgFrameCommand_t *fc;
+
+	if ( sscanf( key + 6, "%63s %63s", word[0], word[1] ) != 2 ) {
+		return;
+	}
+	Q_strncpyz( cmds, value, sizeof( cmds ) );
+	for ( cmd = cmds; cmd && model->numFrameCommands < MAX_MODEL_FRAMECOMMANDS; cmd = next ) {
+		next = strchr( cmd, ';' );
+		if ( next ) {
+			*next++ = '\0';
+		}
+		fc = &model->frameCommands[model->numFrameCommands];
+		Q_strncpyz( fc->anim, word[0], sizeof( fc->anim ) );
+		fc->frame = atoi( word[1] );
+		fc->arg[0] = '\0';
+		if ( sscanf( cmd, " %15s %63[^\n]", fc->command, fc->arg ) >= 1 ) {
+			model->numFrameCommands++;
+		}
+	}
+}
+
+/*
+================
 BG_ModelJointIndex
 
 The joint of the name, -1 for none.
@@ -431,20 +462,22 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 		} else if ( !Q_stricmpn( buf, "channel ", 8 ) ) {
 			// parsed below, once the joints are known
 		} else if ( !Q_stricmpn( buf, "frame ", 6 ) ) {
-			bgFrameCommand_t *fc;
+			BG_ModelFrameCommand( model, buf, value );
+		}
+	}
 
-			if ( model->numFrameCommands == MAX_MODEL_FRAMECOMMANDS
-				|| sscanf( buf + 6, "%63s %63s", word[0], word[1] ) != 2 ) {
-				continue;
+	// and its frames def's ("<model def>_frames"): a converter's, made from
+	// Daikatana's sound tables (tools/vsc), that a rigged model def taking
+	// the place of the md3's keeps
+	{
+		const dict_t *frames = EntityDef_Find( va( "%s_frames", name ) );
+
+		for ( i = 0; frames && i < DictGetNumKeyVals( frames ); i++ ) {
+			kv = DictGetKeyVal( frames, i );
+			key = PoolStrGetString( kv->key );
+			if ( !Q_stricmpn( key, "frame ", 6 ) ) {
+				BG_ModelFrameCommand( model, key, PoolStrGetString( kv->value ) );
 			}
-			fc = &model->frameCommands[model->numFrameCommands];
-			Q_strncpyz( fc->anim, word[0], sizeof( fc->anim ) );
-			fc->frame = atoi( word[1] );
-			// the command, and the rest of the line its arguments
-			if ( sscanf( value, "%15s %63[^\n]", fc->command, fc->arg ) < 1 ) {
-				continue;
-			}
-			model->numFrameCommands++;
 		}
 	}
 

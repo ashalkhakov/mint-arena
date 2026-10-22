@@ -1368,7 +1368,6 @@ set(Q3GOBJ
   game/g_combat.c
   game/g_items.c
   game/g_inventory.c
-  game/g_healthtree.c
   game/g_aiscript.c
   game/g_dk_level.c
   game/g_frob.c

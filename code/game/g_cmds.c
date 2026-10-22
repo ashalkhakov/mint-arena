@@ -297,8 +297,8 @@ void Cmd_SpawnItem_f( gentity_t *ent ) {
 ==================
 Cmd_UseEnt_f
 
-useent <entity number or targetname>: uses it as the player looking at it
-would (cheat, for tests)
+useent <entity number, targetname or classname>: uses it as the player
+looking at it would (cheat, for tests)
 ==================
 */
 void Cmd_UseEnt_f( gentity_t *ent ) {
@@ -313,6 +313,9 @@ void Cmd_UseEnt_f( gentity_t *ent ) {
 	num = atoi( buf );
 	if ( !isdigit( buf[0] ) ) {
 		target = G_Find( NULL, FOFS( targetname ), buf );
+		if ( !target ) {
+			target = G_Find( NULL, FOFS( classname ), buf );
+		}
 		num = target ? target->s.number : -1;
 	}
 	if ( num < 0 || num >= level.num_entities || !g_entities[num].inuse || !g_entities[num].use ) {

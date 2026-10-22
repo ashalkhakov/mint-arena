@@ -1349,7 +1349,7 @@ void					BG_InitItems( void );		// and the weapons and the models
 #define MAX_MODEL_ANIMS			128
 #define MAX_MODEL_HITBOXES		32
 #define MAX_MODEL_ZONES			16
-#define MAX_MODEL_FRAMECOMMANDS	64
+#define MAX_MODEL_FRAMECOMMANDS	128
 #define MAX_MODEL_JOINTS		128
 
 typedef struct {
@@ -1405,7 +1405,7 @@ typedef struct {
 typedef struct {
 	char		anim[MAX_QPATH];
 	int			frame;				// of the animation
-	char		command[16];		// sound, fx, event
+	char		command[16];		// the cgame's sound, fx, footstep; the game's melee, weapon, call
 	char		arg[MAX_QPATH];
 } bgFrameCommand_t;
 

@@ -472,3 +472,71 @@ void DropPortalSource( gentity_t *player ) {
 
 }
 #endif
+
+/*
+===============================================================================
+
+A scripted entity: Doom 3's idStaticEntity, a def with "spawnclass"
+"scripted" whose script object ("scriptobject") is all it does
+
+===============================================================================
+*/
+
+// a key of the map's, else the def's
+static const char *G_ScriptedKey( gentity_t *ent, const char *key, const char *defaultValue ) {
+	const dict_t	*def = EntityDef_Find( ent->classname );
+	char			*s;
+
+	if ( G_SpawnString( key, "", &s ) && s[0] ) {
+		return s;
+	}
+	return def ? DictGetStringReference( def, key, defaultValue ) : defaultValue;
+}
+
+// used: its object's onUse( activator )
+void Use_Scripted( gentity_t *self, gentity_t *other, gentity_t *activator ) {
+	G_ScriptCallObjectFunction( self, "onUse", activator ? activator : other, NULL );
+}
+
+/*
+================
+SP_scripted
+
+its "model" (an md3, or a map's brush model) with its "frame", solid with
+"mins" and "maxs" ("solid" "0" not), "frobable" (its frob( player )), on
+the floor under it with "drop_to_floor"; used, its onUse( activator )
+================
+*/
+void SP_scripted( gentity_t *ent ) {
+	const char	*model = G_ScriptedKey( ent, "model", "" );
+	vec3_t		end;
+	trace_t		tr;
+
+	if ( model[0] == '*' ) {
+		G_SetBrushModel( ent, (char *)model );
+	} else if ( model[0] ) {
+		ent->s.modelindex = G_ModelIndex( (char *)model );
+		ent->s.eType = ET_GENERAL;
+		sscanf( G_ScriptedKey( ent, "mins", "0 0 0" ), "%f %f %f", &ent->s.mins[0], &ent->s.mins[1], &ent->s.mins[2] );
+		sscanf( G_ScriptedKey( ent, "maxs", "0 0 0" ), "%f %f %f", &ent->s.maxs[0], &ent->s.maxs[1], &ent->s.maxs[2] );
+		if ( atoi( G_ScriptedKey( ent, "solid", "1" ) ) ) {
+			ent->s.contents = CONTENTS_SOLID;
+		}
+	} else {
+		ent->r.svFlags |= SVF_NOCLIENT;
+	}
+	ent->s.frame = atoi( G_ScriptedKey( ent, "frame", "0" ) );
+	ent->frobable = atoi( G_ScriptedKey( ent, "frobable", "0" ) ) != 0;
+
+	if ( atoi( G_ScriptedKey( ent, "drop_to_floor", "0" ) ) ) {
+		VectorSet( end, ent->s.origin[0], ent->s.origin[1], ent->s.origin[2] - 256 );
+		G_TraceBox( &tr, ent->s.origin, ent->s.mins, ent->s.maxs, end, ENTITYNUM_NONE, MASK_SOLID );
+		if ( !tr.startsolid && tr.fraction < 1.0f ) {
+			VectorCopy( tr.endpos, ent->s.origin );
+		}
+	}
+	G_SetOrigin( ent, ent->s.origin );
+	VectorCopy( ent->s.angles, ent->s.apos.trBase );
+	ent->use = Use_Scripted;
+	G_LinkEntity( ent );
+}
