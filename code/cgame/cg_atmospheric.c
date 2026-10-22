@@ -753,6 +753,13 @@ static void CG_DrawParticles( void ) {
 				scale = scale * p->pscale;
 			}
 			alpha = p->curAlpha;
+
+			// splashes bigger than Daikatana's, which barely show at today's
+			// resolutions
+			if ( p->type >= PARTICLE_SPLASH1 && p->type <= PARTICLE_SPLASH3 ) {
+				VectorScale( up, cg_rainSplashScale.value, up );
+				VectorScale( right, cg_rainSplashScale.value, right );
+			}
 		}
 
 		if( p->pscale > 1.0 ) {
