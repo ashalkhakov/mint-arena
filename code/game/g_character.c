@@ -566,12 +566,14 @@ A skeletal character (bg_model.c), for now a target to shoot.
 "modelscale"	how much bigger it is (1)
 "frame"			of its animation, the pose it starts in
 "ragdoll"		1: limp from the start, as a body lying where it's put
+"nodrop"		1: that ragdoll asleep in its pose till something hits it (Doom 3's
+				idAFEntity_Generic), else it falls from it
 "angle"			facing
 */
 void SP_misc_character( gentity_t *ent ) {
 	const bgModel_t *model;
 	char *name;
-	int anim, health, frame, ragdoll;
+	int anim, health, frame, ragdoll, nodrop;
 
 	G_SpawnString( "model", "", &name );
 	ent->s.modelindex2 = BG_ModelForName( name );
@@ -637,6 +639,10 @@ void SP_misc_character( gentity_t *ent ) {
 	if ( ragdoll && G_StartRagdoll( ent ) ) {
 		ent->takedamage = qtrue;		// shots push it
 		ent->health = 1 << 30;
+		G_SpawnInt( "nodrop", "0", &nodrop );
+		if ( nodrop ) {
+			G_RagdollSleep( ent );
+		}
 	}
 }
 

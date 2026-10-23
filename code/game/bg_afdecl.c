@@ -1338,6 +1338,7 @@ void BG_AFPose( const afFigure_t *af, float *jointMats, vec3_t renderOrigin, vec
 			AFD_Mat3MulTranspose( (const vec3_t *)ja, (const vec3_t *)pa, localAxis );
 			VectorSubtract( jo, po, t );
 			AFD_VectorMatT( t, (const vec3_t *)pa, localOrigin );
+			VectorScale( localOrigin, af->scale, localOrigin );		// (the animation's are the model's size)
 
 			AF_JointTransform( jointMats, p, cpo, cpa );
 			AFD_Mat3Mul( (const vec3_t *)localAxis, (const vec3_t *)cpa, ja );

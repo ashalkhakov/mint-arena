@@ -81,6 +81,28 @@ static cmHandle_t G_RagdollTrmModel( void *ctx, const traceModel_t *trm ) {
 
 /*
 ================
+G_RagdollSync
+
+the entity where its figure is: its bodies to the snapshot, its origin the
+first body's, its box about them all (the snapshot's visibility), linked.
+Wherever the figure moves, and as it starts (one resting from the start,
+"nodrop", never moves: the client drew it from where it was spawned)
+================
+*/
+static void G_RagdollSync( gentity_t *ent ) {
+	gRagdoll_t *rd = ent->ragdoll;
+	vec3_t bounds[2];
+
+	BG_WriteAFSnapshot( &rd->af, &ent->s );
+	VectorCopy( ent->s.pos.trBase, ent->r.currentOrigin );
+	AF_GetBounds( &rd->af.physics, bounds );
+	VectorSubtract( bounds[0], ent->r.currentOrigin, ent->s.mins );
+	VectorSubtract( bounds[1], ent->r.currentOrigin, ent->s.maxs );
+	G_LinkEntity( ent );
+}
+
+/*
+================
 G_StartRagdoll
 
 idActor::StartRagdoll: the character goes limp from the pose it has now;
@@ -153,9 +175,22 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	ent->s.contents = CONTENTS_CORPSE;
 	ent->s.pos.trType = TR_INTERPOLATE;
 	VectorClear( ent->s.apos.trBase );
-	BG_WriteAFSnapshot( &rd->af, &ent->s );
-	G_LinkEntity( ent );
+	G_RagdollSync( ent );
 	return qtrue;
+}
+
+/*
+================
+G_RagdollSleep
+
+Doom 3's "nodrop" (idAFEntity_Generic::Spawn): the figure at rest in the pose
+it started in, till an impulse wakes it
+================
+*/
+void G_RagdollSleep( gentity_t *ent ) {
+	if ( ent->ragdoll ) {
+		AF_Rest( &ent->ragdoll->af.physics );
+	}
 }
 
 /*
@@ -167,7 +202,6 @@ the figure up to now; its bodies to the snapshot
 */
 void G_RunRagdoll( gentity_t *ent ) {
 	gRagdoll_t *rd = ent->ragdoll;
-	vec3_t bounds[2];
 
 	if ( !rd ) {
 		return;
@@ -181,14 +215,7 @@ void G_RunRagdoll( gentity_t *ent ) {
 		return;		// nothing changes: nothing is sent
 	}
 
-	BG_WriteAFSnapshot( &rd->af, &ent->s );
-	VectorCopy( ent->s.pos.trBase, ent->r.currentOrigin );
-
-	// the box about the bodies, for the snapshot's visibility
-	AF_GetBounds( &rd->af.physics, bounds );
-	VectorSubtract( bounds[0], ent->r.currentOrigin, ent->s.mins );
-	VectorSubtract( bounds[1], ent->r.currentOrigin, ent->s.maxs );
-	G_LinkEntity( ent );
+	G_RagdollSync( ent );
 }
 
 /*
