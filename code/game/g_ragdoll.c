@@ -160,20 +160,6 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 
 /*
 ================
-G_RagdollRest
-
-the figure still, as it was put, until something moves it (a map's body:
-in its coffin, not fallen onto the coffin's hull)
-================
-*/
-void G_RagdollRest( gentity_t *ent ) {
-	if ( ent->ragdoll ) {
-		AF_Rest( &ent->ragdoll->af.physics );
-	}
-}
-
-/*
-================
 G_RunRagdoll
 
 the figure up to now; its bodies to the snapshot
