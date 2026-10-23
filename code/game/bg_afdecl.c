@@ -1274,10 +1274,13 @@ BG_AFPose
 
 idAF::UpdateAnimation and idAnimator's AF pose: the model's joints from the
 bodies (model space jointMats) and where the model is (origin, axis). Joints
-no body moves keep their place under their parents from the AF pose.
+no body moves keep their place under their parents as the animation pose
+jointMats holds coming in has them (the AF pose's when it has none).
 ================
 */
 void BG_AFPose( const afFigure_t *af, float *jointMats, vec3_t renderOrigin, vec3_t renderAxis[3] ) {
+	static float animPose[MAX_MODEL_JOINTS * 12];
+	const float *anim = animPose;
 	const afPhysics_t *phys = &af->physics;
 	const afBody_t *body;
 	vec3_t modOrigin[MAX_MODEL_JOINTS], modAxis[MAX_MODEL_JOINTS][3];
@@ -1289,6 +1292,8 @@ void BG_AFPose( const afFigure_t *af, float *jointMats, vec3_t renderOrigin, vec
 	if ( !af->isLoaded || !phys->numBodies ) {
 		return;
 	}
+
+	memcpy( animPose, jointMats, af->numJoints * 12 * sizeof( float ) );
 
 	// get the render position
 	AFD_Mat3TransposeMul( (const vec3_t *)af->baseAxis, (const vec3_t *)phys->bodies[0].current->worldAxis, renderAxis );
@@ -1325,7 +1330,20 @@ void BG_AFPose( const afFigure_t *af, float *jointMats, vec3_t renderOrigin, vec
 		AF_JointTransform( af->afPose, j, jo, ja );
 		p = af->model->joints[j].parent;
 
-		if ( p >= 0 && p < j ) {
+		if ( p >= 0 && p < j && mods[j] < 0 && anim ) {
+			// a joint no body moves under its parent as the animation has it
+			// (a prop it hides keeps hidden: Toshiro's staff in his coffin)
+			AF_JointTransform( anim, j, jo, ja );
+			AF_JointTransform( anim, p, po, pa );
+			AFD_Mat3MulTranspose( (const vec3_t *)ja, (const vec3_t *)pa, localAxis );
+			VectorSubtract( jo, po, t );
+			AFD_VectorMatT( t, (const vec3_t *)pa, localOrigin );
+
+			AF_JointTransform( jointMats, p, cpo, cpa );
+			AFD_Mat3Mul( (const vec3_t *)localAxis, (const vec3_t *)cpa, ja );
+			AFD_VectorMat( localOrigin, (const vec3_t *)cpa, t );
+			VectorAdd( cpo, t, jo );
+		} else if ( p >= 0 && p < j ) {
 			// the joint under its parent in the AF pose
 			AF_JointTransform( af->afPose, p, po, pa );
 			AFD_Mat3MulTranspose( (const vec3_t *)ja, (const vec3_t *)pa, localAxis );

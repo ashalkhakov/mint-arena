@@ -637,6 +637,9 @@ void SP_misc_character( gentity_t *ent ) {
 	if ( ragdoll && G_StartRagdoll( ent ) ) {
 		ent->takedamage = qtrue;		// shots push it
 		ent->health = 1 << 30;
+		if ( ragdoll != 2 ) {
+			G_RagdollRest( ent );		// lying as it's put, till it's hit (2: falls from it)
+		}
 	}
 }
 
@@ -646,7 +649,8 @@ Svcmd_SpawnCharacter_f
 
 spawncharacter <model def> [anim] [height] [side] [ragdoll]: puts one 96
 units in front of the first player, facing them, height units up and side
-units to their left, limp from that pose with ragdoll 1 (cheat, for testing).
+units to their left; ragdoll 1 limp in that pose till it's hit, 2 falling
+from it (cheat, for testing).
 ================
 */
 void Svcmd_SpawnCharacter_f( void ) {

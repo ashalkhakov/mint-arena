@@ -130,7 +130,13 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	rd->af.physics.clip.trmModel = G_RagdollTrmModel;
 	VectorSet( rd->af.physics.gravityVector, 0, 0, -g_gravity.value );
 
-	// the pose it has
+	// the pose it has (from nothing before: an uninitialized channel's
+	// "previous animation" was what showed while the new one faded in, a
+	// body put in its coffin pose limp in its model's first, standing)
+	memset( channels, 0, sizeof( channels ) );
+	for ( i = 0; i < MAX_ANIM_CHANNELS; i++ ) {
+		channels[i].anim = channels[i].prevAnim = -1;
+	}
 	BG_AnimChannelsFromState( channels, ent->s.legsAnim, ent->s.time, CHARACTER_LEGS_RATE( &ent->s ), ent->s.torsoAnim, ent->s.time2 );
 	numJoints = BG_ModelPose( model, channels, level.time, pose );
 	if ( numJoints <= 0 ) {
@@ -150,6 +156,20 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	BG_WriteAFSnapshot( &rd->af, &ent->s );
 	G_LinkEntity( ent );
 	return qtrue;
+}
+
+/*
+================
+G_RagdollRest
+
+the figure still, as it was put, until something moves it (a map's body:
+in its coffin, not fallen onto the coffin's hull)
+================
+*/
+void G_RagdollRest( gentity_t *ent ) {
+	if ( ent->ragdoll ) {
+		AF_Rest( &ent->ragdoll->af.physics );
+	}
 }
 
 /*
