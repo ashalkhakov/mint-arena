@@ -287,6 +287,8 @@ typedef struct entityState_s {
 	int		torsoAnim;		// mask off ANIM_TOGGLEBIT
 	int		weaponAnim;		// mask off ANIM_TOGGLEBIT
 	int		tokens;			// harvester skulls
+
+	int		attachDropped;	// a model def's attachments ("attach <joint>") not drawn, bits: dropped
 } entityState_t;
 
 // Doom 3's entity network events (g_netevent.c, cg_netevent.c): what every
@@ -1361,6 +1363,33 @@ void					BG_InitItems( void );		// and the weapons and the models
 #define MAX_MODEL_ZONES			16
 #define MAX_MODEL_FRAMECOMMANDS	128
 #define MAX_MODEL_JOINTS		128
+#define MAX_MODEL_ATTACHMENTS	4		// entityState_t.attachDropped's bits
+
+// the parts of an IQM (renderercommon/iqm.h in the engine) the game reads
+#define IQM_MAGIC		"INTERQUAKEMODEL"
+#define IQM_VERSION		2
+#define IQM_LOOP		1
+#define IQM_POSITION	0		// a vertex array's type
+#define IQM_FLOAT		7		// its format
+
+typedef struct {
+	char			magic[16];
+	unsigned int	version, filesize, flags;
+	unsigned int	num_text, ofs_text;
+	unsigned int	num_meshes, ofs_meshes;
+	unsigned int	num_vertexarrays, num_vertexes, ofs_vertexarrays;
+	unsigned int	num_triangles, ofs_triangles, ofs_adjacency;
+	unsigned int	num_joints, ofs_joints;
+	unsigned int	num_poses, ofs_poses;
+	unsigned int	num_anims, ofs_anims;
+	unsigned int	num_frames, num_framechannels, ofs_frames, ofs_bounds;
+	unsigned int	num_comment, ofs_comment;
+	unsigned int	num_extensions, ofs_extensions;
+} iqmHeader_t;
+
+typedef struct {
+	unsigned int	type, flags, format, size, offset;
+} iqmVertexArray_t;
 
 typedef struct {
 	char		name[32];
@@ -1419,6 +1448,15 @@ typedef struct {
 	char		arg[MAX_QPATH];
 } bgFrameCommand_t;
 
+// "attach <joint>" "<model>": a model of its own drawn at the joint (Hiro's
+// sword, autorig --props), till a "drop <joint>" frame command lets it fall
+// as a rigid body (g_monster.c)
+typedef struct {
+	char		joint[32];
+	int			jointIndex;
+	char		model[MAX_QPATH];
+} bgAttachment_t;
+
 // Doom 3's walk IK (bg_ik.c): a model's legs
 #define MAX_IK_LEGS		2
 
@@ -1457,6 +1495,8 @@ typedef struct {
 	bgZone_t			zones[MAX_MODEL_ZONES];
 	int					numFrameCommands;
 	bgFrameCommand_t	frameCommands[MAX_MODEL_FRAMECOMMANDS];
+	int					numAttachments;
+	bgAttachment_t		attachments[MAX_MODEL_ATTACHMENTS];
 	int					numJoints;			// the IQM's skeleton
 	bgJoint_t			joints[MAX_MODEL_JOINTS];
 	unsigned int		channelMask[MAX_ANIM_CHANNELS][4];	// SKELETON_MASK_WORDS

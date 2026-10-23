@@ -497,10 +497,49 @@ static void Hull_TraceModel( const hull_t *hull, const hullPlane_t *planes, trac
 
 /*
 ================
+Hull_IQMPoints
+
+An IQM's vertices in its bind pose (a prop autorig made a model of its own,
+Hiro's sword, is a still mesh about its joint), scaled.
+================
+*/
+static int Hull_IQMPoints( const void *buffer, long length, float scale, vec3_t **pointsOut ) {
+	const iqmHeader_t *header = (const iqmHeader_t *)buffer;
+	const iqmVertexArray_t *va;
+	const float *pos;
+	vec3_t *points;
+	int numVerts, i, k;
+
+	if ( length < (long)sizeof( iqmHeader_t ) || LittleLong( header->version ) != IQM_VERSION
+		|| LittleLong( header->ofs_vertexarrays ) + LittleLong( header->num_vertexarrays ) * sizeof( iqmVertexArray_t ) > (unsigned)length ) {
+		return 0;
+	}
+	numVerts = LittleLong( header->num_vertexes );
+	va = (const iqmVertexArray_t *)( (const byte *)buffer + LittleLong( header->ofs_vertexarrays ) );
+	for ( i = 0; i < (int)LittleLong( header->num_vertexarrays ); i++, va++ ) {
+		if ( LittleLong( va->type ) != IQM_POSITION || LittleLong( va->format ) != IQM_FLOAT || LittleLong( va->size ) != 3
+			|| LittleLong( va->offset ) + numVerts * 3 * sizeof( float ) > (unsigned)length || numVerts <= 0 ) {
+			continue;
+		}
+		pos = (const float *)( (const byte *)buffer + LittleLong( va->offset ) );
+		points = trap_HeapMalloc( numVerts * sizeof( vec3_t ) );
+		for ( k = 0; k < numVerts; k++ ) {
+			points[k][0] = LittleFloat( pos[k * 3 + 0] ) * scale;
+			points[k][1] = LittleFloat( pos[k * 3 + 1] ) * scale;
+			points[k][2] = LittleFloat( pos[k * 3 + 2] ) * scale;
+		}
+		*pointsOut = points;
+		return numVerts;
+	}
+	return 0;
+}
+
+/*
+================
 Hull_ModelPoints
 
 The vertices of a frame of every surface of an MD3 (the first frame for one
-it doesn't have), scaled.
+it doesn't have), or an IQM's, scaled.
 ================
 */
 static int Hull_ModelPoints( const char *modelName, float scale, int frame, vec3_t **pointsOut ) {
@@ -516,6 +555,11 @@ static int Hull_ModelPoints( const char *modelName, float scale, int frame, vec3
 	if ( length < (long)sizeof( md3Header_t ) || !buffer ) {
 		BG_FS_FreeFile( buffer );
 		return 0;
+	}
+	if ( length >= (long)sizeof( iqmHeader_t ) && !memcmp( buffer, IQM_MAGIC, sizeof( IQM_MAGIC ) ) ) {
+		numPoints = Hull_IQMPoints( buffer, length, scale, pointsOut );
+		BG_FS_FreeFile( buffer );
+		return numPoints;
 	}
 	header = (const md3Header_t *)buffer;
 	if ( LittleLong( header->ident ) != MD3_IDENT || LittleLong( header->version ) != MD3_VERSION ) {

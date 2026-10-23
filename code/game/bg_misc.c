@@ -138,6 +138,7 @@ vmNetField_t	bg_entityStateFields[] =
 { NETF(otherEntityNum2), GENTITYNUM_BITS },
 { NETF(loopSound), 8 },
 { NETF(tokens), 8 },
+{ NETF(attachDropped), MAX_MODEL_ATTACHMENTS },
 { NETF(team), 8 },
 { NETF(origin2[2]), 0 },
 { NETF(origin2[0]), 0 },

@@ -1059,12 +1059,100 @@ G_MonsterThink
 */
 /*
 ================
+G_MonsterJointWorld
+
+A joint of the monster's model in the world at a time, as the cgame draws
+it (its origin, angles and scale; the walk IK aside): its axis normalized
+================
+*/
+static qboolean G_MonsterJointWorld( gentity_t *ent, int joint, int time, vec3_t origin, vec3_t axis[3] ) {
+	static float joints[MAX_MODEL_JOINTS * 12];
+	const bgModel_t *model = &bg_models[ent->s.modelindex2];
+	bgAnimChannel_t channels[MAX_ANIM_CHANNELS];
+	orientation_t tag;
+	vec3_t entAxis[3];
+	float scale = ent->s.origin2[0] > 0.0f ? ent->s.origin2[0] : 1.0f;
+	int i, j;
+
+	BG_AnimChannelsFromState( channels, ent->s.legsAnim, ent->s.time, CHARACTER_LEGS_RATE( &ent->s ), ent->s.torsoAnim, ent->s.time2 );
+	if ( joint < 0 || joint >= BG_ModelPose( model, channels, time, joints ) ) {
+		return qfalse;
+	}
+	BG_JointOrientation( joints, joint, &tag );
+	AnglesToAxis( ent->r.currentAngles, entAxis );
+	VectorCopy( ent->r.currentOrigin, origin );
+	for ( i = 0; i < 3; i++ ) {
+		VectorMA( origin, tag.origin[i] * scale, entAxis[i], origin );
+	}
+	for ( i = 0; i < 3; i++ ) {
+		VectorClear( axis[i] );
+		for ( j = 0; j < 3; j++ ) {
+			VectorMA( axis[i], tag.axis[i][j], entAxis[j], axis[i] );
+		}
+		VectorNormalize( axis[i] );
+	}
+	return qtrue;
+}
+
+/*
+================
+G_MonsterDrop
+
+The "drop <joint>" frame command: what's attached there (Hiro's sword) is
+let go, a rigid body moving as the joint did over the last 50 msec; the
+cgame draws it at the joint no more
+================
+*/
+#define DROP_MSEC	50
+
+static void G_MonsterDrop( gentity_t *ent, const char *joint ) {
+	const bgModel_t *model = &bg_models[ent->s.modelindex2];
+	const bgAttachment_t *at;
+	vec3_t origin, axis[3], before, beforeAxis[3], velocity, angular, delta[3], beforeT[3];
+	rotation_t rot;
+	int i;
+
+	for ( i = 0; i < model->numAttachments; i++ ) {
+		if ( !Q_stricmp( model->attachments[i].joint, joint ) ) {
+			break;
+		}
+	}
+	if ( i == model->numAttachments ) {
+		G_Printf( S_COLOR_YELLOW "drop %s: model %s has nothing attached there\n", joint, model->name );
+		return;
+	}
+	if ( ent->s.attachDropped & ( 1 << i ) ) {
+		return;
+	}
+	at = &model->attachments[i];
+	if ( !G_MonsterJointWorld( ent, at->jointIndex, level.time, origin, axis )
+		|| !G_MonsterJointWorld( ent, at->jointIndex, level.time - DROP_MSEC, before, beforeAxis ) ) {
+		return;
+	}
+	ent->s.attachDropped |= 1 << i;
+
+	VectorSubtract( origin, before, velocity );
+	VectorScale( velocity, 1000.0f / DROP_MSEC, velocity );
+	// the turn from then to now, Doom 3's way (rows the axes: then' * now)
+	TransposeAxis( (const vec3_t *)beforeAxis, beforeT );
+	MatrixMultiply( beforeT, axis, delta );
+	Mat3ToRotation( (const vec3_t *)delta, &rot );
+	VectorScale( rot.vec, rot.angle * 1000.0f / DROP_MSEC, angular );
+
+	if ( !G_PhysicsDropModel( at->model, ent->s.origin2[0] > 0.0f ? ent->s.origin2[0] : 1.0f, origin, (const vec3_t *)axis,
+							  velocity, angular, MASK_SOLID ) ) {
+		G_Printf( S_COLOR_YELLOW "drop %s: no collision hull for %s\n", joint, at->model );
+	}
+}
+
+/*
+================
 G_MonsterFrameCommands
 
 Doom 3's frame commands, the game's: as its legs' animation passes a frame,
 that frame's "melee <damage def>" (at its enemy, if in reach), "weapon
-<weapon def>" (from its "muzzle" at its enemy) and "call <function>" (of
-its script object). The cgame plays the sounds and effects
+<weapon def>" (from its "muzzle" at its enemy), "call <function>" (of
+its script object) and "drop <joint>" (what's attached there falls). The cgame plays the sounds and effects
 ================
 */
 static void G_MonsterFrameCommands( gentity_t *ent ) {
@@ -1118,6 +1206,8 @@ static void G_MonsterFrameCommands( gentity_t *ent ) {
 				G_MonsterAttackWeapon( ent, fc->arg, offset );
 			} else if ( !Q_stricmp( fc->command, "call" ) ) {
 				G_ScriptCallObjectFunction( ent, fc->arg, NULL, NULL );
+			} else if ( !Q_stricmp( fc->command, "drop" ) ) {
+				G_MonsterDrop( ent, fc->arg );
 			}
 		}
 	}

@@ -1464,6 +1464,37 @@ gentity_t *G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, co
 
 /*
 ================
+G_PhysicsDropModel
+
+A model let go of (Hiro's sword out of his hand, the "drop" frame command):
+a rigid body of its hull, at the pose, moving as it was, colliding with
+clipMask (the world, not the body it fell from). NULL without a hull.
+================
+*/
+gentity_t *G_PhysicsDropModel( const char *model, float scale, const vec3_t origin, const vec3_t axis[3],
+								const vec3_t velocity, const vec3_t angularVelocity, int clipMask ) {
+	traceModel_t trm;
+	vec3_t angles;
+	gentity_t *prop;
+
+	if ( !BG_PropModelTraceModel( model, scale, 0, &trm ) ) {
+		return NULL;
+	}
+	Mat3ToAngles( axis, angles );
+	prop = G_SpawnPhysicsPropTrm( PROP_MODEL, &trm, origin, angles, 0 );
+	if ( !prop ) {
+		return NULL;
+	}
+	prop->s.modelindex2 = G_ModelIndex( model );
+	prop->s.origin2[0] = scale;
+	prop->body->clipMask = clipMask;
+	G_PhysicsUpdateEntityState( prop );
+	G_PhysicsSetVelocity( prop, velocity, angularVelocity );
+	return prop;
+}
+
+/*
+================
 G_PropDie
 
 A prop with health breaks: fires its targets, plays its "breaksound" and

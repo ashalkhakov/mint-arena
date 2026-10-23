@@ -114,6 +114,8 @@ void		G_PhysicsSetVelocity( gentity_t *ent, const vec3_t linear, const vec3_t an
 void		G_PhysicsUnstick( gentity_t *prop );
 gentity_t	*G_SpawnPhysicsPropTrm( propShape_t shape, const traceModel_t *trm, const vec3_t origin,
 									const vec3_t angles, float density );
+gentity_t	*G_PhysicsDropModel( const char *model, float scale, const vec3_t origin, const vec3_t axis[3],
+								const vec3_t velocity, const vec3_t angularVelocity, int clipMask );
 
 void		SP_func_physics( gentity_t *ent );
 

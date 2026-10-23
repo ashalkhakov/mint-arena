@@ -50,26 +50,6 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 
 #define MASK_WORDS		SKELETON_MASK_WORDS
 
-// the parts of an IQM (renderercommon/iqm.h in the engine) read here
-#define IQM_MAGIC		"INTERQUAKEMODEL"
-#define IQM_VERSION		2
-#define IQM_LOOP		1
-
-typedef struct {
-	char			magic[16];
-	unsigned int	version, filesize, flags;
-	unsigned int	num_text, ofs_text;
-	unsigned int	num_meshes, ofs_meshes;
-	unsigned int	num_vertexarrays, num_vertexes, ofs_vertexarrays;
-	unsigned int	num_triangles, ofs_triangles, ofs_adjacency;
-	unsigned int	num_joints, ofs_joints;
-	unsigned int	num_poses, ofs_poses;
-	unsigned int	num_anims, ofs_anims;
-	unsigned int	num_frames, num_framechannels, ofs_frames, ofs_bounds;
-	unsigned int	num_comment, ofs_comment;
-	unsigned int	num_extensions, ofs_extensions;
-} iqmHeader_t;
-
 typedef struct {
 	unsigned int	name;
 	unsigned int	first_frame, num_frames;
@@ -466,6 +446,16 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 			// parsed below, once the joints are known
 		} else if ( !Q_stricmpn( buf, "frame ", 6 ) ) {
 			BG_ModelFrameCommand( model, buf, value );
+		} else if ( !Q_stricmpn( buf, "attach ", 7 ) ) {
+			bgAttachment_t *at;
+
+			if ( model->numAttachments >= MAX_MODEL_ATTACHMENTS ) {
+				Com_Printf( S_COLOR_YELLOW "WARNING: model %s: more than %d attachments\n", name, MAX_MODEL_ATTACHMENTS );
+				continue;
+			}
+			at = &model->attachments[model->numAttachments++];
+			Q_strncpyz( at->joint, buf + 7, sizeof( at->joint ) );
+			Q_strncpyz( at->model, value, sizeof( at->model ) );
 		}
 	}
 
@@ -487,6 +477,15 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 					BG_ModelFrameCommand( model, key, PoolStrGetString( kv->value ) );
 				}
 			}
+		}
+	}
+
+	// the joints of the attachments
+	for ( i = 0; i < model->numAttachments; i++ ) {
+		model->attachments[i].jointIndex = BG_ModelJointIndex( model, model->attachments[i].joint );
+		if ( model->attachments[i].jointIndex < 0 && model->numJoints ) {
+			Com_Printf( S_COLOR_YELLOW "WARNING: model %s: no joint %s to attach %s at\n", name, model->attachments[i].joint,
+						model->attachments[i].model );
 		}
 	}
 

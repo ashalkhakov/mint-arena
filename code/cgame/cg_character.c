@@ -565,6 +565,46 @@ way: legs, torso over its joints, cross-fades), their frame commands, and
 with cg_drawHitboxes its hitboxes, cg_drawSkeleton its joints.
 ================
 */
+static void CG_JointEntity( const refEntity_t *ent, const float *joints, int numJoints, int joint, refEntity_t *out );
+
+/*
+================
+CG_CharacterAttachments
+
+A model def's attachments ("attach <joint>": Hiro's sword) at their joints,
+those not dropped; the joint's scale goes with it (a prop hidden by
+squashing it, as Daikatana does)
+================
+*/
+static void CG_CharacterAttachments( const entityState_t *s1, const bgModel_t *model, const refEntity_t *ent,
+									 const float *joints, int numJoints ) {
+	static qhandle_t models[MAX_MODEL_DEFS][MAX_MODEL_ATTACHMENTS];	// -1: it didn't load
+	const bgAttachment_t *at;
+	refEntity_t att;
+	int i;
+
+	for ( i = 0; i < model->numAttachments; i++ ) {
+		at = &model->attachments[i];
+		if ( ( s1->attachDropped & ( 1 << i ) ) || at->jointIndex < 0 || at->jointIndex >= numJoints ) {
+			continue;
+		}
+		if ( !models[s1->modelindex2][i] ) {
+			models[s1->modelindex2][i] = trap_R_RegisterModel( at->model );
+			if ( !models[s1->modelindex2][i] ) {
+				CG_Printf( S_COLOR_YELLOW "WARNING: model %s: can't load %s, attached at %s\n", model->name, at->model, at->joint );
+				models[s1->modelindex2][i] = -1;
+			}
+		}
+		if ( models[s1->modelindex2][i] < 0 ) {
+			continue;
+		}
+		CG_JointEntity( ent, joints, numJoints, at->jointIndex, &att );
+		att.hModel = models[s1->modelindex2][i];
+		att.nonNormalizedAxes = qtrue;
+		trap_R_AddRefEntityToScene( &att );
+	}
+}
+
 void CG_Character( centity_t *cent ) {
 	static const vec4_t hitboxColor = { 1.0f, 0.3f, 0.1f, 1.0f };
 	entityState_t *s1 = &cent->currentState;
@@ -654,6 +694,7 @@ void CG_Character( centity_t *cent ) {
 	if ( cg_drawSkeleton.integer < 2 ) {
 		// (2: the skeleton alone)
 		trap_R_AddRefEntityToScene( &ent );
+		CG_CharacterAttachments( s1, model, &ent, joints, numJoints );
 	}
 
 	for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
