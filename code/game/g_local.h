@@ -98,6 +98,7 @@ typedef struct gplayer_s gplayer_t;
 #define MONF_LEAP_HIT			0x1000		// its leap hit someone since its last think
 #define MONF_HIT_REACH			0x2000		// its model reaches past its box (hitMins/hitMaxs): shots look for it
 #define MONF_PERCHED			0x4000		// landed on a wall, a ceiling or the floor (a flyer): it stays, until it's told to move
+#define MONF_NO_UNSTICK			0x8000		// "unstick" 0: left where it's put, in something or not (a cinematic's actor)
 
 typedef enum {
 	MOVE_NONE,

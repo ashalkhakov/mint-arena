@@ -3222,10 +3222,13 @@ void AF_Rest( afPhysics_t *af ) {
 }
 
 void AF_Activate( afPhysics_t *af ) {
-	// if the articulated figure was at rest
-	if ( af->current.atRest >= 0 ) {
+	// if the articulated figure was at rest, or has never run
+	if ( af->current.atRest >= 0 || af->current.activateTime == 0.0f ) {
 		// normally gravity is added at the end of a simulation frame
 		// if the figure was at rest add gravity here so it is applied this simulation frame
+		// (and a new one's first: a figure whose joints all fit its pose
+		// exactly has nothing else moving it then, and its first test finds
+		// it at rest, for good: a ragdoll standing up)
 		AF_AddGravity( af );
 		// reset the active time for the max move time
 		af->current.activateTime = 0.0f;

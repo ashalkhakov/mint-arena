@@ -101,6 +101,7 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	}
 	model = &bg_models[ent->characterDef];
 	if ( !model->ragdoll[0] || !( decl = BG_FindAFDecl( model->ragdoll ) ) ) {
+		G_DPrintf( "%s %d: no ragdoll (\"%s\")\n", ent->classname, ent->s.number, model->ragdoll );
 		return qfalse;
 	}
 
@@ -114,6 +115,7 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	BG_ModelBindPose( model, bindPose );
 	if ( !BG_AFLoad( &rd->af, decl, model, bindPose, model->numJoints,
 					 ent->s.origin2[0] > 0.0f ? ent->s.origin2[0] : 1.0f ) ) {
+		G_DPrintf( "%s %d: its ragdoll %s doesn't fit %s\n", ent->classname, ent->s.number, model->ragdoll, model->name );
 		trap_HeapFree( rd );
 		return qfalse;
 	}

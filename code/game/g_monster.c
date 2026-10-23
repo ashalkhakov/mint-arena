@@ -39,6 +39,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 //		"run_speed"		"220"				// what its moves go at (setMoveSpeed changes it)
 //		"turn_rate"		"360"				// degrees a second
 //		"legs_rate_max"	"3"					// its walk played this much faster at most, to keep up with it
+//		"unstick"		"1"					// 0: never moved out of what it's in (a script puts it where it should be)
 //		"fov"			"270"
 //		"sight_range"	"1500"
 //		"fly"			"1"					// it flies: "fly_speed", "fly_accel", "fly_offset"
@@ -1151,7 +1152,7 @@ void G_MonsterThink( gentity_t *ent ) {
 	m->flags &= ~( MONF_PAIN | MONF_IMPACT | MONF_LEAP_HIT );
 
 	// in something (another monster flew into it, a mover closed on it): out
-	if ( !( m->flags & ( MONF_DEAD | MONF_PERCHED ) ) ) {
+	if ( !( m->flags & ( MONF_DEAD | MONF_PERCHED | MONF_NO_UNSTICK ) ) ) {
 		vec3_t origin;
 
 		VectorCopy( ent->r.currentOrigin, origin );
@@ -1410,6 +1411,9 @@ void SP_monster( gentity_t *ent ) {
 	m->moveSpeed = G_MonsterFloat( ent, "run_speed", "200" );
 	m->turnRate = G_MonsterFloat( ent, "turn_rate", "360" );
 	m->legsRateMax = G_MonsterFloat( ent, "legs_rate_max", "3" );
+	if ( !G_MonsterFloat( ent, "unstick", "1" ) ) {
+		m->flags |= MONF_NO_UNSTICK;
+	}
 	VectorCopy( ent->r.currentOrigin, m->legsFrom );
 	m->fov = G_MonsterFloat( ent, "fov", "180" );
 	m->sightRange = G_MonsterFloat( ent, "sight_range", "2048" );
@@ -1424,7 +1428,7 @@ void SP_monster( gentity_t *ent ) {
 		m->flyBob = G_MonsterFloat( ent, "fly_bob", "8" );
 	}
 	m->idealYaw = ent->s.angles[YAW];
-	if ( G_MonsterUnstick( ent, ent->s.origin ) ) {
+	if ( !( m->flags & MONF_NO_UNSTICK ) && G_MonsterUnstick( ent, ent->s.origin ) ) {
 		G_SetOrigin( ent, ent->s.origin );
 	}
 

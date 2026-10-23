@@ -644,15 +644,15 @@ void SP_misc_character( gentity_t *ent ) {
 ================
 Svcmd_SpawnCharacter_f
 
-spawncharacter <model def> [anim] [height] [side]: puts one 96 units in
-front of the first player, facing them, height units up and side units to
-their left (cheat, for testing).
+spawncharacter <model def> [anim] [height] [side] [ragdoll]: puts one 96
+units in front of the first player, facing them, height units up and side
+units to their left, limp from that pose with ragdoll 1 (cheat, for testing).
 ================
 */
 void Svcmd_SpawnCharacter_f( void ) {
 	gentity_t *player, *ent;
 	vec3_t forward;
-	char name[MAX_QPATH], anim[MAX_QPATH], height[16], side[16];
+	char name[MAX_QPATH], anim[MAX_QPATH], height[16], side[16], ragdoll[16];
 	vec3_t right;
 
 	if ( !g_cheats.integer ) {
@@ -668,6 +668,7 @@ void Svcmd_SpawnCharacter_f( void ) {
 	trap_Argv( 2, anim, sizeof( anim ) );
 	trap_Argv( 3, height, sizeof( height ) );
 	trap_Argv( 4, side, sizeof( side ) );
+	trap_Argv( 5, ragdoll, sizeof( ragdoll ) );
 
 	ent = G_Spawn();
 	ent->classname = "misc_character";
@@ -685,6 +686,10 @@ void Svcmd_SpawnCharacter_f( void ) {
 	if ( anim[0] ) {
 		level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "anim" );
 		level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( anim );
+	}
+	if ( atoi( ragdoll ) ) {
+		level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "ragdoll" );
+		level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( ragdoll );
 	}
 	SP_misc_character( ent );
 	level.numSpawnVars = 0;

@@ -1530,6 +1530,8 @@ A rigid body that falls, tumbles and gets pushed around.
 "friction"		contact friction 0 to 1 (default g_propFriction)
 "angles"		starting orientation
 "static"		1 for one that never moves, solid scenery
+"upright"		1 for one that falls and slides but never turns (Daikatana's decos
+				fall on their boxes)
 "hull_parts"	how many convex pieces a static one's model may collide as
 				(default 8, 1 for one hull around all of it)
 "health"		breaks when it has taken that much damage (default 0, unbreakable)
@@ -1541,7 +1543,7 @@ void SP_func_physics( gentity_t *ent ) {
 	vec3_t mins, maxs, origin, angles, centerOfMass, inertia[3];
 	traceModel_t trm;
 	propShape_t shape;
-	int isStatic, health, frame, parts;
+	int isStatic, upright, health, frame, parts;
 	gentity_t *prop;
 
 	G_SpawnString( "model", "", &model );
@@ -1595,6 +1597,14 @@ void SP_func_physics( gentity_t *ent ) {
 	}
 	if ( G_SpawnFloat( "bouncyness", "0", &value ) ) {
 		prop->body->bouncyness = Com_Clamp( 0.0f, 1.0f, value );
+	}
+	G_SpawnInt( "upright", "0", &upright );
+	if ( upright && !isStatic ) {
+		// no turning: as if it were infinitely hard to turn
+		VectorClear( prop->body->inverseInertiaTensor[0] );
+		VectorClear( prop->body->inverseInertiaTensor[1] );
+		VectorClear( prop->body->inverseInertiaTensor[2] );
+		VectorClear( prop->body->current.i.angularMomentum );
 	}
 	if ( G_SpawnFloat( "friction", "0", &value ) ) {
 		prop->body->contactFriction = Com_Clamp( 0.0f, 1.0f, value );
