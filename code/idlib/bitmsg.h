@@ -36,4 +36,17 @@ int		BitMsg_ReadBits( bitMsg_t *msg, int numBits );
 void	BitMsg_WriteFloat( bitMsg_t *msg, float f );
 float	BitMsg_ReadFloat( bitMsg_t *msg );
 
+// Doom 3's idBitMsgDelta: a message written (or read) against a base, what
+// is the same as the base a bit; newBase gets the whole, the next base
+typedef struct {
+	bitMsg_t	*base;			// NULL: none, everything written
+	bitMsg_t	*newBase;
+	bitMsg_t	*msg;			// written to (BitMsgDelta_WriteBits) or read from
+	qboolean	changed;		// anything written differs from the base
+} bitMsgDelta_t;
+
+void	BitMsgDelta_Init( bitMsgDelta_t *delta, bitMsg_t *base, bitMsg_t *newBase, bitMsg_t *msg );
+void	BitMsgDelta_WriteBits( bitMsgDelta_t *delta, int value, int numBits );	// numBits < 0: signed
+int		BitMsgDelta_ReadBits( bitMsgDelta_t *delta, int numBits );
+
 #endif /* !__BITMSG_H__ */

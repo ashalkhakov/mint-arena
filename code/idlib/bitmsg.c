@@ -101,3 +101,77 @@ float BitMsg_ReadFloat( bitMsg_t *msg ) {
 	fi.i = BitMsg_ReadBits( msg, 32 );
 	return fi.f;
 }
+
+/*
+===============================================================================
+
+	idBitMsgDelta
+
+===============================================================================
+*/
+
+void BitMsgDelta_Init( bitMsgDelta_t *delta, bitMsg_t *base, bitMsg_t *newBase, bitMsg_t *msg ) {
+	delta->base = base;
+	delta->newBase = newBase;
+	delta->msg = msg;
+	delta->changed = qfalse;
+}
+
+/*
+================
+BitMsgDelta_WriteBits
+
+the value into the new base, and into the message: as a bit where it is the
+base's, else a bit and the value
+================
+*/
+void BitMsgDelta_WriteBits( bitMsgDelta_t *delta, int value, int numBits ) {
+	int baseValue, n = numBits < 0 ? -numBits : numBits;
+	unsigned int mask = n >= 32 ? 0xffffffffu : ( 1u << n ) - 1;
+
+	if ( delta->newBase ) {
+		BitMsg_WriteBits( delta->newBase, value, numBits );
+	}
+	if ( !delta->base ) {
+		BitMsg_WriteBits( delta->msg, value, numBits );
+		delta->changed = qtrue;
+		return;
+	}
+	baseValue = BitMsg_ReadBits( delta->base, numBits );
+	if ( !delta->base->overflowed && ( (unsigned int)baseValue & mask ) == ( (unsigned int)value & mask ) ) {
+		BitMsg_WriteBits( delta->msg, 0, 1 );
+		return;
+	}
+	BitMsg_WriteBits( delta->msg, 1, 1 );
+	BitMsg_WriteBits( delta->msg, value, numBits );
+	delta->changed = qtrue;
+}
+
+/*
+================
+BitMsgDelta_ReadBits
+
+the value, the base's where the message says it's unchanged; into the new
+base too
+================
+*/
+int BitMsgDelta_ReadBits( bitMsgDelta_t *delta, int numBits ) {
+	int value, baseValue;
+
+	if ( !delta->base ) {
+		value = BitMsg_ReadBits( delta->msg, numBits );
+		delta->changed = qtrue;
+	} else {
+		baseValue = BitMsg_ReadBits( delta->base, numBits );
+		if ( BitMsg_ReadBits( delta->msg, 1 ) ) {
+			value = BitMsg_ReadBits( delta->msg, numBits );
+			delta->changed = qtrue;
+		} else {
+			value = baseValue;
+		}
+	}
+	if ( delta->newBase ) {
+		BitMsg_WriteBits( delta->newBase, value, numBits );
+	}
+	return value;
+}

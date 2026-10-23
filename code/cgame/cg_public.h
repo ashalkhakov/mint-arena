@@ -38,7 +38,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // ZTM: FIXME: There is no way for the VM to know what the engine support API is
 //             so there is no way to add more system calls.
 #define CG_API_MAJOR_VERSION	2
-#define CG_API_MINOR_VERSION	0
+#define CG_API_MINOR_VERSION	1
 
 
 #define	CMD_BACKUP			64	
@@ -93,6 +93,8 @@ typedef struct {
 	//
 	// CGame specific data
 	//
+	int				messageNum;		// the snapshot's number (its game state's, cg_snapshot.c)
+
 	entityState_t	entities[MAX_ENTITIES_IN_SNAPSHOT]; // all of the entities that need to be presented
 											// at the time of this snapshot
 
@@ -439,6 +441,12 @@ typedef enum {
 	CG_CIN_RUNCINEMATIC,
 	CG_CIN_DRAWCINEMATIC,
 	CG_CIN_SETEXTENTS,
+
+	// the game's own state in a snapshot (Doom 3's ClientReadSnapshot): its
+	// bytes, and the snapshot it was delta coded from (-1: none); -1 if the
+	// snapshot is gone. A full one asked for when cgame lost the base
+	CG_GETSNAPSHOTSTATE = 900,		// ( int snapshotNumber, void *data, int maxSize, int *baseNumber );
+	CG_REQUESTFULLSNAPSHOT,			// ( void );
 
 /*
 	CG_LOADCAMERA = 800,

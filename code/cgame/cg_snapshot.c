@@ -305,6 +305,187 @@ static void CG_SetNextSnap( snapshot_t *snap ) {
 
 
 /*
+===============================================================================
+
+	The game's own state in snapshots
+
+Doom 3's idGameLocal::ClientReadSnapshot: after the entityState_ts, each
+entity's own state (g_snapshot.c), delta coded against what it was in the
+snapshot the server coded it from. Read back a snapshot at a time, every
+one in turn (CG_ReadNextSnapshot), each entity's state kept whole for the
+next to be read against, and for the entity to read (CG_EntitySnapshot).
+
+===============================================================================
+*/
+
+#define MAX_STATE_ENTITIES		256			// (g_snapshot.c's)
+#define STATE_RECORD_WORDS		4096
+
+typedef struct {
+	int			entityNum;
+	int			start;
+	int			numBits;
+} stateEntity_t;
+
+typedef struct {
+	int				messageNum;
+	qboolean		valid;
+	int				numEntities;
+	stateEntity_t	entities[MAX_STATE_ENTITIES];
+	int				numWords;
+	int				words[STATE_RECORD_WORDS];
+} stateRecord_t;
+
+static stateRecord_t	cg_stateRecords[SNAPSHOT_BACKUP];
+
+static const stateEntity_t *CG_FindStateEntity( const stateRecord_t *rec, int entityNum ) {
+	int i;
+
+	for ( i = 0; i < rec->numEntities; i++ ) {
+		if ( rec->entities[i].entityNum == entityNum ) {
+			return &rec->entities[i];
+		}
+	}
+	return NULL;
+}
+
+/*
+================
+CG_KeepBaseState
+
+an entity of the snapshot not in its state message: as it was in the base
+(the server keeps the same, G_KeepBaseState)
+================
+*/
+static void CG_KeepBaseState( stateRecord_t *rec, const stateRecord_t *base, int entityNum ) {
+	const stateEntity_t *baseEnt = base ? CG_FindStateEntity( base, entityNum ) : NULL;
+	stateEntity_t *se;
+	int numWords;
+
+	if ( !baseEnt || rec->numEntities >= MAX_STATE_ENTITIES ) {
+		return;
+	}
+	numWords = ( baseEnt->numBits + 31 ) / 32;
+	if ( rec->numWords + numWords > STATE_RECORD_WORDS ) {
+		return;
+	}
+	se = &rec->entities[rec->numEntities++];
+	se->entityNum = entityNum;
+	se->start = rec->numWords;
+	se->numBits = baseEnt->numBits;
+	memcpy( rec->words + se->start, base->words + baseEnt->start, numWords * sizeof( int ) );
+	rec->numWords += numWords;
+}
+
+/*
+================
+CG_ReadSnapshotState
+
+the game state of the snapshot just read; if the one it was coded from is
+gone (never read, or lost), a full snapshot is asked for
+================
+*/
+static void CG_ReadSnapshotState( const snapshot_t *snap ) {
+	static int in[SNAPSHOT_STATE_WORDS];
+	stateRecord_t *rec = &cg_stateRecords[snap->messageNum & ( SNAPSHOT_BACKUP - 1 )];
+	const stateRecord_t *base = NULL;
+	const stateEntity_t *baseEnt;
+	stateEntity_t *se;
+	bitMsg_t msg, baseMsg, newBase;
+	bitMsgDelta_t delta;
+	int size, baseNum, entityNum, i, j;
+
+	rec->messageNum = snap->messageNum;
+	rec->valid = qfalse;
+	rec->numEntities = 0;
+	rec->numWords = 0;
+
+	memset( in, 0, sizeof( in ) );
+	size = trap_GetSnapshotState( snap->messageNum, in, sizeof( in ), &baseNum );
+	if ( size < 0 ) {
+		return;
+	}
+	if ( baseNum > 0 ) {
+		base = &cg_stateRecords[baseNum & ( SNAPSHOT_BACKUP - 1 )];
+		if ( base->messageNum != baseNum || !base->valid || base == rec ) {
+			trap_RequestFullSnapshot();
+			return;
+		}
+	}
+
+	BitMsg_Init( &msg, in, ( size + 3 ) / 4 );
+	msg.maxBits = size * 8;
+	while ( 1 ) {
+		entityNum = BitMsg_ReadBits( &msg, GENTITYNUM_BITS );
+		if ( msg.overflowed || entityNum == MAX_GENTITIES - 1 ) {
+			break;
+		}
+		if ( rec->numEntities >= MAX_STATE_ENTITIES ) {
+			CG_Error( "CG_ReadSnapshotState: more than %d entities' states", MAX_STATE_ENTITIES );
+		}
+		se = &rec->entities[rec->numEntities];
+		se->entityNum = entityNum;
+		se->start = rec->numWords;
+		memset( rec->words + se->start, 0, ( STATE_RECORD_WORDS - se->start ) * sizeof( int ) );
+		BitMsg_Init( &newBase, rec->words + se->start, STATE_RECORD_WORDS - se->start );
+
+		baseEnt = base ? CG_FindStateEntity( base, entityNum ) : NULL;
+		if ( baseEnt ) {
+			BitMsg_Init( &baseMsg, (int *)base->words + baseEnt->start, ( baseEnt->numBits + 31 ) / 32 );
+			baseMsg.maxBits = baseEnt->numBits;
+		}
+		BitMsgDelta_Init( &delta, baseEnt ? &baseMsg : NULL, &newBase, &msg );
+		if ( !BG_DecodeEntitySnapshot( &delta ) || newBase.overflowed ) {
+			CG_Printf( S_COLOR_YELLOW "CG_ReadSnapshotState: snapshot %d, entity %d's state unreadable\n", snap->messageNum, entityNum );
+			trap_RequestFullSnapshot();
+			return;
+		}
+		se->numBits = newBase.bit;
+		rec->numWords += ( newBase.bit + 31 ) / 32;
+		rec->numEntities++;
+	}
+
+	// the snapshot's entities it didn't have: as they were
+	for ( i = 0; i < snap->numEntities; i++ ) {
+		entityNum = snap->entities[i].number;
+		for ( j = 0; j < rec->numEntities && rec->entities[j].entityNum != entityNum; j++ ) {
+		}
+		if ( j == rec->numEntities ) {
+			CG_KeepBaseState( rec, base, entityNum );
+		}
+	}
+	rec->valid = qtrue;
+}
+
+/*
+================
+CG_EntitySnapshot
+
+the entity's own state in the snapshot (its ReadFromSnapshot reads it);
+qfalse if it has none
+================
+*/
+qboolean CG_EntitySnapshot( const snapshot_t *snap, int entityNum, entitySnapshot_t *state ) {
+	const stateRecord_t *rec;
+	const stateEntity_t *se;
+
+	if ( !snap ) {
+		return qfalse;
+	}
+	rec = &cg_stateRecords[snap->messageNum & ( SNAPSHOT_BACKUP - 1 )];
+	if ( rec->messageNum != snap->messageNum || !rec->valid ) {
+		return qfalse;
+	}
+	se = CG_FindStateEntity( rec, entityNum );
+	if ( !se || !se->numBits ) {
+		return qfalse;
+	}
+	state->words = rec->words + se->start;
+	state->numBits = se->numBits;
+	return qtrue;
+}
+
+/*
 ========================
 CG_ReadNextSnapshot
 
@@ -342,6 +523,8 @@ static snapshot_t *CG_ReadNextSnapshot( void ) {
 
 		// if it succeeded, return
 		if ( r ) {
+			dest->messageNum = cgs.processedSnapshotNum;
+			CG_ReadSnapshotState( dest );
 			CG_AddLagometerSnapshotInfo( dest );
 			return dest;
 		}

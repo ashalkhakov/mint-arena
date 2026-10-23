@@ -227,8 +227,6 @@ Add new fields to bg_entityStateFields / bg_playerStateFields in bg_misc.c
 // The messages are delta compressed, so it doesn't really matter if
 // the structure size is fairly large
 
-#define	ES_SNAPSHOT_WORDS		16		// 512 bits
-
 typedef struct entityState_s {
 	int		number;			// entity index
 
@@ -289,11 +287,6 @@ typedef struct entityState_s {
 	int		torsoAnim;		// mask off ANIM_TOGGLEBIT
 	int		weaponAnim;		// mask off ANIM_TOGGLEBIT
 	int		tokens;			// harvester skulls
-
-	// Doom 3's entity snapshots: what an entity's class writes for itself
-	// (WriteToSnapshot), as a bit message; the first word's low byte says
-	// what (snapshotType_t). Delta compressed word by word.
-	int		snapshot[ES_SNAPSHOT_WORDS];
 } entityState_t;
 
 // Doom 3's entity network events (g_netevent.c, cg_netevent.c): what every
@@ -306,10 +299,27 @@ typedef enum {
 	ENTEV_NUM_COMMON
 } entityNetEvent_t;
 
+// Doom 3's snapshots: after the entityState_ts every entity has, the game's
+// own state, each entity writing what it needs (WriteToSnapshot,
+// g_snapshot.c), delta coded per client against what it last acknowledged
+// (bitMsgDelta_t), read back by cgame (ReadFromSnapshot, cg_snapshot.c). An
+// entity's state starts with what it is
+#define	MAX_SNAPSHOT_STATE		8192		// bytes a snapshot (the engine's)
+#define	SNAPSHOT_STATE_WORDS	( MAX_SNAPSHOT_STATE / 4 )
+#define	SNAPSHOT_BACKUP			32			// snapshots kept (the engine's PACKET_BACKUP)
+
 typedef enum {
 	SNAPSHOT_NONE,
 	SNAPSHOT_AF				// an articulated figure's bodies (bg_snapshot.c)
 } snapshotType_t;
+
+// an entity's whole state in a snapshot, as written (the delta's new base)
+typedef struct {
+	const int	*words;
+	int			numBits;
+} entitySnapshot_t;
+
+qboolean	BG_DecodeEntitySnapshot( bitMsgDelta_t *delta );
 
 
 

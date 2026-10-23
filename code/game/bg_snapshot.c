@@ -19,9 +19,10 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 ===========================================================================
 */
 // bg_snapshot.c -- Doom 3's entity snapshots (WriteToSnapshot and
-// ReadFromSnapshot): what an entity's class sends of itself, written as a
-// bit message (idBitMsg) into its entityState_t's snapshot words. The engine
-// delta compresses the words; an entity at rest sends nothing.
+// ReadFromSnapshot): what an entity's class sends of itself in the game's
+// state of a snapshot, written through a bit message delta (idBitMsgDelta)
+// against the client's base (g_snapshot.c, cg_snapshot.c); an entity at rest
+// sends nothing.
 
 #include "../idlib/q_shared.h"
 #include "bg_public.h"
@@ -99,49 +100,90 @@ static void AF_ReadQuat( bitMsg_t *msg, float q[4] ) {
 	q[3] = d > 0.0f ? sqrt( d ) : 0.0f;
 }
 
+#define AF_ORIGIN_BITS		22		// an origin's x, y and z each, signed...
+#define AF_ORIGIN_SCALE		16.0f	// ...in 16ths of a unit
+
 /*
 ================
 BG_WriteAFSnapshot
 
-The type, the number of bodies and each body's orientation; es->pos is the
-first body's origin (the caller's TR_INTERPOLATE).
+idPhysics_AF::WriteToSnapshot: what it is, the number of bodies, and each
+body's origin and orientation, against the client's base (delta)
 ================
 */
-void BG_WriteAFSnapshot( const afFigure_t *af, entityState_t *es ) {
+void BG_WriteAFSnapshot( const afFigure_t *af, bitMsgDelta_t *delta ) {
 	const afPhysics_t *phys = &af->physics;
 	float max = (float)( ( 1 << ( AF_QUAT_BITS - 1 ) ) - 1 ), q[4];
-	bitMsg_t msg;
 	int i, k;
 
-	memset( es->snapshot, 0, sizeof( es->snapshot ) );
-	BitMsg_Init( &msg, es->snapshot, ES_SNAPSHOT_WORDS );
-	BitMsg_WriteBits( &msg, SNAPSHOT_AF, 8 );
-	BitMsg_WriteBits( &msg, phys->numBodies, 6 );
+	BitMsgDelta_WriteBits( delta, SNAPSHOT_AF, 8 );
+	BitMsgDelta_WriteBits( delta, phys->numBodies, 6 );
 	for ( i = 0; i < phys->numBodies; i++ ) {
+		for ( k = 0; k < 3; k++ ) {
+			BitMsgDelta_WriteBits( delta, (int)floor( phys->bodies[i].current->worldOrigin[k] * AF_ORIGIN_SCALE + 0.5f ), -AF_ORIGIN_BITS );
+		}
 		AF_AxisToQuat( (const vec3_t *)phys->bodies[i].current->worldAxis, q );
 		for ( k = 0; k < 3; k++ ) {
-			BitMsg_WriteBits( &msg, (int)floor( q[k] * max + 0.5f ), -AF_QUAT_BITS );
+			BitMsgDelta_WriteBits( delta, (int)floor( q[k] * max + 0.5f ), -AF_QUAT_BITS );
 		}
 	}
-	VectorCopy( phys->bodies[0].current->worldOrigin, es->pos.trBase );
+}
+
+/*
+================
+BG_DecodeEntitySnapshot
+
+an entity's state read through the delta (the client's base), as its
+class wrote it: its whole into the delta's new base; qfalse if it isn't
+something known or the message ran out
+================
+*/
+qboolean BG_DecodeEntitySnapshot( bitMsgDelta_t *delta ) {
+	int i, k, n;
+
+	switch ( BitMsgDelta_ReadBits( delta, 8 ) ) {
+	case SNAPSHOT_AF:
+		n = BitMsgDelta_ReadBits( delta, 6 );
+		for ( i = 0; i < n; i++ ) {
+			for ( k = 0; k < 3; k++ ) {
+				BitMsgDelta_ReadBits( delta, -AF_ORIGIN_BITS );
+			}
+			for ( k = 0; k < 3; k++ ) {
+				BitMsgDelta_ReadBits( delta, -AF_QUAT_BITS );
+			}
+		}
+		break;
+	default:
+		return qfalse;
+	}
+	return !delta->msg->overflowed;
+}
+
+static void AF_ReadOrigin( bitMsg_t *msg, vec3_t origin ) {
+	int k;
+
+	for ( k = 0; k < 3; k++ ) {
+		origin[k] = BitMsg_ReadBits( msg, -AF_ORIGIN_BITS ) / AF_ORIGIN_SCALE;
+	}
 }
 
 /*
 ================
 BG_ReadAFSnapshot
 
-The figure's bodies turned as the snapshot says (between es and next by
-frac, next may be NULL), its first body at origin; qfalse when it isn't a
-figure of as many bodies.
+idPhysics_AF::ReadFromSnapshot: the figure's bodies where the state says,
+between it and next (NULL: none) by frac; qfalse when it isn't a figure of
+as many bodies
 ================
 */
-qboolean BG_ReadAFSnapshot( afFigure_t *af, const entityState_t *es, const entityState_t *next, float frac, const vec3_t origin ) {
+qboolean BG_ReadAFSnapshot( afFigure_t *af, const entitySnapshot_t *state, const entitySnapshot_t *next, float frac ) {
 	afPhysics_t *phys = &af->physics;
 	float q[4], q2[4], d;
+	vec3_t o, o2;
 	bitMsg_t msg, msg2;
 	int i, k, n;
 
-	BitMsg_Init( &msg, (int *)es->snapshot, ES_SNAPSHOT_WORDS );
+	BitMsg_Init( &msg, (int *)state->words, ( state->numBits + 31 ) / 32 );
 	if ( BitMsg_ReadBits( &msg, 8 ) != SNAPSHOT_AF ) {
 		return qfalse;
 	}
@@ -150,15 +192,20 @@ qboolean BG_ReadAFSnapshot( afFigure_t *af, const entityState_t *es, const entit
 		return qfalse;
 	}
 	if ( next ) {
-		BitMsg_Init( &msg2, (int *)next->snapshot, ES_SNAPSHOT_WORDS );
+		BitMsg_Init( &msg2, (int *)next->words, ( next->numBits + 31 ) / 32 );
 		if ( BitMsg_ReadBits( &msg2, 8 ) != SNAPSHOT_AF || BitMsg_ReadBits( &msg2, 6 ) != n ) {
 			next = NULL;
 		}
 	}
 
 	for ( i = 0; i < n; i++ ) {
+		AF_ReadOrigin( &msg, o );
 		AF_ReadQuat( &msg, q );
 		if ( next ) {
+			AF_ReadOrigin( &msg2, o2 );
+			for ( k = 0; k < 3; k++ ) {
+				o[k] += frac * ( o2[k] - o[k] );
+			}
 			// the shorter way, normalized
 			AF_ReadQuat( &msg2, q2 );
 			if ( q[0] * q2[0] + q[1] * q2[1] + q[2] * q2[2] + q[3] * q2[3] < 0.0f ) {
@@ -176,8 +223,8 @@ qboolean BG_ReadAFSnapshot( afFigure_t *af, const entityState_t *es, const entit
 				}
 			}
 		}
+		VectorCopy( o, phys->bodies[i].current->worldOrigin );
 		AF_QuatToAxis( q, phys->bodies[i].current->worldAxis );
 	}
-	VectorCopy( origin, phys->bodies[0].current->worldOrigin );
 	return !msg.overflowed;
 }

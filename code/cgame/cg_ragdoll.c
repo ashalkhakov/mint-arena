@@ -419,11 +419,16 @@ qboolean CG_ServerRagdoll( centity_t *cent, int modelDef, refEntity_t *ent, floa
 	const bgModel_t *model = &bg_models[modelDef];
 	const afDecl_t *decl;
 	float bindPose[MAX_MODEL_JOINTS * 12];
+	entitySnapshot_t state, next;
+	qboolean hasNext;
 	ragdoll_t *rd;
 
-	if ( ( cent->currentState.snapshot[0] & 0xff ) != SNAPSHOT_AF || !model->ragdoll[0] || numJoints <= 0 ) {
+	// its state in the snapshot (cg_snapshot.c), and the next's to go towards
+	if ( !model->ragdoll[0] || numJoints <= 0 || !CG_EntitySnapshot( cg.snap, cent->currentState.number, &state )
+		 || ( state.words[0] & 0xff ) != SNAPSHOT_AF ) {
 		return qfalse;
 	}
+	hasNext = cent->interpolate && CG_EntitySnapshot( cg.nextSnap, cent->currentState.number, &next );
 
 	rd = CG_RagdollForEntity( cent->currentState.number );
 	if ( rd && ( !rd->server || rd->modelDef != modelDef ) ) {
@@ -450,8 +455,7 @@ qboolean CG_ServerRagdoll( centity_t *cent, int modelDef, refEntity_t *ent, floa
 	}
 	rd->lastSeen = cg.time;
 
-	if ( !BG_ReadAFSnapshot( &rd->af, &cent->currentState, cent->interpolate ? &cent->nextState : NULL,
-							 cg.frameInterpolation, cent->lerpOrigin ) ) {
+	if ( !BG_ReadAFSnapshot( &rd->af, &state, hasNext ? &next : NULL, cg.frameInterpolation ) ) {
 		return qfalse;
 	}
 	BG_AFPose( &rd->af, jointMats, ent->origin, ent->axis );

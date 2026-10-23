@@ -274,6 +274,9 @@ Q_EXPORT intptr_t vmMain( int command, int arg0, int arg1, int arg2, int arg3, i
 		return BotAIStartFrame( arg0 );
 	case GAME_CONSOLE_COMPLETEARGUMENT:
 		return G_ConsoleCompleteArgument(arg0);
+	case GAME_WRITE_SNAPSHOT:
+		G_WriteSnapshot( arg0, arg1, arg2 );
+		return 0;
 	default:
 		G_Error( "game vmMain: unknown command %i", command );
 		break;

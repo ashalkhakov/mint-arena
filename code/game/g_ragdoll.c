@@ -93,7 +93,7 @@ static void G_RagdollSync( gentity_t *ent ) {
 	gRagdoll_t *rd = ent->ragdoll;
 	vec3_t bounds[2];
 
-	BG_WriteAFSnapshot( &rd->af, &ent->s );
+	VectorCopy( rd->af.physics.bodies[0].current->worldOrigin, ent->s.pos.trBase );
 	VectorCopy( ent->s.pos.trBase, ent->r.currentOrigin );
 	AF_GetBounds( &rd->af.physics, bounds );
 	VectorSubtract( bounds[0], ent->r.currentOrigin, ent->s.mins );
@@ -177,6 +177,17 @@ qboolean G_StartRagdoll( gentity_t *ent ) {
 	VectorClear( ent->s.apos.trBase );
 	G_RagdollSync( ent );
 	return qtrue;
+}
+
+/*
+================
+G_WriteRagdollSnapshot
+
+its WriteToSnapshot (g_snapshot.c): the figure's bodies
+================
+*/
+void G_WriteRagdollSnapshot( gentity_t *ent, bitMsgDelta_t *delta ) {
+	BG_WriteAFSnapshot( &ent->ragdoll->af, delta );
 }
 
 /*

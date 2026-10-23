@@ -242,6 +242,14 @@ void trap_GetUsercmd( int playerNum, usercmd_t *cmd ) {
 	syscall( G_GET_USERCMD, playerNum, cmd );
 }
 
+int trap_GetSnapshotEntities( int clientNum, int *entityNums, int maxEntities ) {
+	return syscall( G_GET_SNAPSHOT_ENTITIES, clientNum, entityNums, maxEntities );
+}
+
+void trap_SetSnapshotState( const void *data, int size ) {
+	syscall( G_SET_SNAPSHOT_STATE, data, size );
+}
+
 qboolean trap_GetEntityToken( int *parseOffset, char *buffer, int bufferSize ) {
 	return syscall( G_GET_ENTITY_TOKEN, parseOffset, buffer, bufferSize );
 }

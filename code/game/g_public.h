@@ -38,7 +38,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // ZTM: FIXME: There is no way for the VM to know what the engine support API is
 //             so there is no way to add more system calls.
 #define	GAME_API_MAJOR_VERSION	2
-#define	GAME_API_MINOR_VERSION	1
+#define	GAME_API_MINOR_VERSION	2
 
 
 // entity->svFlags
@@ -329,6 +329,11 @@ typedef enum {
 	G_DEBUG_CLEARPOLYGONS,	// ( int time );
 	G_DEBUG_POLYGON,		// ( const vec4_t color, const fixedWinding_t *winding, int lifetime, qboolean depthTest );
 
+	// in GAME_WRITE_SNAPSHOT: the entities the snapshot being written has, and
+	// the game's bytes for it (Doom 3's idGameLocal::ServerWriteSnapshot)
+	G_GET_SNAPSHOT_ENTITIES,	// ( int clientNum, int *entityNums, int maxEntities );
+	G_SET_SNAPSHOT_STATE,		// ( const void *data, int size );
+
 } gameImport_t;
 
 
@@ -384,6 +389,12 @@ typedef enum {
 	//    or INT_MAX to prevent map restart.
 
 	GAME_CONSOLE_COMPLETEARGUMENT,		// ( int completeArgument );
+
+	GAME_WRITE_SNAPSHOT,			// ( int clientNum, int sequence, int baseSequence );
+	// Doom 3's ServerWriteSnapshot: the game writes its own state for the
+	// client's snapshot (sequence), each entity its WriteToSnapshot, delta
+	// coded against what it wrote for baseSequence (-1: against nothing),
+	// the snapshot the client last acknowledged; G_SET_SNAPSHOT_STATE sends it
 
 } gameExport_t;
 

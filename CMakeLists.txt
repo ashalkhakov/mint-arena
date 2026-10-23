@@ -1390,6 +1390,7 @@ set(Q3GOBJ
   game/g_physics.c
   game/g_character.c
   game/g_ragdoll.c
+  game/g_snapshot.c
   game/g_campaign.c
   game/g_save.c
   game/g_airnav.c

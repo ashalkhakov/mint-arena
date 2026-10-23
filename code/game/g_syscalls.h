@@ -59,6 +59,8 @@ int		trap_BotAllocateClient( void );
 void	trap_BotFreeClient( int clientNum );
 void	trap_GetUsercmd( int playerNum, usercmd_t *cmd );
 qboolean	trap_GetEntityToken( int *parseOffset, char *buffer, int bufferSize );
+int		trap_GetSnapshotEntities( int clientNum, int *entityNums, int maxEntities );
+void	trap_SetSnapshotState( const void *data, int size );
 void	trap_ClientCommand(int playerNum, const char *command);
 
 int		trap_DebugPolygonCreate(int color, int numPoints, vec3_t *points);

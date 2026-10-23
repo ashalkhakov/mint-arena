@@ -616,6 +616,14 @@ void		trap_GetCurrentSnapshotNumber( int *snapshotNumber, int *serverTime ) {
 	syscall( CG_GETCURRENTSNAPSHOTNUMBER, snapshotNumber, serverTime );
 }
 
+int trap_GetSnapshotState( int snapshotNumber, void *data, int maxSize, int *baseNumber ) {
+	return syscall( CG_GETSNAPSHOTSTATE, snapshotNumber, data, maxSize, baseNumber );
+}
+
+void trap_RequestFullSnapshot( void ) {
+	syscall( CG_REQUESTFULLSNAPSHOT );
+}
+
 qboolean	trap_GetSnapshot( int snapshotNumber, vmSnapshot_t *snapshot, void *playerStates, void *entities, int maxEntities ) {
 	return syscall( CG_GETSNAPSHOT, snapshotNumber, snapshot, sizeof ( vmSnapshot_t ), playerStates, entities, maxEntities );
 }

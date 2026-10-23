@@ -996,6 +996,12 @@ void		G_SendSoundEvent( const gentity_t *ent, int channel, const char *soundShad
 //
 qboolean	G_StartRagdoll( gentity_t *ent );
 void		G_RagdollSleep( gentity_t *ent );
+void		G_WriteRagdollSnapshot( gentity_t *ent, bitMsgDelta_t *delta );
+
+//
+// g_snapshot.c
+//
+void		G_WriteSnapshot( int clientNum, int sequence, int baseSequence );
 void		G_RunRagdoll( gentity_t *ent );
 void		G_RagdollImpulse( gentity_t *ent, const vec3_t point, const vec3_t impulse );
 void		G_FreeRagdoll( gentity_t *ent );
