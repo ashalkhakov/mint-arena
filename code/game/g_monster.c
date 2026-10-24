@@ -1098,19 +1098,26 @@ static qboolean G_MonsterJointWorld( gentity_t *ent, int joint, int time, vec3_t
 ================
 G_MonsterDrop
 
-The "drop <joint>" frame command: what's attached there (Hiro's sword) is
-let go, a rigid body moving as the joint did over the last 50 msec; the
-cgame draws it at the joint no more
+The "drop <joint> [forward left up]" frame command: what's attached there
+(Hiro's sword) is let go, a rigid body moving as the joint did over the last
+50 msec, and as fast again as forward, left and up give, the way the
+monster faces (Usagi throwing his daikatana out over the volcano); the cgame
+draws it at the joint no more
 ================
 */
 #define DROP_MSEC	50
 
-static void G_MonsterDrop( gentity_t *ent, const char *joint ) {
+static void G_MonsterDrop( gentity_t *ent, const char *args ) {
 	const bgModel_t *model = &bg_models[ent->s.modelindex2];
 	const bgAttachment_t *at;
 	vec3_t origin, axis[3], before, beforeAxis[3], velocity, angular, delta[3], beforeT[3];
+	vec3_t push = { 0, 0, 0 }, forward, right;
+	char joint[MAX_QPATH];
 	rotation_t rot;
 	int i;
+
+	joint[0] = '\0';
+	sscanf( args, "%63s %f %f %f", joint, &push[0], &push[1], &push[2] );
 
 	for ( i = 0; i < model->numAttachments; i++ ) {
 		if ( !Q_stricmp( model->attachments[i].joint, joint ) ) {
@@ -1133,6 +1140,10 @@ static void G_MonsterDrop( gentity_t *ent, const char *joint ) {
 
 	VectorSubtract( origin, before, velocity );
 	VectorScale( velocity, 1000.0f / DROP_MSEC, velocity );
+	AngleVectors( tv( 0, ent->r.currentAngles[YAW], 0 ), forward, right, NULL );
+	VectorMA( velocity, push[0], forward, velocity );
+	VectorMA( velocity, -push[1], right, velocity );
+	velocity[2] += push[2];
 	// the turn from then to now, Doom 3's way (rows the axes: then' * now)
 	TransposeAxis( (const vec3_t *)beforeAxis, beforeT );
 	MatrixMultiply( beforeT, axis, delta );
