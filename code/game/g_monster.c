@@ -272,12 +272,14 @@ static void G_MonsterSense( gentity_t *ent ) {
 	gentity_t		*enemy = G_MonsterEnemy( ent );
 
 	m->flags &= ~( MONF_ENEMY_VISIBLE | MONF_ENEMY_IN_FOV );
+	ent->s.otherEntityNum = ENTITYNUM_NONE;
 	if ( !enemy ) {
 		m->enemy = ENTITYNUM_NONE;
 		return;
 	}
 	if ( G_MonsterCanSee( ent, enemy ) ) {
 		m->flags |= MONF_ENEMY_VISIBLE;
+		ent->s.otherEntityNum = enemy->s.number;		// (its lamp on it: cg_character.c)
 		VectorCopy( enemy->r.currentOrigin, m->lastEnemyPos );
 		m->lastEnemySeen = level.time;
 		if ( G_MonsterInFov( ent, enemy->r.currentOrigin ) ) {
@@ -765,6 +767,59 @@ static void G_MonsterTakeOff( gentity_t *ent ) {
 
 /*
 ================
+G_MonsterNoise
+
+smooth noise in -1..1 over time t (seconds), its own for each seed: values
+at whole seconds, eased between
+================
+*/
+static float G_MonsterNoise( float t, int seed ) {
+	int		i = (int)floor( t );
+	float	f = t - i, a, b;
+	unsigned int h;
+
+	h = (unsigned int)( i * 374761393 + seed * 668265263 );
+	h = ( h ^ ( h >> 13 ) ) * 1274126177u;
+	a = ( ( h ^ ( h >> 16 ) ) & 0xffff ) / 32767.5f - 1.0f;
+	h = (unsigned int)( ( i + 1 ) * 374761393 + seed * 668265263 );
+	h = ( h ^ ( h >> 13 ) ) * 1274126177u;
+	b = ( ( h ^ ( h >> 16 ) ) & 0xffff ) / 32767.5f - 1.0f;
+	f = f * f * ( 3 - 2 * f );
+	return a + ( b - a ) * f;
+}
+
+/*
+================
+G_MonsterFlyEngine
+
+an engine that doesn't hold steady ("fly_jitter"): the lift it wants
+wavers (Daikatana's cambot: a sine on its climb, 1.2 seconds round), now
+and then it sputters and it drops, and it rocks with it, pitching and
+rolling ("fly_wobble"); its climb it wants, added to its thrust's
+================
+*/
+static float G_MonsterFlyEngine( gentity_t *ent ) {
+	monsterState_t	*m = &ent->monster;
+	float			t = level.time * 0.001f, lift, sputter;
+	int				s = ent->s.number;
+
+	if ( m->flyJitter <= 0 ) {
+		VectorClear( m->wobble );
+		return 0;
+	}
+	lift = sin( t * 2 * M_PI / 1.2f + s ) * 0.6f + G_MonsterNoise( t * 1.7f, s ) * 0.4f;
+	// (a sputter: the slow noise low, the lift gone a moment)
+	sputter = G_MonsterNoise( t * 0.6f, s + 101 );
+	if ( sputter < -0.55f ) {
+		lift -= ( -0.55f - sputter ) * 6.0f;
+	}
+	m->wobble[PITCH] = m->flyWobble * ( G_MonsterNoise( t * 2.3f, s + 7 ) * 0.7f + lift * 0.3f );
+	m->wobble[ROLL] = m->flyWobble * G_MonsterNoise( t * 1.9f, s + 13 );
+	return lift * m->flyJitter;
+}
+
+/*
+================
 G_MonsterFlyMove
 
 flying as a drone does: it wants a velocity toward where it goes (above it
@@ -806,6 +861,19 @@ static void G_MonsterFlyMove( gentity_t *ent, float dt ) {
 			speed = MIN( m->flySpeed, dist * 2 );
 			VectorScale( dir, speed, wish );
 		}
+		VectorCopy( origin, m->hoverPos );
+	} else if ( !( m->flags & MONF_DEAD ) && m->flyJitter > 0 ) {
+		// stopped: it holds where it stopped, its engine wavering about it
+		VectorSubtract( m->hoverPos, origin, wish );
+		VectorScale( wish, 2, wish );
+		if ( VectorLength( wish ) > m->flySpeed ) {
+			VectorNormalize( wish );
+			VectorScale( wish, m->flySpeed, wish );
+		}
+	}
+
+	if ( !( m->flags & MONF_DEAD ) ) {
+		wish[2] += G_MonsterFlyEngine( ent );
 	}
 
 	// the thrust: from its velocity to the one it wants, no faster than it accelerates
@@ -957,8 +1025,8 @@ static void G_MonsterTurn( gentity_t *ent, float dt ) {
 			vectoangles( m->velocity, va );
 			pitch = Com_Clamp( -30, 30, AngleNormalize180( va[PITCH] ) );
 		}
-		angles[PITCH] = pitch;
-		angles[ROLL] = m->roll;
+		angles[PITCH] = pitch + m->wobble[PITCH];
+		angles[ROLL] = m->roll + m->wobble[ROLL];
 	} else {
 		angles[PITCH] = 0;
 		angles[ROLL] = 0;
@@ -1527,6 +1595,9 @@ void SP_monster( gentity_t *ent ) {
 		m->flyAccel = G_MonsterFloat( ent, "fly_accel", "400" );
 		m->flyOffset = G_MonsterFloat( ent, "fly_offset", "0" );
 		m->flyBob = G_MonsterFloat( ent, "fly_bob", "8" );
+		m->flyJitter = G_MonsterFloat( ent, "fly_jitter", "0" );
+		m->flyWobble = G_MonsterFloat( ent, "fly_wobble", "0" );
+		VectorCopy( ent->r.currentOrigin, m->hoverPos );
 	}
 	m->idealYaw = ent->s.angles[YAW];
 	if ( !( m->flags & MONF_NO_UNSTICK ) && G_MonsterUnstick( ent, ent->s.origin ) ) {

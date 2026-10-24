@@ -161,6 +161,10 @@ typedef struct {
 	float		flyAccel;
 	float		flyOffset;
 	float		flyBob;
+	float		flyJitter;			// "fly_jitter": its engine's unsteady lift, units a second
+	float		flyWobble;			// "fly_wobble": how far it rocks with it, degrees
+	vec3_t		wobble;				// its pitch and roll now from its engine (G_MonsterFlyEngine)
+	vec3_t		hoverPos;			// where a flyer stopped: it holds there
 	float		roll;				// a flyer's banking
 	vec3_t		route[MONSTER_ROUTE];	// a flyer's way through the air (g_airnav.c), when it can't fly straight
 	int			routeLen;

@@ -662,6 +662,184 @@ static void CG_CharacterAttachments( const entityState_t *s1, const bgModel_t *m
 	}
 }
 
+/*
+================
+CG_LampBeam
+
+a lamp's beam through the air, from a to b: a strip facing the eye, width0
+wide at a and width1 at b, its colour fading from alpha to nothing; less
+seen down its length
+================
+*/
+static void CG_LampBeam( qhandle_t shader, const vec3_t a, const vec3_t b, float width0, float width1,
+						 const vec3_t color, float alpha ) {
+	polyVert_t	verts[4];
+	vec3_t		along, toEye, side, mid;
+	float		len, faced;
+	int			i, k;
+
+	VectorSubtract( b, a, along );
+	len = VectorNormalize( along );
+	if ( len < 1 ) {
+		return;
+	}
+	VectorAdd( a, b, mid );
+	VectorScale( mid, 0.5f, mid );
+	VectorSubtract( cg.refdef.vieworg, mid, toEye );
+	VectorNormalize( toEye );
+	CrossProduct( along, toEye, side );
+	faced = VectorNormalize( side );		// (sin of the angle to the eye)
+	if ( faced < 0.05f ) {
+		return;
+	}
+	alpha *= faced;
+	for ( i = 0; i < 4; i++ ) {
+		const float *end = i < 2 ? a : b;
+		float w = 0.5f * ( i < 2 ? width0 : width1 ) * ( ( i == 0 || i == 3 ) ? -1 : 1 );
+		float f = i < 2 ? alpha : 0;
+
+		VectorMA( end, w, side, verts[i].xyz );
+		verts[i].st[0] = ( i == 0 || i == 3 ) ? 0 : 1;
+		verts[i].st[1] = i < 2 ? 0 : 1;
+		for ( k = 0; k < 3; k++ ) {
+			verts[i].modulate[k] = (byte)Com_Clamp( 0, 255, color[k] * f * 255 );
+		}
+		verts[i].modulate[3] = 255;
+	}
+	trap_R_AddPolyToScene( shader, 4, verts, 0, 0 );
+}
+
+/*
+================
+CG_CharacterLamp
+
+its lamp ("light_radius"; a cambot's), drawn as ent is: its light where
+"light_joint" is (else "light_offset" forward, left, up from its origin),
+"light_color"; "light_cone" degrees makes it a spot light along
+"light_dir" (forward, left, up), or, with "light_sweep" (from, to degrees
+of yaw, degrees a second), Daikatana's searching lamp: "light_pitch" down,
+panning from side to side as it goes. Seeing its enemy (the game's
+otherEntityNum), with "light_alarm_color", it turns on it in that colour.
+A "light_flare" sprite at it ("light_flare_alarm" when on its enemy,
+"light_flare_size" across), and a "light_beam" through the air to what it
+lights ("light_beam_length" at most, "light_beam_alpha"); "light_glow" a
+small light about it too
+================
+*/
+static void CG_CharacterLamp( centity_t *cent, const bgModel_t *model, const refEntity_t *ent, const float *joints, int numJoints ) {
+	const entityState_t *s1 = &cent->currentState;
+	vec3_t		color, offset, org, dir, dirLocal, angles;
+	float		radius, cone, sweep[3], glow;
+	int			joint, target = ENTITYNUM_NONE;
+	const char	*s;
+
+	radius = atof( BG_ModelKey( model, "light_radius", "0" ) );
+	if ( radius <= 0 ) {
+		return;
+	}
+	cone = atof( BG_ModelKey( model, "light_cone", "0" ) );
+	VectorSet( color, 1, 1, 1 );
+	sscanf( BG_ModelKey( model, "light_color", "1 1 1" ), "%f %f %f", &color[0], &color[1], &color[2] );
+
+	joint = BG_ModelJointIndex( model, BG_ModelKey( model, "light_joint", "" ) );
+	if ( joint >= 0 && joint < numJoints ) {
+		refEntity_t at;
+
+		CG_JointEntity( ent, joints, numJoints, joint, &at );
+		VectorCopy( at.origin, org );
+	} else {
+		VectorClear( offset );
+		sscanf( BG_ModelKey( model, "light_offset", "0 0 0" ), "%f %f %f", &offset[0], &offset[1], &offset[2] );
+		VectorCopy( cent->lerpOrigin, org );
+		VectorMA( org, offset[0], ent->axis[0], org );
+		VectorMA( org, offset[1], ent->axis[1], org );
+		VectorMA( org, offset[2], ent->axis[2], org );
+	}
+
+	// where it shines: on its enemy (where a player here is, predicted)
+	if ( *BG_ModelKey( model, "light_alarm_color", "" ) && s1->otherEntityNum < ENTITYNUM_MAX_NORMAL ) {
+		const float *at = cg_entities[s1->otherEntityNum].currentValid ? cg_entities[s1->otherEntityNum].lerpOrigin : NULL;
+		int i;
+
+		for ( i = 0; i < CG_MaxSplitView(); i++ ) {
+			if ( cg.localPlayers[i].playerNum == s1->otherEntityNum ) {
+				at = cg.localPlayers[i].predictedPlayerState.origin;
+			}
+		}
+		if ( at ) {
+			target = s1->otherEntityNum;
+			sscanf( BG_ModelKey( model, "light_alarm_color", "1 0 0" ), "%f %f %f", &color[0], &color[1], &color[2] );
+			VectorSubtract( at, org, dir );
+			VectorNormalize( dir );
+		}
+	}
+	if ( target != ENTITYNUM_NONE ) {
+		// (on it, above)
+	} else if ( sscanf( BG_ModelKey( model, "light_sweep", "" ), "%f %f %f", &sweep[0], &sweep[1], &sweep[2] ) == 3 && sweep[1] > sweep[0] ) {
+		// (to and fro between them, a triangle wave)
+		float span = sweep[1] - sweep[0];
+		float t = fmod( cg.time * 0.001f * sweep[2] + s1->number * 37.0f, 2 * span );
+
+		angles[YAW] = cent->lerpAngles[YAW] + sweep[0] + ( t < span ? t : 2 * span - t );
+		angles[PITCH] = atof( BG_ModelKey( model, "light_pitch", "45" ) );
+		angles[ROLL] = 0;
+		AngleVectors( angles, dir, NULL, NULL );
+	} else {
+		VectorSet( dirLocal, 1, 0, 0 );
+		sscanf( BG_ModelKey( model, "light_dir", "1 0 0" ), "%f %f %f", &dirLocal[0], &dirLocal[1], &dirLocal[2] );
+		VectorScale( ent->axis[0], dirLocal[0], dir );
+		VectorMA( dir, dirLocal[1], ent->axis[1], dir );
+		VectorMA( dir, dirLocal[2], ent->axis[2], dir );
+		VectorNormalize( dir );
+	}
+
+	if ( cone > 0 ) {
+		trap_R_AddSpotLightToScene( org, dir, radius, cone, 1.0f, color[0], color[1], color[2], 0 );
+	} else {
+		trap_R_AddLightToScene( org, radius, 1.0f, color[0], color[1], color[2], 0 );
+	}
+	glow = atof( BG_ModelKey( model, "light_glow", "0" ) );
+	if ( glow > 0 ) {
+		trap_R_AddLightToScene( org, glow, 1.0f, color[0], color[1], color[2], 0 );
+	}
+
+	// its flare
+	s = BG_ModelKey( model, target != ENTITYNUM_NONE ? "light_flare_alarm" : "light_flare", "" );
+	if ( !*s ) {
+		s = BG_ModelKey( model, "light_flare", "" );
+	}
+	if ( *s ) {
+		refEntity_t flare;
+
+		vec3_t toEye;
+
+		memset( &flare, 0, sizeof( flare ) );
+		flare.reType = RT_SPRITE;
+		flare.radius = atof( BG_ModelKey( model, "light_flare_size", "16" ) ) * 0.5f;
+		// (out of the lens it's in, toward the eye)
+		VectorSubtract( cg.refdef.vieworg, org, toEye );
+		VectorNormalize( toEye );
+		VectorMA( org, flare.radius * 0.5f, toEye, flare.origin );
+		flare.customShader = trap_R_RegisterShader( s );
+		flare.shaderRGBA[0] = flare.shaderRGBA[1] = flare.shaderRGBA[2] = flare.shaderRGBA[3] = 255;
+		trap_R_AddRefEntityToScene( &flare );
+	}
+
+	// its beam, to what it lights
+	s = BG_ModelKey( model, "light_beam", "" );
+	if ( *s && cone > 0 ) {
+		trace_t	tr;
+		vec3_t	end;
+		float	len = atof( BG_ModelKey( model, "light_beam_length", va( "%f", radius ) ) );
+
+		VectorMA( org, len, dir, end );
+		CG_Trace( &tr, org, NULL, NULL, end, s1->number, MASK_SOLID );
+		len *= tr.fraction;
+		CG_LampBeam( trap_R_RegisterShader( s ), org, tr.endpos, 2.0f, 2 * len * tan( DEG2RAD( cone * 0.5f ) ), color,
+					 atof( BG_ModelKey( model, "light_beam_alpha", "0.3" ) ) );
+	}
+}
+
 void CG_Character( centity_t *cent ) {
 	static const vec4_t hitboxColor = { 1.0f, 0.3f, 0.1f, 1.0f };
 	entityState_t *s1 = &cent->currentState;
@@ -690,36 +868,6 @@ void CG_Character( centity_t *cent ) {
 	// rockgat in the rock, where the grid is black
 	sscanf( BG_ModelKey( model, "light_ambient", "0 0 0" ), "%f %f %f", &ent.ambientLight[0], &ent.ambientLight[1], &ent.ambientLight[2] );
 
-	// its light ("light_radius", "light_color", "light_offset" forward,
-	// left, up; "light_cone" degrees makes it a spot light along "light_dir",
-	// forward, left, up): a cambot's lamp
-	{
-		float radius = atof( BG_ModelKey( model, "light_radius", "0" ) );
-
-		if ( radius > 0 ) {
-			vec3_t color, offset, org, dirLocal, dir;
-			float cone = atof( BG_ModelKey( model, "light_cone", "0" ) );
-
-			color[0] = color[1] = color[2] = 1;
-			offset[0] = offset[1] = offset[2] = 0;
-			sscanf( BG_ModelKey( model, "light_color", "1 1 1" ), "%f %f %f", &color[0], &color[1], &color[2] );
-			sscanf( BG_ModelKey( model, "light_offset", "0 0 0" ), "%f %f %f", &offset[0], &offset[1], &offset[2] );
-			VectorCopy( cent->lerpOrigin, org );
-			VectorMA( org, offset[0], ent.axis[0], org );
-			VectorMA( org, offset[1], ent.axis[1], org );
-			VectorMA( org, offset[2], ent.axis[2], org );
-			if ( cone > 0 ) {
-				VectorSet( dirLocal, 1, 0, 0 );
-				sscanf( BG_ModelKey( model, "light_dir", "1 0 0" ), "%f %f %f", &dirLocal[0], &dirLocal[1], &dirLocal[2] );
-				VectorScale( ent.axis[0], dirLocal[0], dir );
-				VectorMA( dir, dirLocal[1], ent.axis[1], dir );
-				VectorMA( dir, dirLocal[2], ent.axis[2], dir );
-				trap_R_AddSpotLightToScene( org, dir, radius, cone, 1.0f, color[0], color[1], color[2], 0 );
-			} else {
-				trap_R_AddLightToScene( org, radius, 1.0f, color[0], color[1], color[2], 0 );
-			}
-		}
-	}
 	if ( s1->origin2[0] > 0.0f && s1->origin2[0] != 1.0f ) {
 		// "modelscale"
 		VectorScale( ent.axis[0], s1->origin2[0], ent.axis[0] );
@@ -767,6 +915,7 @@ void CG_Character( centity_t *cent ) {
 		trap_R_AddRefEntityToScene( &ent );
 		CG_CharacterAttachments( s1, model, &ent, joints, numJoints );
 	}
+	CG_CharacterLamp( cent, model, &ent, joints, numJoints );
 
 	for ( c = 0; c < MAX_ANIM_CHANNELS; c++ ) {
 		CG_CharacterFrameCommands( cent, s1->modelindex2, c, &ent, joints, numJoints );
