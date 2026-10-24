@@ -954,8 +954,8 @@ void G_PhysicsSetParts( gentity_t *ent, const char *model, float scale, int fram
 	traceModel_t trms[MAX_PROP_PARTS];
 	int i, numParts;
 
-	if ( maxParts <= 1 || !ent->body ) {
-		return;
+	if ( ( maxParts >= 0 && maxParts <= 1 ) || !ent->body ) {
+		return;		// (negative: a hull for each piece of its mesh)
 	}
 	numParts = BG_PropModelTraceModels( model, scale, frame, maxParts, trms );
 	if ( numParts <= 1 ) {
@@ -1565,6 +1565,8 @@ A rigid body that falls, tumbles and gets pushed around.
 				fall on their boxes)
 "hull_parts"	how many convex pieces a static one's model may collide as
 				(default 8, 1 for one hull around all of it)
+"hull_pieces"	1: a static one collides as a hull for each separate piece of its
+				mesh (a broken coffin's boards), hull_parts of them at most
 "health"		breaks when it has taken that much damage (default 0, unbreakable)
 "breaksound"	played when it breaks
 */
@@ -1574,7 +1576,7 @@ void SP_func_physics( gentity_t *ent ) {
 	vec3_t mins, maxs, origin, angles, centerOfMass, inertia[3];
 	traceModel_t trm;
 	propShape_t shape;
-	int isStatic, upright, health, frame, parts;
+	int isStatic, upright, health, frame, parts, pieces;
 	gentity_t *prop;
 
 	G_SpawnString( "model", "", &model );
@@ -1649,7 +1651,8 @@ void SP_func_physics( gentity_t *ent ) {
 	// scenery that doesn't move collides as convex pieces of its model
 	if ( prop->body->isStatic && model[0] ) {
 		G_SpawnInt( "hull_parts", va( "%d", MAX_PROP_PARTS ), &parts );
-		G_PhysicsSetParts( prop, model, scale, frame, parts );
+		G_SpawnInt( "hull_pieces", "0", &pieces );
+		G_PhysicsSetParts( prop, model, scale, frame, pieces ? -parts : parts );
 	}
 	G_SpawnInt( "health", "0", &health );
 	if ( health > 0 ) {

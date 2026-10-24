@@ -338,11 +338,12 @@ qboolean CG_PropTraceModel( const entityState_t *s1, traceModel_t *trm ) {
 CG_PropTraceModels
 
 The trace models the game collides the prop with: the pieces of a compound
-one (origin2[1] is how many it may have), or the one. Returns how many.
+one (origin2[1] is how many it may have; negative, a hull for each piece of
+its mesh), or the one. Returns how many.
 ==================
 */
 int CG_PropTraceModels( const entityState_t *s1, traceModel_t *trms ) {
-	if ( s1->modelindex == PROP_MODEL && s1->origin2[1] > 1 ) {
+	if ( s1->modelindex == PROP_MODEL && ( s1->origin2[1] > 1 || s1->origin2[1] < 0 ) ) {
 		return BG_PropModelTraceModels( CG_ConfigString( CS_MODELS + s1->modelindex2 ), s1->origin2[0], s1->frame,
 										(int)s1->origin2[1], trms );
 	}

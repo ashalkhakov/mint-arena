@@ -898,13 +898,120 @@ static qboolean Hull_SplitPiece( const hullPiece_t *piece, hullPiece_t *below, h
 
 /*
 ================
-BG_PropModelTraceModels
+Hull_SplitByPiece
 
-Up to maxParts convex trace models that together wrap the model's mesh in
-the frame at the scale (see above), made once per model, scale, frame and
-maxParts. Returns how many, 0 for a model that can't be read.
+The model's separate pieces of mesh (triangles sharing a corner, a coffin's
+boards each its own box): each its own hull, the smallest merged into the
+nearest while there are more than maxPieces. 0 for a model too big to look
+through, or of one piece (cut it instead).
 ================
 */
+#define PIECE_MAX_TRIS			1024
+#define PIECE_WELD				0.01f	// corners this close are one
+
+static int Hull_PieceRoot( int *up, int t ) {
+	while ( up[t] != t ) {
+		up[t] = up[up[t]];
+		t = up[t];
+	}
+	return t;
+}
+
+static int Hull_SplitByPiece( const hullPiece_t *whole, hullPiece_t *pieces, int maxPieces ) {
+	int *up, *root, numRoots, i, j, a, b, k, l, best;
+	float d, bestDist;
+	vec3_t ci, cj;
+
+	if ( whole->numTris > PIECE_MAX_TRIS ) {
+		return 0;
+	}
+	up = trap_HeapMalloc( whole->numTris * sizeof( int ) );
+	for ( i = 0; i < whole->numTris; i++ ) {
+		up[i] = i;
+	}
+	for ( a = 0; a < whole->numTris; a++ ) {
+		for ( b = a + 1; b < whole->numTris; b++ ) {
+			for ( k = 0; k < 9; k++ ) {
+				if ( Distance( whole->tris[a * 3 + k / 3], whole->tris[b * 3 + k % 3] ) < PIECE_WELD ) {
+					up[Hull_PieceRoot( up, a )] = Hull_PieceRoot( up, b );
+					break;
+				}
+			}
+		}
+	}
+
+	// the pieces: a triangle's root each
+	root = trap_HeapMalloc( whole->numTris * sizeof( int ) );
+	numRoots = 0;
+	for ( i = 0; i < whole->numTris; i++ ) {
+		if ( Hull_PieceRoot( up, i ) == i ) {
+			root[numRoots++] = i;
+		}
+	}
+	if ( numRoots < 2 ) {
+		trap_HeapFree( root );
+		trap_HeapFree( up );
+		return 0;
+	}
+	for ( i = 0; i < numRoots; i++ ) {
+		pieces[i].tris = NULL;
+		pieces[i].numTris = 0;
+	}
+	// (more than there's room for: each in a list of its own first)
+	{
+		hullPiece_t *all = trap_HeapMalloc( numRoots * sizeof( hullPiece_t ) );
+
+		for ( i = 0; i < numRoots; i++ ) {
+			all[i].tris = trap_HeapMalloc( whole->numTris * 3 * sizeof( vec3_t ) );
+			all[i].numTris = 0;
+		}
+		for ( i = 0; i < whole->numTris; i++ ) {
+			for ( j = 0; root[j] != Hull_PieceRoot( up, i ); j++ ) {
+			}
+			memcpy( all[j].tris[all[j].numTris * 3], whole->tris[i * 3], 3 * sizeof( vec3_t ) );
+			all[j].numTris++;
+		}
+		for ( i = 0; i < numRoots; i++ ) {
+			Hull_PieceBounds( &all[i] );
+		}
+		// the smallest into the nearest, till they fit
+		while ( numRoots > maxPieces ) {
+			l = 0;
+			for ( i = 1; i < numRoots; i++ ) {
+				if ( all[i].numTris < all[l].numTris ) {
+					l = i;
+				}
+			}
+			VectorAdd( all[l].bounds[0], all[l].bounds[1], ci );
+			best = -1;
+			bestDist = 0.0f;
+			for ( j = 0; j < numRoots; j++ ) {
+				if ( j == l ) {
+					continue;
+				}
+				VectorAdd( all[j].bounds[0], all[j].bounds[1], cj );
+				d = Distance( ci, cj );
+				if ( best < 0 || d < bestDist ) {
+					best = j;
+					bestDist = d;
+				}
+			}
+			memcpy( all[best].tris[all[best].numTris * 3], all[l].tris, all[l].numTris * 3 * sizeof( vec3_t ) );
+			all[best].numTris += all[l].numTris;
+			Hull_PieceBounds( &all[best] );
+			trap_HeapFree( all[l].tris );
+			all[l] = all[--numRoots];
+		}
+		for ( i = 0; i < numRoots; i++ ) {
+			pieces[i] = all[i];
+		}
+		trap_HeapFree( all );
+	}
+	trap_HeapFree( root );
+	trap_HeapFree( up );
+	return numRoots;
+}
+
 #define MAX_PARTS_CACHE		64
 
 typedef struct {
@@ -919,6 +1026,17 @@ typedef struct {
 static partsCache_t	partsCache[MAX_PARTS_CACHE];
 static int			numPartsCache;
 
+/*
+================
+BG_PropModelTraceModels
+
+Up to maxParts convex trace models that together wrap the model's mesh in
+the frame at the scale (see above), made once per model, scale, frame and
+maxParts. maxParts negative: a hull for each separate piece of the mesh
+(Hull_SplitByPiece: a coffin's boards), as many at most. Returns how many,
+0 for a model that can't be read.
+================
+*/
 int BG_PropModelTraceModels( const char *modelName, float scale, int frame, int maxParts, traceModel_t *trms ) {
 	partsCache_t *cache;
 	hullPiece_t pieces[MAX_PROP_PARTS], below, above;
@@ -926,18 +1044,21 @@ int BG_PropModelTraceModels( const char *modelName, float scale, int frame, int 
 	hull_t *hull;
 	float saving, bestSaving, total;
 	int i, numPieces, best;
+	qboolean byPiece;
 
 	if ( scale <= 0.0f ) {
 		scale = 1.0f;
 	}
-	maxParts = Com_Clamp( 1, MAX_PROP_PARTS, maxParts );
+	// (negative: a hull for each piece of mesh, as many at most)
+	byPiece = maxParts < 0;
+	maxParts = Com_Clamp( 1, MAX_PROP_PARTS, byPiece ? -maxParts : maxParts );
 	if ( maxParts == 1 ) {
 		return BG_PropModelTraceModel( modelName, scale, frame, trms ) ? 1 : 0;
 	}
 
 	for ( i = 0; i < numPartsCache; i++ ) {
 		cache = &partsCache[i];
-		if ( cache->scale == scale && cache->frame == frame && cache->maxParts == maxParts
+		if ( cache->scale == scale && cache->frame == frame && cache->maxParts == ( byPiece ? -maxParts : maxParts )
 			&& !Q_stricmp( cache->model, modelName ) ) {
 			memcpy( trms, cache->trms, cache->numParts * sizeof( trms[0] ) );
 			return cache->numParts;
@@ -951,7 +1072,7 @@ int BG_PropModelTraceModels( const char *modelName, float scale, int frame, int 
 	Q_strncpyz( cache->model, modelName, sizeof( cache->model ) );
 	cache->scale = scale;
 	cache->frame = frame;
-	cache->maxParts = maxParts;
+	cache->maxParts = byPiece ? -maxParts : maxParts;
 	cache->numParts = 0;
 	cache->trms = NULL;
 
@@ -969,6 +1090,18 @@ int BG_PropModelTraceModels( const char *modelName, float scale, int frame, int 
 	Hull_PieceBounds( &pieces[0] );
 	numPieces = 1;
 	total = Hull_BoxVolume( (const vec3_t *)pieces[0].bounds );
+	if ( byPiece ) {
+		hullPiece_t whole = pieces[0];
+
+		numPieces = Hull_SplitByPiece( &whole, pieces, maxParts );
+		if ( numPieces ) {
+			trap_HeapFree( whole.tris );
+			maxParts = numPieces;		// (no cutting after)
+		} else {
+			pieces[0] = whole;			// one piece, or too big: cut it as any other
+			numPieces = 1;
+		}
+	}
 
 	// cut the piece that saves the most until it isn't worth it
 	while ( numPieces < maxParts ) {
