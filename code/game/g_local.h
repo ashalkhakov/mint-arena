@@ -319,6 +319,7 @@ struct gentity_s {
 	int				characterDef;		// a skeletal character's model def (bg_models), ET_CHARACTER or a player
 	struct characterHistory_s	*characterHistory;	// its animation and place the last frames
 	struct gRagdoll_s	*ragdoll;			// gone limp: its articulated figure (g_ragdoll.c)
+	struct gVehicle_s	*vehicle;			// a vehicle: its wheels, steering, driver (g_vehicle.c)
 	struct rigidBody_s	*body;			// physics props, see g_physics.c
 	vec3_t			pmoveStartVelocity;	// player velocity before Pmove clipped it, for pushing props
 
@@ -423,6 +424,7 @@ struct gplayer_s {
 	// the rest of the structure is private to game
 	playerPersistant_t	pers;
 	qboolean	cinematicHidden;		// hidden for a cinematic (g_cinematic.c)
+	gentity_t	*driving;				// the vehicle he's in (g_vehicle.c)
 	int			cinematicOldUp;			// last frame's upmove and buttons, for a press that skips one
 	int			cinematicOldButtons;
 	playerSession_t		sess;
@@ -1003,6 +1005,18 @@ void		G_WriteRagdollSnapshot( gentity_t *ent, bitMsgDelta_t *delta );
 //
 void		G_WriteSnapshot( int clientNum, int sequence, int baseSequence );
 void		G_RunRagdoll( gentity_t *ent );
+struct afPhysics_s *G_RagdollPhysics( gentity_t *ent );
+void		G_RagdollLinkBodies( gentity_t *ent );
+
+//
+// g_vehicle.c
+//
+void		SP_vehicle( gentity_t *ent );
+void		G_VehicleSeat( gentity_t *player );
+qboolean	G_VehicleExit( gentity_t *vehicle, qboolean force );
+void		G_FreeVehicle( gentity_t *ent );
+void		G_VehicleEngine( gentity_t *ent, qboolean on );
+void		G_VehicleScriptDrive( gentity_t *ent, float forward, float steer );
 void		G_RagdollImpulse( gentity_t *ent, const vec3_t point, const vec3_t impulse );
 void		G_FreeRagdoll( gentity_t *ent );
 
@@ -1101,6 +1115,8 @@ extern	vmCvar_t	g_unlimitedSaves;
 extern	vmCvar_t	g_weaponRespawn;
 extern	vmCvar_t	g_touchPickup;
 extern	vmCvar_t	g_debugFrob;
+extern	vmCvar_t	g_vehicleVelocity;
+extern	vmCvar_t	g_vehicleForce;
 extern	vmCvar_t	g_weaponTeamRespawn;
 extern	vmCvar_t	g_synchronousClients;
 extern	vmCvar_t	g_motd;

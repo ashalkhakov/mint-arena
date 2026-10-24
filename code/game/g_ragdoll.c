@@ -254,6 +254,49 @@ void G_RagdollImpulse( gentity_t *ent, const vec3_t point, const vec3_t impulse 
 	AF_ApplyImpulse( &rd->af.physics, nearest, point, impulse );
 }
 
+/*
+================
+G_RagdollLinkBodies
+
+a vehicle's figure in the clip world as its bodies, each where it is (as
+Doom 3's idAFBody's clip models): players and shots hit the truck's shape,
+not a box about it. Its own motion leaves them out (they're its own)
+================
+*/
+void G_RagdollLinkBodies( gentity_t *ent ) {
+	gRagdoll_t *rd = ent->ragdoll;
+	afBody_t *body;
+	int i;
+
+	ClipModelFree( &ent->clipModel );		// (no box)
+	ClearBounds( ent->r.absmin, ent->r.absmax );
+	for ( i = 0; i < rd->af.physics.numBodies; i++ ) {
+		body = &rd->af.physics.bodies[i];
+		rd->clips[i].contents = body->contents;
+		if ( !body->contents ) {
+			ClipModelUnlink( &rd->clips[i] );
+			continue;
+		}
+		ClipModelLink2( &rd->clips[i], &g_clip, (sharedEntity_t *)ent, ent->s.number, body->current->worldOrigin,
+						(const vec3_t *)body->current->worldAxis, -1 );
+		AddPointToBounds( rd->clips[i].absBounds[0], ent->r.absmin, ent->r.absmax );
+		AddPointToBounds( rd->clips[i].absBounds[1], ent->r.absmin, ent->r.absmax );
+	}
+	trap_LinkEntity( ent );
+}
+
+/*
+================
+G_RagdollPhysics
+
+the figure's physics, for what drives it (a vehicle, g_vehicle.c); NULL
+without one
+================
+*/
+afPhysics_t *G_RagdollPhysics( gentity_t *ent ) {
+	return ent->ragdoll ? &ent->ragdoll->af.physics : NULL;
+}
+
 void G_FreeRagdoll( gentity_t *ent ) {
 	gRagdoll_t *rd = ent->ragdoll;
 	int i;

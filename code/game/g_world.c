@@ -154,6 +154,11 @@ void G_LinkEntity( gentity_t *ent ) {
 		G_PhysicsLinkProp( ent );
 		return;
 	}
+	// a vehicle its figure's bodies (g_ragdoll.c)
+	if ( ent->vehicle && ent->ragdoll ) {
+		G_RagdollLinkBodies( ent );
+		return;
+	}
 
 	// get the position
 	origin = ent->r.currentOrigin;

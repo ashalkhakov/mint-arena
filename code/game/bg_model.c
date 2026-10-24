@@ -480,6 +480,22 @@ static void BG_LoadModel( bgModel_t *model, const dict_t *def, const char *name 
 		}
 	}
 
+	// a vehicle's wheels
+	{
+		char wheels[MAX_STRING_CHARS], *p = wheels, *tok;
+		int j;
+
+		Q_strncpyz( wheels, DictGetStringReference( def, "wheel_joints", "" ), sizeof( wheels ) );
+		model->wheelRadius = DictGetFloat( def, "wheel_radius", "0" );
+		while ( model->numWheels < MAX_MODEL_WHEELS && *( tok = COM_Parse( &p ) ) ) {
+			if ( ( j = BG_ModelJointIndex( model, tok ) ) >= 0 ) {
+				model->wheelJoints[model->numWheels++] = j;
+			} else {
+				Com_Printf( S_COLOR_YELLOW "WARNING: model %s: no wheel joint %s\n", name, tok );
+			}
+		}
+	}
+
 	// the joints of the attachments
 	for ( i = 0; i < model->numAttachments; i++ ) {
 		model->attachments[i].jointIndex = BG_ModelJointIndex( model, model->attachments[i].joint );

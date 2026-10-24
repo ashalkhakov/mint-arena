@@ -125,6 +125,14 @@ typedef struct afConstraint_s {
 	float					friction;
 	afLimit_t				limit;
 
+	// a hinge's steering (idAFConstraint_HingeSteering): turned toward
+	// steerAngle degrees, steerSpeed at most a frame (a vehicle's front wheels)
+	qboolean				steering;
+	float					steerAngle, steerSpeed;
+
+	// a spring's (idAFConstraint_Spring): a vehicle's shock absorbers
+	float					kstretch, kcompress, damping, restLength, minLength, maxLength;
+
 	// a frame constraint's
 	struct afConstraint_s	*joint;			// what a joint friction or limit belongs to
 	contactInfo_t			contact;		// contact
@@ -278,6 +286,13 @@ void		AF_SetConeLimit( afConstraint_t *c, const vec3_t coneAxis, float coneAngle
 void		AF_SetPyramidLimit( afConstraint_t *c, const vec3_t pyramidAxis, const vec3_t baseAxis,
 							float angle1, float angle2, const vec3_t body1Axis );
 void		AF_SetNoLimit( afConstraint_t *c );
+afConstraint_t *AF_GetConstraint( const afPhysics_t *af, const char *name );
+float		AF_HingeAngle( const afConstraint_t *c );
+void		AF_SetSteerAngle( afConstraint_t *c, float degrees );
+void		AF_SetSteerSpeed( afConstraint_t *c, float speed );
+void		AF_SetSpringAnchors( afConstraint_t *c, const vec3_t worldAnchor1, const vec3_t worldAnchor2 );
+void		AF_SetSpring( afConstraint_t *c, float stretch, float compress, float damping, float restLength );
+void		AF_SetSpringLimit( afConstraint_t *c, float minLength, float maxLength );
 
 qboolean	AF_Evaluate( afPhysics_t *af, int timeStepMSec, int endTimeMSec );
 void		AF_Activate( afPhysics_t *af );
@@ -350,6 +365,7 @@ typedef struct {
 	afLimitType_t	limit;
 	afVector_t	limitAxis;
 	float		limitAngles[3];
+	float		stretch, compress, damping, restLength, minLength, maxLength;	// a spring's
 } afDeclConstraint_t;
 
 typedef struct {

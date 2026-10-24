@@ -569,6 +569,63 @@ static void CG_JointEntity( const refEntity_t *ent, const float *joints, int num
 
 /*
 ================
+CG_CharacterWheels
+
+idAFEntity_VehicleSixWheels::Think's wheels turned for the eye: the figure
+holds them still (they slide, driven by their contact motors), so each turns
+about its axle (its joint's y) by how far it went along the vehicle since
+the last frame drawn, over its radius
+================
+*/
+static void CG_CharacterWheels( centity_t *cent, const bgModel_t *model, const refEntity_t *ent, float *joints, int numJoints ) {
+	int i, j, r;
+	float *m, d, c, s, x[3], z[3], radius;
+	vec3_t pos, axisX, move;
+
+	if ( !model->numWheels || model->wheelRadius <= 0.0f ) {
+		return;
+	}
+	radius = model->wheelRadius * ( cent->currentState.origin2[0] > 0.0f ? cent->currentState.origin2[0] : 1.0f );
+	for ( i = 0; i < model->numWheels; i++ ) {
+		j = model->wheelJoints[i];
+		if ( j >= numJoints ) {
+			continue;
+		}
+		m = &joints[12 * j];
+		// where it is in the world, and the vehicle's length (its x) there
+		VectorCopy( ent->origin, pos );
+		VectorClear( axisX );
+		for ( r = 0; r < 3; r++ ) {
+			VectorMA( pos, m[r * 4 + 3], ent->axis[r], pos );
+			VectorMA( axisX, m[r * 4 + 0], ent->axis[r], axisX );
+		}
+		VectorNormalize( axisX );
+		if ( cent->wheelValid ) {
+			VectorSubtract( pos, cent->wheelLast[i], move );
+			d = DotProduct( move, axisX );
+			if ( fabs( d ) < 4.0f * radius ) {		// (not a teleport)
+				cent->wheelAngles[i] = AngleNormalize360( cent->wheelAngles[i] + RAD2DEG( d / radius ) );
+			}
+		}
+		VectorCopy( pos, cent->wheelLast[i] );
+
+		// about its y: x toward -z, z toward x
+		c = cos( DEG2RAD( cent->wheelAngles[i] ) );
+		s = sin( DEG2RAD( cent->wheelAngles[i] ) );
+		for ( r = 0; r < 3; r++ ) {
+			x[r] = m[r * 4 + 0];
+			z[r] = m[r * 4 + 2];
+		}
+		for ( r = 0; r < 3; r++ ) {
+			m[r * 4 + 0] = c * x[r] - s * z[r];
+			m[r * 4 + 2] = s * x[r] + c * z[r];
+		}
+	}
+	cent->wheelValid = qtrue;
+}
+
+/*
+================
 CG_CharacterAttachments
 
 A model def's attachments ("attach <joint>": Hiro's sword) at their joints,
@@ -687,7 +744,21 @@ void CG_Character( centity_t *cent ) {
 		BG_ModelWalkIK( model, joints, numJoints, ent.origin, (const vec3_t *)ent.axis, ent.origin[2] + s1->mins[2],
 						qtrue, s1->number, cg.time, &cent->ik );
 	}
+	if ( numJoints > 0 && model->numWheels ) {
+		// a vehicle: where its driver sees from (its "eyes"), for his view
+		int eyes = BG_ModelJointIndex( model, "eyes" );
+		orientation_t tag;
+
+		if ( eyes >= 0 && eyes < numJoints ) {
+			BG_JointOrientation( joints, eyes, &tag );
+			VectorSubtract( ent.origin, cent->lerpOrigin, cent->eyesOffset );
+			for ( i = 0; i < 3; i++ ) {
+				VectorMA( cent->eyesOffset, tag.origin[i], ent.axis[i], cent->eyesOffset );
+			}
+		}
+	}
 	if ( numJoints > 0 ) {
+		CG_CharacterWheels( cent, model, &ent, joints, numJoints );
 		ent.skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
 		CG_StoreHitboxes( cent, model, joints, numJoints, &ent );
 	}

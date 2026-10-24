@@ -1018,6 +1018,35 @@ static int CG_CalcViewValues( void ) {
 		VectorCopy( cg.firstPersonViewAngles, cg.refdefViewAngles );
 	}
 
+	// driving a vehicle (g_vehicle.c): the vehicle as it's drawn, between its
+	// snapshots, not where the server last put him: from behind it, looking
+	// where he looks (cg_vehicleView 0: it has no inside modelled), or from
+	// the driver's seat (1)
+	if ( ps->stats[STAT_VEHICLE] > 0 && ps->stats[STAT_VEHICLE] <= MAX_GENTITIES ) {
+		centity_t *vehicle = &cg_entities[ps->stats[STAT_VEHICLE] - 1];
+		float scale = vehicle->currentState.origin2[0] > 0.0f ? vehicle->currentState.origin2[0] : 1.0f;
+		vec3_t origin, d, forward, end, mins = { -8, -8, -8 }, maxs = { 8, 8, 8 };
+		trace_t tr;
+
+		if ( vehicle->currentValid ) {
+			VectorCopy( vehicle->currentState.pos.trBase, origin );
+			if ( vehicle->interpolate ) {
+				VectorSubtract( vehicle->nextState.pos.trBase, origin, d );
+				VectorMA( origin, cg.frameInterpolation, d, origin );
+			}
+			if ( cg_vehicleView.integer ) {
+				VectorAdd( origin, vehicle->eyesOffset, cg.refdef.vieworg );
+			} else {
+				origin[2] += cg_vehicleHeight.value * scale;
+				AngleVectors( cg.refdefViewAngles, forward, NULL, NULL );
+				VectorMA( origin, -cg_vehicleRange.value * scale, forward, end );
+				CG_Trace( &tr, origin, mins, maxs, end, vehicle->currentState.number, MASK_SOLID );
+				VectorCopy( tr.endpos, cg.refdef.vieworg );
+			}
+			VectorCopy( cg.refdef.vieworg, cg.firstPersonViewOrg );
+		}
+	}
+
 	// position eye relative to origin
 	AnglesToAxis( cg.refdefViewAngles, cg.refdef.viewaxis );
 	AnglesToAxis( cg.firstPersonViewAngles, cg.firstPersonViewAxis );

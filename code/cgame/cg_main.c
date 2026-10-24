@@ -174,6 +174,9 @@ vmCvar_t	cg_drawTimer;
 vmCvar_t	cg_drawFPS;
 vmCvar_t	cg_drawHitboxes;
 vmCvar_t	cg_drawSkeleton;
+vmCvar_t	cg_vehicleView;
+vmCvar_t	cg_vehicleRange;
+vmCvar_t	cg_vehicleHeight;
 vmCvar_t	cg_ragdoll;
 vmCvar_t	cg_drawRagdolls;
 vmCvar_t	cg_drawAAS;
@@ -397,6 +400,9 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_drawFPS, "cg_drawFPS", "0", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_drawHitboxes, "cg_drawHitboxes", "0", CVAR_CHEAT, RANGE_BOOL },
 	{ &cg_drawSkeleton, "cg_drawSkeleton", "0", CVAR_CHEAT, RANGE_INT( 0, 2 ) },
+	{ &cg_vehicleView, "cg_vehicleView", "0", CVAR_ARCHIVE, RANGE_INT( 0, 1 ) },	// driving: 0 behind the vehicle, 1 from the driver's seat
+	{ &cg_vehicleRange, "cg_vehicleRange", "300", CVAR_ARCHIVE, RANGE_ALL },		// how far behind
+	{ &cg_vehicleHeight, "cg_vehicleHeight", "64", CVAR_ARCHIVE, RANGE_ALL },		// how far above its middle
 	{ &cg_ragdoll, "cg_ragdoll", "1", CVAR_ARCHIVE, RANGE_BOOL },	// dead players go limp (Doom 3's articulated figures)
 	{ &cg_drawRagdolls, "cg_drawRagdolls", "0", CVAR_CHEAT, RANGE_BOOL },	// Doom 3's af_showBodies
 	{ &cg_drawAAS, "cg_drawAAS", "0", CVAR_CHEAT, RANGE_INT( 0, 3 ) },

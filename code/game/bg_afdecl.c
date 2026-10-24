@@ -286,6 +286,7 @@ static void AF_DeclConstraintDefault( const afDecl_t *decl, afDeclConstraint_t *
 	AF_CoordsVector( &c->shaft[1], 0, 0, 1 );
 	c->limit = AF_LIMIT_NONE;
 	AF_CoordsVector( &c->limitAxis, 0, 0, -1 );
+	c->stretch = c->compress = c->damping = 1.0f;		// a spring's (idDeclAF_Constraint::Init)
 }
 
 /*
@@ -451,8 +452,22 @@ static qboolean AF_ParseConstraint( afLexer_t *lex, afDecl_t *decl, afConstraint
 		} else if ( type == CONSTRAINT_FIXED ) {
 			AF_Error( lex, "unknown token %s in fixed constraint", lex->token );
 			return qfalse;
-		} else if ( !Q_stricmp( lex->token, "anchor" ) ) {
+		} else if ( !Q_stricmp( lex->token, "anchor" ) || ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "anchor1" ) ) ) {
 			AF_ParseVector( lex, &c->anchor );
+		} else if ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "anchor2" ) ) {
+			AF_ParseVector( lex, &c->anchor2 );
+		} else if ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "stretch" ) ) {
+			c->stretch = AF_ParseFloat( lex );
+		} else if ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "compress" ) ) {
+			c->compress = AF_ParseFloat( lex );
+		} else if ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "damping" ) ) {
+			c->damping = AF_ParseFloat( lex );
+		} else if ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "restLength" ) ) {
+			c->restLength = AF_ParseFloat( lex );
+		} else if ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "minLength" ) ) {
+			c->minLength = AF_ParseFloat( lex );
+		} else if ( type == CONSTRAINT_SPRING && !Q_stricmp( lex->token, "maxLength" ) ) {
+			c->maxLength = AF_ParseFloat( lex );
 		} else if ( !Q_stricmp( lex->token, "friction" ) ) {
 			c->friction = AF_ParseFloat( lex );
 		} else if ( type == CONSTRAINT_UNIVERSALJOINT && !Q_stricmp( lex->token, "shafts" ) ) {
@@ -605,10 +620,12 @@ static qboolean AF_ParseDecl( afLexer_t *lex, afDecl_t *decl ) {
 			AF_ParseConstraint( lex, decl, CONSTRAINT_UNIVERSALJOINT );
 		} else if ( !Q_stricmp( lex->token, "hinge" ) ) {
 			AF_ParseConstraint( lex, decl, CONSTRAINT_HINGE );
+		} else if ( !Q_stricmp( lex->token, "spring" ) ) {
+			AF_ParseConstraint( lex, decl, CONSTRAINT_SPRING );
 		} else if ( !strcmp( lex->token, "}" ) ) {
 			break;
 		} else {
-			AF_Error( lex, "unknown keyword %s (only ragdoll constraints are supported)", lex->token );
+			AF_Error( lex, "unknown keyword %s (only ragdoll and vehicle constraints are supported)", lex->token );
 		}
 	}
 	if ( lex->error ) {
@@ -1032,8 +1049,20 @@ static qboolean AF_LoadConstraint( afFigure_t *af, const afDeclConstraint_t *fc 
 	}
 
 	AF_FinishVector( af, &fc->anchor, anchor );
-	AF_SetAnchor( c, anchor );
 	c->friction = fc->friction;
+	if ( fc->type == CONSTRAINT_SPRING ) {
+		// idAF::Load's spring: its two ends, how it pushes, its lengths
+		vec3_t anchor2;
+
+		AF_FinishVector( af, &fc->anchor2, anchor2 );
+		AF_SetSpringAnchors( c, anchor, anchor2 );
+		// (a figure at a scale: its lengths too, and stiffer, its mass going
+		// with the volume, so it's squeezed in proportion)
+		AF_SetSpring( c, fc->stretch * af->scale, fc->compress * af->scale, fc->damping, fc->restLength * af->scale );
+		AF_SetSpringLimit( c, fc->minLength * af->scale, fc->maxLength * af->scale );
+		return qtrue;
+	}
+	AF_SetAnchor( c, anchor );
 
 	switch ( fc->type ) {
 		case CONSTRAINT_BALLANDSOCKETJOINT:

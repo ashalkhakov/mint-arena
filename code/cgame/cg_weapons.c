@@ -969,6 +969,11 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 		return;
 	}
 
+	// driving a vehicle: his hands are on the wheel
+	if ( ps->stats[STAT_VEHICLE] ) {
+		return;
+	}
+
 	if ( CG_InCinematic() ) {
 		return;
 	}

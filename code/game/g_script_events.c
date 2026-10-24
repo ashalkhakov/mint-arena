@@ -688,6 +688,15 @@ static void Event_SetFlyOffset( gentity_t *self, const intptr_t *args ) {
 	self->monster.flyOffset = EVARG_INT( 0 );
 }
 
+// a vehicle's (g_vehicle.c): a script driving it, its engine
+static void Event_VehicleDrive( gentity_t *self, const intptr_t *args ) {
+	G_VehicleScriptDrive( self, EVARG_FLOAT( 0 ), EVARG_FLOAT( 1 ) );
+}
+
+static void Event_VehicleEngine( gentity_t *self, const intptr_t *args ) {
+	G_VehicleEngine( self, EVARG_FLOAT( 0 ) != 0.0f );
+}
+
 static void Event_EnableGravity( gentity_t *self, const intptr_t *args ) {
 	MONSTER_OR_RETURN( (void)0 );
 	self->monster.flags &= ~MONF_NOGRAVITY;
@@ -1216,6 +1225,8 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "stop",				NULL,		0,		Event_CameraStop },
 	{ "isPerched",			NULL,		'd',	Event_IsPerched },
 	{ "setFlyOffset",		"d",		0,		Event_SetFlyOffset },
+	{ "vehicleDrive",		"ff",		0,		Event_VehicleDrive },
+	{ "vehicleEngine",		"f",		0,		Event_VehicleEngine },
 	{ "enableGravity",		NULL,		0,		Event_EnableGravity },
 	{ "disableGravity",		NULL,		0,		Event_DisableGravity },
 	{ "allowMovement",		"f",		0,		Event_AllowMovement },

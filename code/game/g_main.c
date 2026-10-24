@@ -91,6 +91,8 @@ vmCvar_t	g_disasm;
 vmCvar_t	g_weaponRespawn;
 vmCvar_t	g_touchPickup;
 vmCvar_t	g_debugFrob;
+vmCvar_t	g_vehicleVelocity;
+vmCvar_t	g_vehicleForce;
 vmCvar_t	g_weaponTeamRespawn;
 vmCvar_t	g_motd;
 vmCvar_t	g_synchronousClients;
@@ -172,6 +174,8 @@ static cvarTable_t		gameCvarTable[] = {
 	// items are taken by looking at them and pressing use (g_frob.c), not by walking over them
 	{ &g_touchPickup, "g_touchPickup", "0", CVAR_SERVERINFO, 0, RANGE_BOOL },
 	{ &g_debugFrob, "g_debugFrob", "0", 0, 0, RANGE_BOOL },
+	{ &g_vehicleVelocity, "g_vehicleVelocity", "1000", 0, 0, RANGE_ALL },	// Doom 3's: a driven wheel's speed
+	{ &g_vehicleForce, "g_vehicleForce", "50000", 0, 0, RANGE_ALL },		// and its force at full throttle
 	{ &g_weaponTeamRespawn, "g_weaponTeamRespawn", "30", 0, GCF_TRACK_CHANGE, RANGE_ALL },
 	{ &g_forcerespawn, "g_forcerespawn", "20", 0, GCF_TRACK_CHANGE, RANGE_ALL },
 	{ &g_inactivity, "g_inactivity", "0", 0, GCF_TRACK_CHANGE, RANGE_BOOL },

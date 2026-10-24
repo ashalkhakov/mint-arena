@@ -1036,6 +1036,8 @@ static void AF_EvaluateUniversal( afPhysics_t *af, afConstraint_t *c, float invT
 AF_EvaluateHinge
 ================
 */
+static void AF_HingeSteeringAdd( afPhysics_t *af, afConstraint_t *hinge, float invTimeStep );
+
 static void AF_EvaluateHinge( afPhysics_t *af, afConstraint_t *c, float invTimeStep ) {
 	vec3_t a1, a2, x1, x2, cross, vecX, vecY, t, identity[3], skew[3];
 	afBody_t *master = AF_MasterBody( c );
@@ -1089,6 +1091,246 @@ static void AF_EvaluateHinge( afPhysics_t *af, afConstraint_t *c, float invTimeS
 	VecXClamp( &c->c1, -ERROR_REDUCTION_MAX, ERROR_REDUCTION_MAX );
 
 	AF_LimitAdd( af, c, invTimeStep );
+	if ( c->steering ) {
+		AF_HingeSteeringAdd( af, c, invTimeStep );
+	}
+}
+
+/*
+================
+AF_HingeAngle
+
+idAFConstraint_Hinge::GetAngle: how far the hinge has turned from where it
+was made, degrees
+================
+*/
+float AF_HingeAngle( const afConstraint_t *c ) {
+	vec3_t m[3], axis[3];
+	rotation_t rotation;
+
+	// body1's axis * body2's transposed * the initial transposed
+	if ( c->body2 ) {
+		Mat3MulTranspose( (const vec3_t *)c->body1->current->worldAxis, (const vec3_t *)c->body2->current->worldAxis, m );
+	} else {
+		AxisCopy( c->body1->current->worldAxis, m );
+	}
+	Mat3MulTranspose( (const vec3_t *)m, (const vec3_t *)c->initialAxis, axis );
+	memset( &rotation, 0, sizeof( rotation ) );
+	Mat3ToRotation( (const vec3_t *)axis, &rotation );
+	if ( DotProduct( rotation.vec, c->axis1 ) < 0.0f ) {
+		return -rotation.angle;
+	}
+	return rotation.angle;
+}
+
+void AF_SetSteerAngle( afConstraint_t *c, float degrees ) {
+	if ( c->type != CONSTRAINT_HINGE ) {
+		return;
+	}
+	c->steering = qtrue;
+	c->steerAngle = degrees;
+}
+
+void AF_SetSteerSpeed( afConstraint_t *c, float speed ) {
+	c->steerSpeed = speed;
+}
+
+/*
+================
+AF_HingeSteeringAdd
+
+idAFConstraint_HingeSteering::Add: a frame constraint turning the hinge
+toward its steer angle
+================
+*/
+static void AF_HingeSteeringAdd( afPhysics_t *af, afConstraint_t *hinge, float invTimeStep ) {
+	afConstraint_t *c;
+	vec3_t a1, a2, zero = { 0, 0, 0 };
+	float speed;
+
+	c = AF_NewFrameConstraint( CONSTRAINT_HINGESTEERING, "hingeSteering", 1 );
+	if ( !c ) {
+		return;
+	}
+	c->body1 = hinge->body1;
+	c->body2 = hinge->body2;
+	c->joint = hinge;
+
+	VectorMat( hinge->axis1, (const vec3_t *)hinge->body1->current->worldAxis, a1 );
+	c->J1.rows = 1;
+	MatXSetRow( &c->J1, 0, zero, a1 );
+	if ( hinge->body2 ) {
+		VectorMat( hinge->axis2, (const vec3_t *)hinge->body2->current->worldAxis, a2 );
+		VectorNegate( a2, a2 );
+		c->J2.rows = 1;
+		MatXSetRow( &c->J2, 0, zero, a2 );
+	}
+
+	speed = hinge->steerAngle - AF_HingeAngle( hinge );
+	if ( hinge->steerSpeed != 0.0f ) {
+		if ( speed > hinge->steerSpeed ) {
+			speed = hinge->steerSpeed;
+		} else if ( speed < -hinge->steerSpeed ) {
+			speed = -hinge->steerSpeed;
+		}
+	}
+	c->c1.v[0] = DEG2RAD( speed ) * invTimeStep;
+	AF_AddFrameConstraint( af, c );
+}
+
+/*
+================
+AF_SetSpringAnchors, AF_SetSpring, AF_SetSpringLimit
+
+idAFConstraint_Spring's: its ends on its bodies (in the world, made), how
+it pushes back stretched and compressed, and how short and long it gets
+================
+*/
+void AF_SetSpringAnchors( afConstraint_t *c, const vec3_t worldAnchor1, const vec3_t worldAnchor2 ) {
+	vec3_t d;
+
+	VectorSubtract( worldAnchor1, c->body1->current->worldOrigin, d );
+	VectorMatT( d, (const vec3_t *)c->body1->current->worldAxis, c->anchor1 );
+	if ( c->body2 ) {
+		VectorSubtract( worldAnchor2, c->body2->current->worldOrigin, d );
+		VectorMatT( d, (const vec3_t *)c->body2->current->worldAxis, c->anchor2 );
+	} else {
+		VectorCopy( worldAnchor2, c->anchor2 );
+	}
+}
+
+void AF_SetSpring( afConstraint_t *c, float stretch, float compress, float damping, float restLength ) {
+	c->kstretch = MAX( stretch, 0.0f );
+	c->kcompress = MAX( compress, 0.0f );
+	c->damping = damping;
+	c->restLength = MAX( restLength, 0.0f );
+}
+
+void AF_SetSpringLimit( afConstraint_t *c, float minLength, float maxLength ) {
+	c->minLength = MAX( minLength, 0.0f );
+	c->maxLength = MAX( maxLength, 0.0f );
+}
+
+static void AF_BodyPointVelocity( const afBody_t *body, const vec3_t point, vec3_t out ) {
+	vec3_t r, w;
+
+	VectorSubtract( point, body->current->worldOrigin, r );
+	CrossProduct( body->current->spatialVelocity + 3, r, w );
+	VectorAdd( body->current->spatialVelocity, w, out );
+}
+
+static void AF_BodyAddForce( afBody_t *body, const vec3_t point, const vec3_t force ) {
+	vec3_t r, t;
+
+	VectorAdd( body->current->externalForce, force, body->current->externalForce );
+	VectorSubtract( point, body->current->worldOrigin, r );
+	CrossProduct( r, force, t );
+	VectorAdd( body->current->externalForce + 3, t, body->current->externalForce + 3 );
+}
+
+/*
+================
+AF_EvaluateSpring
+
+idAFConstraint_Spring::Evaluate: its force on its bodies, and a constraint
+only past its lengths
+================
+*/
+static void AF_EvaluateSpring( afConstraint_t *c, float invTimeStep ) {
+	vec3_t a1, a2, velocity1, velocity2, force, dv, springForce, t;
+	float d, dampingForce, length, error;
+	qboolean limit;
+	afBody_t *master = AF_MasterBody( c );
+
+	VectorMat( c->anchor1, (const vec3_t *)c->body1->current->worldAxis, a1 );
+	VectorAdd( a1, c->body1->current->worldOrigin, a1 );
+	AF_BodyPointVelocity( c->body1, a1, velocity1 );
+	if ( master ) {
+		VectorMat( c->anchor2, (const vec3_t *)master->current->worldAxis, a2 );
+		VectorAdd( a2, master->current->worldOrigin, a2 );
+		AF_BodyPointVelocity( master, a2, velocity2 );
+	} else {
+		VectorCopy( c->anchor2, a2 );
+		VectorClear( velocity2 );
+	}
+
+	VectorSubtract( a2, a1, force );
+	d = DotProduct( force, force );
+	VectorSubtract( velocity2, velocity1, dv );
+	dampingForce = d != 0.0f ? c->damping * fabs( DotProduct( dv, force ) ) / d : 0.0f;
+	length = VectorNormalize( force );
+
+	if ( length > c->restLength ) {
+		if ( c->kstretch > 0.0f ) {
+			VectorScale( force, Square( length - c->restLength ) * c->kstretch - dampingForce, springForce );
+			AF_BodyAddForce( c->body1, a1, springForce );
+			if ( master ) {
+				VectorNegate( springForce, springForce );
+				AF_BodyAddForce( master, a2, springForce );
+			}
+		}
+	} else if ( c->kcompress > 0.0f ) {
+		VectorScale( force, -( Square( c->restLength - length ) * c->kcompress - dampingForce ), springForce );
+		AF_BodyAddForce( c->body1, a1, springForce );
+		if ( master ) {
+			VectorNegate( springForce, springForce );
+			AF_BodyAddForce( master, a2, springForce );
+		}
+	}
+
+	// its limits
+	if ( length < c->minLength ) {
+		VectorNegate( force, force );
+		error = c->minLength - length;
+		limit = qtrue;
+	} else if ( c->maxLength > 0.0f && length > c->maxLength ) {
+		error = length - c->maxLength;
+		limit = qtrue;
+	} else {
+		error = 0.0f;
+		limit = qfalse;
+	}
+
+	if ( limit ) {
+		VectorSubtract( a1, c->body1->current->worldOrigin, a1 );
+		c->J1.rows = 1;
+		CrossProduct( a1, force, t );
+		MatXSetRow( &c->J1, 0, force, t );
+		if ( c->body2 ) {
+			vec3_t n;
+
+			VectorSubtract( a2, c->body2->current->worldOrigin, a2 );
+			VectorNegate( force, n );
+			c->J2.rows = 1;
+			CrossProduct( a2, n, t );
+			MatXSetRow( &c->J2, 0, n, t );
+		}
+		c->c1.v[0] = -( invTimeStep * ERROR_REDUCTION ) * error;
+		c->c1.size = 1;
+		c->lo.v[0] = 0.0f;
+	} else {
+		c->J1.rows = 0;
+		c->J2.rows = 0;
+		c->c1.size = 0;
+	}
+
+	VecXClamp( &c->c1, -ERROR_REDUCTION_MAX, ERROR_REDUCTION_MAX );
+}
+
+/*
+================
+AF_GetConstraint
+================
+*/
+afConstraint_t *AF_GetConstraint( const afPhysics_t *af, const char *name ) {
+	int i;
+
+	for ( i = 0; i < af->numConstraints; i++ ) {
+		if ( !Q_stricmp( af->constraints[i].name, name ) ) {
+			return (afConstraint_t *)&af->constraints[i];
+		}
+	}
+	return NULL;
 }
 
 static void AF_ConstraintEvaluate( afPhysics_t *af, afConstraint_t *c, float invTimeStep ) {
@@ -1104,6 +1346,9 @@ static void AF_ConstraintEvaluate( afPhysics_t *af, afConstraint_t *c, float inv
 			break;
 		case CONSTRAINT_HINGE:
 			AF_EvaluateHinge( af, c, invTimeStep );
+			break;
+		case CONSTRAINT_SPRING:
+			AF_EvaluateSpring( c, invTimeStep );
 			break;
 		default:
 			// frame constraints are set up when they're added
@@ -1995,6 +2240,7 @@ afConstraint_t *AF_AddConstraint( afPhysics_t *af, afConstraintType_t type, cons
 		case CONSTRAINT_BALLANDSOCKETJOINT:		size = 3; break;
 		case CONSTRAINT_UNIVERSALJOINT:			size = 4; break;
 		case CONSTRAINT_HINGE:					size = 5; break;
+		case CONSTRAINT_SPRING:					size = 1; break;
 		default:
 			Com_Printf( S_COLOR_RED "AF_AddConstraint: constraint '%s' of an unsupported type\n", name );
 			return NULL;
@@ -2005,8 +2251,11 @@ afConstraint_t *AF_AddConstraint( afPhysics_t *af, afConstraintType_t type, cons
 	c->body1 = body1;
 	c->body2 = body2;
 	c->physics = af;
-	c->allowPrimary = qtrue;
+	c->allowPrimary = type != CONSTRAINT_SPRING;	// (a spring is auxiliary: it pushes, and holds only at its limits)
 	c->noCollision = qtrue;
+	if ( type == CONSTRAINT_SPRING ) {
+		c->kstretch = c->kcompress = c->damping = 1.0f;
+	}
 
 	if ( type == CONSTRAINT_FIXED ) {
 		AF_InitFixedOffset( c );

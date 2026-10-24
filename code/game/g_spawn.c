@@ -309,6 +309,11 @@ qboolean G_CallSpawn( gentity_t *ent ) {
 			SP_monster( ent );
 			return qtrue;
 		}
+		// Doom 3's idAFEntity_Vehicle (g_vehicle.c)
+		if ( def && !Q_stricmp( spawnclass, "vehicle" ) ) {
+			SP_vehicle( ent );
+			return qtrue;
+		}
 		// Doom 3's idStaticEntity: what it does is its script object's
 		if ( def && !Q_stricmp( spawnclass, "scripted" ) ) {
 			SP_scripted( ent );

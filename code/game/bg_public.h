@@ -638,7 +638,8 @@ typedef enum {
 //#endif
 	STAT_ARMOR_ITEM,				// the armor suit worn, its item number; STAT_ARMOR are its points
 	STAT_FROB_ENTITY,				// what the player looks at and can take or use, ENTITYNUM_NONE for nothing
-	STAT_INV_GRID					// the inventory grid's size, width | height << INV_GRID_BITS
+	STAT_INV_GRID,					// the inventory grid's size, width | height << INV_GRID_BITS
+	STAT_VEHICLE					// the vehicle the player drives, its entity number + 1; 0 none (g_vehicle.c)
 } statIndex_t;
 
 // the weapons a player has, a bit each in the STAT_WEAPONS stats
@@ -1364,6 +1365,7 @@ void					BG_InitItems( void );		// and the weapons and the models
 #define MAX_MODEL_FRAMECOMMANDS	128
 #define MAX_MODEL_JOINTS		128
 #define MAX_MODEL_ATTACHMENTS	4		// entityState_t.attachDropped's bits
+#define MAX_MODEL_WHEELS		8
 
 // the parts of an IQM (renderercommon/iqm.h in the engine) the game reads
 #define IQM_MAGIC		"INTERQUAKEMODEL"
@@ -1497,6 +1499,11 @@ typedef struct {
 	bgFrameCommand_t	frameCommands[MAX_MODEL_FRAMECOMMANDS];
 	int					numAttachments;
 	bgAttachment_t		attachments[MAX_MODEL_ATTACHMENTS];
+	// a vehicle's (g_vehicle.c): "wheel_joints" its wheels, turned about
+	// their axles (the joints' y) as they go, "wheel_radius" (the cgame's)
+	int					numWheels;
+	int					wheelJoints[MAX_MODEL_WHEELS];
+	float				wheelRadius;
 	int					numJoints;			// the IQM's skeleton
 	bgJoint_t			joints[MAX_MODEL_JOINTS];
 	unsigned int		channelMask[MAX_ANIM_CHANNELS][4];	// SKELETON_MASK_WORDS

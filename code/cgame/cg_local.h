@@ -229,6 +229,10 @@ typedef struct centity_s {
 	qboolean		swimming;			// along its heading, centred in its box (BG_PlayerSwimAngles)
 	int				playerAnims[2], playerAnimTimes[2];	// a predicted skeletal player's legs and torso, when they started
 	bgIKState_t		ik;						// a skeletal character's walk IK, frame to frame
+	float			wheelAngles[MAX_MODEL_WHEELS];	// a vehicle's wheels turned so far (CG_CharacterWheels)
+	vec3_t			wheelLast[MAX_MODEL_WHEELS];	// and where they were the last frame drawn
+	qboolean		wheelValid;
+	vec3_t			eyesOffset;		// a vehicle's driver's view from its origin, as last drawn (CG_VehicleView)
 
 	entityState_t	currentState;	// from cg.frame
 	entityState_t	nextState;		// from cg.nextFrame, if available
@@ -1454,6 +1458,9 @@ extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
 extern	vmCvar_t		cg_drawHitboxes;
 extern	vmCvar_t		cg_drawSkeleton;
+extern	vmCvar_t		cg_vehicleView;
+extern	vmCvar_t		cg_vehicleRange;
+extern	vmCvar_t		cg_vehicleHeight;
 extern	vmCvar_t		cg_ragdoll;
 extern	vmCvar_t		cg_drawRagdolls;
 extern	vmCvar_t		cg_drawAAS;

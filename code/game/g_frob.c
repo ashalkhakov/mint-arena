@@ -89,6 +89,21 @@ static int G_FrobCheck( gentity_t *ent ) {
 	eye[2] += ps->viewheight;
 	AngleVectors( ps->viewangles, forward, NULL, NULL );
 
+	// what the view runs into, within its reach, first (The Dark Mod's
+	// PerformFrobCheck: a truck's door, though its middle is far off)
+	{
+		vec3_t end;
+
+		VectorMA( eye, FROB_DISTANCE * 2, forward, end );
+		G_Trace( &tr, eye, NULL, NULL, end, ent->s.number, MASK_SOLID | CONTENTS_BODY, TT_AABB );
+		if ( tr.fraction < 1.0f && tr.entityNum < ENTITYNUM_MAX_NORMAL ) {
+			hit = &g_entities[tr.entityNum];
+			if ( G_Frobable( hit ) && tr.fraction * FROB_DISTANCE * 2 <= G_FrobDistance( hit ) ) {
+				return hit->s.number;
+			}
+		}
+	}
+
 	VectorSet( mins, eye[0] - FROB_DISTANCE * 2, eye[1] - FROB_DISTANCE * 2, eye[2] - FROB_DISTANCE * 2 );
 	VectorSet( maxs, eye[0] + FROB_DISTANCE * 2, eye[1] + FROB_DISTANCE * 2, eye[2] + FROB_DISTANCE * 2 );
 	num = G_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
@@ -166,6 +181,15 @@ it.
 void G_FrobThink( gentity_t *ent ) {
 	gplayer_t *player = ent->player;
 	int target;
+
+	// in a vehicle: use gets out (g_vehicle.c), nothing else is used
+	if ( player->driving ) {
+		player->ps.stats[STAT_FROB_ENTITY] = ENTITYNUM_NONE;
+		if ( ( player->buttons & BUTTON_ACTIVATE ) && !( player->oldbuttons & BUTTON_ACTIVATE ) ) {
+			G_VehicleExit( player->driving, qfalse );
+		}
+		return;
+	}
 
 	target = G_FrobCheck( ent );
 	if ( g_debugFrob.integer && target != player->ps.stats[STAT_FROB_ENTITY] ) {

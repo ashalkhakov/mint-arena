@@ -813,6 +813,8 @@ void PlayerThink_real( gentity_t *ent ) {
 		player->ps.pm_type = PM_NOCLIP;
 	} else if ( player->ps.stats[STAT_HEALTH] <= 0 ) {
 		player->ps.pm_type = PM_DEAD;
+	} else if ( player->driving ) {
+		player->ps.pm_type = PM_FREEZE;		// in a vehicle: his keys drive it (g_vehicle.c)
 	} else {
 		player->ps.pm_type = PM_NORMAL;
 	}
@@ -880,6 +882,10 @@ void PlayerThink_real( gentity_t *ent ) {
 		}
 	}
 #endif
+
+	if ( player->driving ) {
+		G_VehicleSeat( ent );		// where the driver sees from
+	}
 
 	pm.ps = &player->ps;
 	pm.cmd = *ucmd;
