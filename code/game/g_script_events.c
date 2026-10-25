@@ -718,6 +718,42 @@ static void Event_SetFlySpeed( gentity_t *self, const intptr_t *args ) {
 
 /*
 ================
+Event_SetObjectiveState
+
+$player.setObjectiveState( quest, n, state ): the quest's objective n (0 the
+quest) incomplete, complete or failed, for every player (g_quests.c); the
+quest given if it isn't. The Dark Mod's setObjectiveState
+================
+*/
+static char G_ScriptQuestState( const char *s, qboolean quest ) {
+	if ( !Q_stricmp( s, "complete" ) ) {
+		return QUEST_COMPLETE;
+	}
+	if ( !Q_stricmp( s, "failed" ) ) {
+		return QUEST_FAILED;
+	}
+	return quest ? QUEST_ACTIVE : QUEST_INCOMPLETE;
+}
+
+static void Event_SetObjectiveState( gentity_t *self, const intptr_t *args ) {
+	int n = (int)EVARG_FLOAT( 1 );
+
+	G_SetObjective( EVARG_STRING( 0 ), n, G_ScriptQuestState( EVARG_STRING( 2 ), n == 0 ), -1, 0, self );
+}
+
+// $player.setObjectiveVisible( quest, n, visible ): shown (1) or hidden (0)
+static void Event_SetObjectiveVisible( gentity_t *self, const intptr_t *args ) {
+	G_SetObjective( EVARG_STRING( 0 ), (int)EVARG_FLOAT( 1 ), 0, EVARG_FLOAT( 2 ) ? 1 : 0, 0, self );
+}
+
+// $player.getObjectiveState( quest, n ): "incomplete", "complete", "failed",
+// "hidden" ("active" for a quest going on), "" when it isn't given
+static void Event_GetObjectiveState( gentity_t *self, const intptr_t *args ) {
+	Thread_ReturnString( G_GetObjective( EVARG_STRING( 0 ), (int)EVARG_FLOAT( 1 ) ) );
+}
+
+/*
+================
 Event_PainJolt
 
 painJolt( degrees ): hurt, it shakes, rocking that many degrees and dying
@@ -1304,6 +1340,9 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "isPerched",			NULL,		'd',	Event_IsPerched },
 	{ "setFlyOffset",		"d",		0,		Event_SetFlyOffset },
 	{ "painJolt",			"f",		0,		Event_PainJolt },
+	{ "setObjectiveState",	"sfs",		0,		Event_SetObjectiveState },
+	{ "setObjectiveVisible", "sff",		0,		Event_SetObjectiveVisible },
+	{ "getObjectiveState",	"sf",		's',	Event_GetObjectiveState },
 	{ "vehicleDrive",		"ff",		0,		Event_VehicleDrive },
 	{ "vehicleEngine",		"f",		0,		Event_VehicleEngine },
 	{ "enableGravity",		NULL,		0,		Event_EnableGravity },

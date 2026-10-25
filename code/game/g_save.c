@@ -29,7 +29,7 @@ along with Spearmint Source Code.  If not, see <http://www.gnu.org/licenses/>.
 
 #define PERSISTANT_FILE		"save/current.psw"
 #define PERSISTANT_MAGIC	0x50534b44		// "DKSP"
-#define PERSISTANT_VERSION	3		// 2: the inventory grid, 3: the belt
+#define PERSISTANT_VERSION	4		// 2: the inventory grid, 3: the belt, 4: the quests
 
 // what a player carries (bg_inventory.c)
 typedef struct {
@@ -40,6 +40,8 @@ typedef struct {
 	int		flags[MAX_INV_SLOTS];
 	int		belt[MAX_BELT_SLOTS];
 	int		seen[MAX_ITEMS / 32];
+	quest_t	quests[MAX_QUESTS];		// and what they're set to do (g_quests.c)
+	int		questOrder;
 } savedInventory_t;
 
 static void G_SaveInventory( const gplayer_t *player, savedInventory_t *inv ) {
@@ -50,6 +52,8 @@ static void G_SaveInventory( const gplayer_t *player, savedInventory_t *inv ) {
 	memcpy( inv->flags, player->pers.invFlags, sizeof( inv->flags ) );
 	memcpy( inv->belt, player->ps.invBelt, sizeof( inv->belt ) );
 	memcpy( inv->seen, player->pers.invSeen, sizeof( inv->seen ) );
+	memcpy( inv->quests, player->pers.quests, sizeof( inv->quests ) );
+	inv->questOrder = player->pers.questOrder;
 }
 
 static void G_RestoreInventory( gplayer_t *player, const savedInventory_t *inv ) {
@@ -60,6 +64,8 @@ static void G_RestoreInventory( gplayer_t *player, const savedInventory_t *inv )
 	memcpy( player->pers.invFlags, inv->flags, sizeof( inv->flags ) );
 	memcpy( player->ps.invBelt, inv->belt, sizeof( inv->belt ) );
 	memcpy( player->pers.invSeen, inv->seen, sizeof( inv->seen ) );
+	memcpy( player->pers.quests, inv->quests, sizeof( inv->quests ) );
+	player->pers.questOrder = inv->questOrder;
 }
 
 // what a player takes along
@@ -749,6 +755,7 @@ qboolean G_LoadGame( void ) {
 		player->ps.weapon = sp->weapon;
 		player->ps.weaponstate = WEAPON_READY;
 		G_RestoreInventory( player, &sp->inventory );
+		G_QuestsSend( ent, qtrue );		// (begun before they were loaded)
 		player->ps.eFlags ^= EF_TELEPORT_BIT;
 		G_LinkEntity( ent );
 	}

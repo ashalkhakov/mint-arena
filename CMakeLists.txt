@@ -1153,6 +1153,7 @@ set(Q3CGOBJ
   cgame/cg_event.c
   cgame/cg_field.c
   cgame/cg_info.c
+  cgame/cg_quests.c
   cgame/cg_input.c
   cgame/cg_localents.c
   cgame/cg_marks.c
@@ -1183,6 +1184,7 @@ list(APPEND Q3CGOBJ
   ui/ui_players.c
   ui/ui_shared.c
   ui/ui_inventory.c
+  ui/ui_quests.c
   ui/ui_saves.c)
 
 list(TRANSFORM Q3CGOBJ PREPEND code/)
@@ -1371,6 +1373,7 @@ set(Q3GOBJ
   game/g_aiscript.c
   game/g_dk_level.c
   game/g_frob.c
+  game/g_quests.c
   game/g_misc.c
   game/g_missile.c
   game/g_mover.c

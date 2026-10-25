@@ -1649,6 +1649,10 @@ static void UI_OwnerDraw(float x, float y, float w, float h, float text_x, float
   if ( UI_InventoryOwnerDraw( ownerDraw, &rect, scale, color, shader, textStyle ) ) {
     return;
   }
+  // the status and quests tabs' (ui_quests.c)
+  if ( UI_PdaOwnerDraw( ownerDraw, &rect, scale, color, shader, textStyle ) ) {
+    return;
+  }
   // the save and load menus' (ui_saves.c)
   if ( UI_SavesOwnerDraw( ownerDraw, &rect, scale, color, textStyle ) ) {
     return;
@@ -1818,6 +1822,10 @@ static qboolean UI_OwnerDrawVisible(int flags) {
 
 	// the inventory screen's (ui_inventory.c)
 	if ( !UI_InventoryVisible( &flags ) ) {
+		vis = qfalse;
+	}
+	// the player's screen's tab bar (ui_quests.c)
+	if ( !UI_PdaVisible( &flags ) ) {
 		vis = qfalse;
 	}
 	// the save and load menus' (ui_saves.c)
@@ -3076,6 +3084,8 @@ static void UI_RunMenuScript(char **args) {
 			UI_ForceMenuOff();
 		} else if (UI_SavesScript(name)) {
 			// the save and load menus' (ui_saves.c)
+		} else if (UI_PdaScript(name, args)) {
+			// the player's screen's tabs (ui_quests.c)
 		} else if (Q_stricmp(name, "InvCommand") == 0) {
 			// the inventory screen's commands (ui_inventory.c)
 			if (String_Parse(args, &name2)) {
@@ -4919,15 +4929,17 @@ void UI_KeyEvent( int key, qboolean down ) {
 		if (menu) {
 			char binding[MAX_STRING_CHARS];
 
-			// the key that opens the inventory closes it
-			if ( down && !Q_stricmp( menu->window.name, "inventory" ) ) {
+			// on the player's screen (ui_quests.c), a tab's key goes to it, or
+			// closes it when it's shown
+			if ( down && ( !Q_stricmp( menu->window.name, "inventory" ) || !Q_stricmp( menu->window.name, "dk_status" )
+						   || !Q_stricmp( menu->window.name, "dk_quests" ) ) ) {
 				trap_Key_GetBindingBuf( key, binding, sizeof( binding ) );
-				if ( !Q_stricmp( binding, "inventory" ) ) {
-					UI_ForceMenuOff();
+				if ( !Q_stricmp( binding, "inventory" ) || !Q_stricmp( binding, "quests" ) || !Q_stricmp( binding, "character" ) ) {
+					UI_PdaOpen( binding );
 					return;
 				}
 				// a belt key puts the selected item on the belt
-				if ( UI_InventoryBeltKey( binding ) ) {
+				if ( !Q_stricmp( menu->window.name, "inventory" ) && UI_InventoryBeltKey( binding ) ) {
 					return;
 				}
 			}
@@ -5091,7 +5103,13 @@ void UI_SetActiveMenu( uiMenuCommand_t menu ) {
 			Menus_ActivateByName("ingame");
 			return;
 		case UIMENU_INVENTORY:
-			UI_InventoryOpen();
+			UI_PdaOpen( "inventory" );
+			return;
+		case UIMENU_QUESTS:
+			UI_PdaOpen( "quests" );
+			return;
+		case UIMENU_STATUS:
+			UI_PdaOpen( "character" );
 			return;
 		default:
 			Com_Printf( "UI_SetActiveMenu: unknown enum %d\n", menu );

@@ -1246,6 +1246,11 @@ static void CG_ServerCommand( void ) {
 		return;
 	}
 
+	if ( !strcmp( cmd, "quests" ) || !strcmp( cmd, "questsload" ) ) {
+		CG_ParseQuests( start, !strcmp( cmd, "questsload" ) );		// (cg_quests.c)
+		return;
+	}
+
 	if ( !strcmp( cmd, "invweapon" ) ) {
 		// the inventory took a weapon in hand, or dropped the one held: the
 		// client picks the weapon held (g_inventory.c)

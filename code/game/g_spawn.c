@@ -237,6 +237,7 @@ spawn_t	spawns[] = {
 	{"target_delay", SP_target_delay},
 	{"target_speaker", SP_target_speaker},
 	{"target_relay", SP_target_relay},
+	{"target_setobjective", SP_target_setobjective},
 	{"target_callobjectfunction", SP_target_callobjectfunction},
 	{"target_position", SP_target_position},
 	{"target_location", SP_target_location},

@@ -344,20 +344,23 @@ On to a map of the level (or the next level): the players go along
 (G_SavePersistant), starting at the spawn point named target.
 ================
 */
-void G_ChangeLevel( const char *map, const char *target ) {
+// whether the map is there to go to; told when it isn't
+static qboolean G_LevelThere( const char *map ) {
 	fileHandle_t f;
-	char path[MAX_QPATH];
 
-	if ( level.changingLevel ) {
-		return;
-	}
-	Com_sprintf( path, sizeof( path ), "maps/%s.bsp", map );
-	if ( trap_FS_FOpenFile( path, &f, FS_READ ) <= 0 ) {
+	if ( trap_FS_FOpenFile( va( "maps/%s.bsp", map ), &f, FS_READ ) <= 0 ) {
 		G_Printf( S_COLOR_YELLOW "trigger_changelevel: no map %s\n", map );
 		trap_SendServerCommand( -1, va( "cp \"%s isn't there\"", map ) );
-		return;
+		return qfalse;
 	}
 	trap_FS_FCloseFile( f );
+	return qtrue;
+}
+
+void G_ChangeLevel( const char *map, const char *target ) {
+	if ( level.changingLevel || !G_LevelThere( map ) ) {
+		return;
+	}
 
 	level.changingLevel = qtrue;
 	trap_Cvar_Set( "g_spawnTarget", target ? target : "" );
@@ -368,14 +371,25 @@ void G_ChangeLevel( const char *map, const char *target ) {
 
 /*QUAKED trigger_changelevel (.5 .5 .5) ? INTERMISSION REQUIRES_SUPERFLY REQUIRES_MIKIKO THE_END
 Daikatana's: touched by a player, on to "map", starting at the spawn point
-whose targetname is "target".
+whose targetname is "target". Ours: "target_leave" names what's used as
+they leave this way, before what they carry is saved (a quest's objective
+done: g_quests.c).
 */
 void Touch_TriggerChangelevel( gentity_t *self, gentity_t *other, trace_t *trace ) {
 	if ( !other->player || other->health <= 0 || other->player->sess.sessionTeam == TEAM_SPECTATOR ) {
 		return;
 	}
-	if ( !self->map || !self->map[0] || !G_CampaignKeyCheck( self, other ) ) {
+	if ( !self->map || !self->map[0] || !G_CampaignKeyCheck( self, other ) || level.changingLevel || !G_LevelThere( self->map ) ) {
 		return;
+	}
+	if ( self->pathtarget && self->pathtarget[0] ) {
+		gentity_t *t = NULL;
+
+		while ( ( t = G_Find( t, FOFS( targetname ), self->pathtarget ) ) != NULL ) {
+			if ( t != self && t->use ) {
+				t->use( t, self, other );
+			}
+		}
 	}
 	G_ChangeLevel( self->map, self->target );
 }
@@ -389,6 +403,8 @@ void SP_trigger_changelevel( gentity_t *self ) {
 		G_Printf( S_COLOR_YELLOW "trigger_changelevel at %s with no map\n", vtos( self->r.absmin ) );
 	}
 	self->map = G_NewString( map );
+	G_SpawnString( "target_leave", "", &map );
+	self->pathtarget = G_NewString( map );		// (what's used as they leave; a changelevel has no other path)
 	// its target names the next map's spawn point, not an entity here
 	self->touch = Touch_TriggerChangelevel;
 	G_LinkEntity( self );

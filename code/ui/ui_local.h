@@ -472,6 +472,14 @@ qboolean	UI_InventoryVisible( int *flags );
 qboolean	UI_InventoryHandleKey( int ownerDraw, int key );
 void		UI_InventoryCommand( const char *cmd );
 void		UI_InventoryOpen( void );
+
+//
+// ui_quests.c
+//
+void		UI_PdaOpen( const char *tab );
+qboolean	UI_PdaScript( const char *name, char **args );
+qboolean	UI_PdaOwnerDraw( int ownerDraw, rectDef_t *rect, float scale, vec4_t color, qhandle_t shader, int textStyle );
+qboolean	UI_PdaVisible( int *flags );
 qboolean	UI_InventoryBeltKey( const char *binding );
 
 //

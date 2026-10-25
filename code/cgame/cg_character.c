@@ -1076,3 +1076,90 @@ void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *l
 		}
 	}
 }
+
+/*
+================
+CG_DrawCharacterPortrait
+
+The player's character in a box of the screen (640x480 coordinates), the
+status tab's figure: standing on its idle, turning slowly, the weapon in
+hand. Its model def's mesh, as it's drawn in the world; qfalse when it has
+none (a Quake 3 model's for the UI's player draw)
+================
+*/
+qboolean CG_DrawCharacterPortrait( float x, float y, float w, float h, int playerNum, int weapon, int time ) {
+	static bgAnimChannel_t channels[MAX_ANIM_CHANNELS];
+	const playerInfo_t *pi;
+	const bgModel_t *model;
+	float joints[MAX_MODEL_JOINTS * 12];
+	refdef_t refdef;
+	refEntity_t body, gun;
+	vec3_t mins, maxs, angles;
+	int numJoints;
+	float len;
+
+	if ( playerNum < 0 || playerNum >= MAX_CLIENTS ) {
+		return qfalse;
+	}
+	pi = &cgs.playerinfo[playerNum];
+	if ( !pi->infoValid || !pi->modelDef || !pi->skeletalModel ) {
+		return qfalse;
+	}
+	model = &bg_models[pi->modelDef];
+
+	CG_AdjustFrom640( &x, &y, &w, &h );
+	memset( &refdef, 0, sizeof( refdef ) );
+	refdef.rdflags = RDF_NOWORLDMODEL;
+	AxisClear( refdef.viewaxis );
+	refdef.x = x;
+	refdef.y = y;
+	refdef.width = w;
+	refdef.height = h;
+	refdef.fov_y = 30;
+	refdef.fov_x = RAD2DEG( 2 * atan( tan( DEG2RAD( refdef.fov_y ) * 0.5f ) * w / h ) );
+	refdef.time = time;
+
+	// the idle's first frame's bounds fill the box's height
+	memset( &body, 0, sizeof( body ) );
+	BG_PlayerAnimChannels( model, channels, LEGS_IDLE, 0, TORSO_STAND, 0, weapon, 0, time );
+	BG_ModelFrameRate( model, channels[ANIMCHANNEL_LEGS].anim, channels[ANIMCHANNEL_LEGS].frameTime, time,
+					   channels[ANIMCHANNEL_LEGS].rate, &body.frame, &body.oldframe, &body.backlerp, NULL );
+	if ( !trap_R_ModelBounds( pi->skeletalModel, mins, maxs, body.frame, body.frame, 0 ) || maxs[2] <= mins[2] ) {
+		VectorSet( mins, -16, -16, -24 );
+		VectorSet( maxs, 16, 16, 32 );
+	}
+	len = 0.55f * ( maxs[2] - mins[2] );
+	body.origin[0] = len / tan( DEG2RAD( refdef.fov_y ) * 0.5f );
+	body.origin[1] = 0;
+	body.origin[2] = -0.5f * ( mins[2] + maxs[2] );
+	VectorSet( angles, 0, 180 + 25 * sin( time * 0.0005f ), 0 );
+	AnglesToAxis( angles, body.axis );
+	VectorCopy( body.origin, body.oldorigin );
+	VectorCopy( body.origin, body.lightingOrigin );
+	body.renderfx = RF_LIGHTING_ORIGIN | RF_NOSHADOW;
+	body.hModel = pi->skeletalModel;
+	body.customSkin = pi->hasSkeletalSkin ? CG_AddSkinToFrame( &pi->skeletalSkin ) : 0;
+
+	trap_R_ClearScene();
+	numJoints = BG_ModelPose( model, channels, time, joints );
+	if ( numJoints > 0 ) {
+		body.skeleton = trap_R_AddSkeletonToScene( joints, numJoints );
+	}
+	CG_AddRefEntityWithMinLight( &body );
+
+	if ( BG_ValidWeapon( weapon ) && cg_weapons[weapon].weaponModel && numJoints > 0 ) {
+		memset( &gun, 0, sizeof( gun ) );
+		CG_JointEntity( &body, joints, numJoints, model->weaponJoint, &gun );
+		AxisCopy( body.axis, gun.axis );
+		gun.hModel = cg_weapons[weapon].weaponModel;
+		gun.renderfx = body.renderfx;
+		VectorCopy( body.origin, gun.lightingOrigin );
+		CG_AddRefEntityWithMinLight( &gun );
+	}
+
+	// lit from the front, above
+	VectorSet( angles, body.origin[0] - 100, body.origin[1] + 60, body.origin[2] + 80 );
+	trap_R_AddJuniorLightToScene( angles, 400, 1.0f, 1.0f, 0.95f, 0.85f );
+	trap_R_RenderScene( &refdef );
+	return qtrue;
+}

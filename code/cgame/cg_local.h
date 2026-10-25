@@ -136,6 +136,18 @@ enum {
 #define	K_CHAR_FLAG		(1<<31)
 
 #define	MAX_EDIT_LINE	256
+// a quest as the game sends it (g_quests.c): its def, its state and its
+// objectives' ('a' going on, 'i' to do, 'c' complete, 'f' failed, '-' not shown)
+#define MAX_QUESTS			16
+#define MAX_QUEST_OBJS		8
+
+typedef struct {
+	char		name[MAX_QPATH];
+	char		state;
+	char		obj[MAX_QUEST_OBJS + 1];
+	int			order;			// when it last changed
+} cgQuest_t;
+
 typedef struct {
 	int		cursor;
 	int		scroll;					// display buffer offset
@@ -931,6 +943,11 @@ typedef struct {
 	playerState_t	*cur_ps; // Like cur_lc, but for player state
 	int				cur_localPlayerNum;
 	localPlayer_t	localPlayers[MAX_SPLITVIEW];
+
+	// the quests, as the game sends them (cg_quests.c)
+	cgQuest_t		quests[MAX_QUESTS];
+	int				numQuests;
+	qboolean		questsReceived;		// once: the first's what there was, not news
 
 } cg_t;
 
@@ -1800,6 +1817,12 @@ extern  char teamChat2[256];
 void CG_AddLagometerFrameInfo( void );
 void CG_AddLagometerSnapshotInfo( snapshot_t *snap );
 void CG_CenterPrint( int localPlayerNum, const char *str, int y, float charScale );
+
+//
+// cg_quests.c
+//
+void CG_ParseQuests( int start, qboolean loaded );
+const char	*CG_QuestText( const char *quest, int n );
 void CG_GlobalCenterPrint( const char *str, int y, float charScale );
 void CG_DrawHead( float x, float y, float w, float h, int playerNum, vec3_t headAngles );
 void CG_DrawActive( stereoFrame_t stereoView );
@@ -1932,6 +1955,7 @@ sfxHandle_t CG_ModelSound( int modelNum, const char *key );
 qboolean CG_StartModelSound( vec3_t origin, int entityNum, int channel, int modelNum, const char *key, float scale );
 void CG_PlayerCharacter( centity_t *cent, const playerInfo_t *pi, refEntity_t *legs, const vec3_t torsoAxis[3],
 						 const vec3_t headAxis[3], refEntity_t *torso, refEntity_t *weapon, refEntity_t *flag );
+qboolean CG_DrawCharacterPortrait( float x, float y, float w, float h, int playerNum, int weapon, int time );
 void CG_DebugLine( const vec3_t start, const vec3_t end, const vec4_t color );
 
 //

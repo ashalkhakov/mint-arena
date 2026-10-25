@@ -1096,6 +1096,7 @@ Q3CGOBJ = \
   $(B)/$(BASEGAME)/cgame/cg_event.o \
   $(B)/$(BASEGAME)/cgame/cg_field.o \
   $(B)/$(BASEGAME)/cgame/cg_info.o \
+  $(B)/$(BASEGAME)/cgame/cg_quests.o \
   $(B)/$(BASEGAME)/cgame/cg_input.o \
   $(B)/$(BASEGAME)/cgame/cg_localents.o \
   $(B)/$(BASEGAME)/cgame/cg_marks.o \
@@ -1200,6 +1201,7 @@ MPCGOBJ = \
   $(B)/$(MISSIONPACK)/cgame/cg_event.o \
   $(B)/$(MISSIONPACK)/cgame/cg_field.o \
   $(B)/$(MISSIONPACK)/cgame/cg_info.o \
+  $(B)/$(MISSIONPACK)/cgame/cg_quests.o \
   $(B)/$(MISSIONPACK)/cgame/cg_input.o \
   $(B)/$(MISSIONPACK)/cgame/cg_localents.o \
   $(B)/$(MISSIONPACK)/cgame/cg_marks.o \
@@ -1329,6 +1331,7 @@ Q3GOBJ = \
   $(B)/$(BASEGAME)/game/g_items.o \
   $(B)/$(BASEGAME)/game/g_inventory.o \
   $(B)/$(BASEGAME)/game/g_frob.o \
+  $(B)/$(BASEGAME)/game/g_quests.o \
   $(B)/$(BASEGAME)/game/g_misc.o \
   $(B)/$(BASEGAME)/game/g_missile.o \
   $(B)/$(BASEGAME)/game/g_mover.o \
@@ -1411,6 +1414,7 @@ MPGOBJ = \
   $(B)/$(MISSIONPACK)/game/g_items.o \
   $(B)/$(MISSIONPACK)/game/g_inventory.o \
   $(B)/$(MISSIONPACK)/game/g_frob.o \
+  $(B)/$(MISSIONPACK)/game/g_quests.o \
   $(B)/$(MISSIONPACK)/game/g_misc.o \
   $(B)/$(MISSIONPACK)/game/g_missile.o \
   $(B)/$(MISSIONPACK)/game/g_mover.o \

@@ -1591,6 +1591,15 @@ static void CG_Inventory_f( int localPlayerNum ) {
 	UI_SetActiveMenu( UIMENU_INVENTORY );
 }
 
+// the player's screen on its quests tab (ui_quests.c), or its status tab
+static void CG_Quests_f( int localPlayerNum ) {
+	UI_SetActiveMenu( UIMENU_QUESTS );
+}
+
+static void CG_Status_f( int localPlayerNum ) {
+	UI_SetActiveMenu( UIMENU_STATUS );
+}
+
 /*
 =================
 CG_Belt_f
@@ -1839,6 +1848,8 @@ static playerConsoleCommand_t	playerCommands[] = {
 	{ "hurt", CG_ForwardToServer_f, CMD_INGAME },
 	{ "useent", CG_ForwardToServer_f, CMD_INGAME },
 	{ "inventory", CG_Inventory_f, CMD_INGAME },
+	{ "quests", CG_Quests_f, CMD_INGAME },
+	{ "character", CG_Status_f, CMD_INGAME },		// ("status" and "stats" are taken)
 	{ "invuse", CG_ForwardToServer_f, CMD_INGAME },
 	{ "invwear", CG_ForwardToServer_f, CMD_INGAME },
 	{ "invremove", CG_ForwardToServer_f, CMD_INGAME },

@@ -109,7 +109,9 @@ typedef enum {
 	UIMENU_INGAME,
 	UIMENU_TEAM,
 	UIMENU_POSTGAME,
-	UIMENU_INVENTORY		// the inventory screen (ui_inventory.c)
+	UIMENU_INVENTORY,		// the inventory screen (ui_inventory.c), the player's screen's inventory tab
+	UIMENU_QUESTS,			// its quests tab (ui_quests.c)
+	UIMENU_STATUS			// its status tab
 } uiMenuCommand_t;
 
 typedef struct {

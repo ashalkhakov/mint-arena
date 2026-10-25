@@ -1271,6 +1271,7 @@ void PlayerSpawn(gentity_t *ent) {
 		G_LoadPersistant( ent );
 	}
 	G_InventorySync( ent );
+	G_QuestsSend( ent, qfalse );
 
 	G_SetOrigin( ent, spawn_origin );
 	VectorCopy( spawn_origin, player->ps.origin );

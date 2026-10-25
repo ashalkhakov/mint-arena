@@ -139,6 +139,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_SHOW_INV_DROPPABLE             0x00010000	// it can be dropped
 #define UI_SHOW_INV_WORN                  0x00020000	// armor is worn
 #define UI_SHOW_SAVE_SELECTED             0x00040000	// a saved game is selected that can be loaded (ui_saves.c)
+#define UI_SHOW_QUESTS_NEW                0x00080000	// something's new on the quests tab, not looked at yet (ui_quests.c)
 
 
 
@@ -305,6 +306,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define UI_SAVE_TITLE 264				// its episode and map, "Episode 1: ..."
 #define UI_SAVE_INFO 265				// its health, armor, secrets, time and date, a line each
 #define UI_SAVE_GEMS 266				// the save gems the player has, a save's price
+#define UI_QUEST_LIST 267				// the quests and their objectives (ui_quests.c)
+#define UI_STATUS_MODEL 268				// the player's character, turning
+#define UI_STATUS_NAME 269				// the player's name
+#define UI_STATUS_HEALTH 270			// health and its limit, a bar
+#define UI_STATUS_ARMOR 271				// the armor worn, its points, a bar
+#define UI_STATUS_WEAPON 272			// the weapon in hand and its ammo
+#define UI_STATUS_BOOSTS 273			// the boosts on, and how long they last
+#define UI_STATUS_PLACE 274				// where the player is, the map's title
 
 #define VOICECHAT_GETFLAG			"getflag"				// command someone to get the flag
 #define VOICECHAT_OFFENSE			"offense"				// command someone to go on offense

@@ -1195,7 +1195,7 @@ typedef enum {
 // a saved game's header (g_save.c): what the engine's loadgame reads first,
 // then what the save and load menus show (ui_saves.c)
 #define SAVEGAME_MAGIC		0x47534b44		// "DKSG"
-#define SAVEGAME_VERSION	5		// 2: the scripts' (g_script.c), 3: the inventory grid, 4: the belt, 5: the menus' info
+#define SAVEGAME_VERSION	6		// 2: the scripts' (g_script.c), 3: the inventory grid, 4: the belt, 5: the menus' info, 6: the quests
 
 typedef struct {
 	int			magic;

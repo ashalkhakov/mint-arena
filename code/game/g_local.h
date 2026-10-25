@@ -397,6 +397,23 @@ typedef struct {
 #define MAX_NETNAME			36
 #define	MAX_VOTE_COUNT		3
 
+// a quest (g_quests.c): its def, its state and its objectives' (QUEST_*, a
+// character each, so the "quests" server command sends them as they are)
+#define MAX_QUESTS			16
+#define MAX_QUEST_OBJS		8
+#define QUEST_ACTIVE		'a'		// a quest's: going on
+#define QUEST_INCOMPLETE	'i'		// an objective's: shown, to do
+#define QUEST_COMPLETE		'c'
+#define QUEST_FAILED		'f'
+#define QUEST_HIDDEN		'-'		// an objective not shown yet
+
+typedef struct {
+	char		name[MAX_QPATH];		// its def; "" an empty slot
+	char		state;
+	char		obj[MAX_QUEST_OBJS];
+	int			order;					// when it last changed (the most recent first)
+} quest_t;
+
 // player data that stays across multiple respawns, but is cleared
 // on each level change or team change at PlayerBegin()
 typedef struct {
@@ -419,6 +436,8 @@ typedef struct {
 	// the campaign's
 	int				invSeen[MAX_ITEMS / 32];	// the items carried at the last sync, for the belt (g_inventory.c)
 	int				invFlags[MAX_INV_SLOTS];	// Daikatana's key flags of the inventory's slots (KEY_USE_ONCE...)
+	quest_t			quests[MAX_QUESTS];		// what they're set to do (g_quests.c)
+	int				questOrder;
 	qboolean	persistantLoaded;		// what the last map gave them is theirs (G_LoadPersistant)
 	int			persistantWeapon;		// the weapon they had up there
 } playerPersistant_t;
@@ -1060,6 +1079,14 @@ void G_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, 
 void G_ClipToEntity( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int entityNum, int contentmask, traceType_t type );
 int G_PointContents( const vec3_t p, int passEntityNum );
 void G_MonsterDebris( gentity_t *ent );
+
+//
+// g_quests.c
+//
+void		G_QuestsSend( gentity_t *ent, qboolean loaded );
+void		G_SetObjective( const char *name, int n, char state, int visible, char onlyIf, gentity_t *activator );
+const char	*G_GetObjective( const char *name, int n );
+void		SP_target_setobjective( gentity_t *self );
 
 //
 // g_bot.c
