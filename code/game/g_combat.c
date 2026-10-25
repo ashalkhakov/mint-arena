@@ -703,8 +703,9 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		attacker = &g_entities[ENTITYNUM_WORLD];
 	}
 
-	// shootable doors / buttons don't actually have any health
-	if ( targ->s.eType == ET_MOVER ) {
+	// shootable doors / buttons don't actually have any health (a rotator
+	// given "health" has: hits wear it down, not set it going and stopping)
+	if ( targ->s.eType == ET_MOVER && targ->die != Die_Rotating ) {
 		if ( targ->use && ( targ->moverState == MOVER_POS1
 			|| targ->moverState == ROTATOR_POS1 ) ) {
 			targ->use( targ, inflictor, attacker );

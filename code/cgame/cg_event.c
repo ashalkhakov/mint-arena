@@ -1289,11 +1289,12 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_EXPLOSION:
 		DEBUGNAME("EV_EXPLOSION");
 
-		// show explosion
+		// show explosion: Daikatana's (Quake 3's rocket blast art isn't
+		// there), a breakable's or a shot down rotator's
 		dir[0] = 0;
 		dir[1] = 0;
-		dir[2] = 0;
-		CG_MakeExplosion( cent->lerpOrigin, dir, cgs.media.dishFlashModel, cgs.media.rocketExplosionShader, 1000, qtrue );
+		dir[2] = 1;
+		CG_FX_PlayEffectID( cgs.media.fxExplosion, cent->lerpOrigin, dir );
 		break;
 
 	default:

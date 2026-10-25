@@ -792,6 +792,7 @@ void G_MonsterFireWeapon( gentity_t *ent, int weapon, const vec3_t start, const 
 //
 void G_RunMover( gentity_t *ent );
 void Touch_DoorTrigger( gentity_t *ent, gentity_t *other, trace_t *trace );
+void Die_Rotating( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath );
 
 //
 // g_trigger.c

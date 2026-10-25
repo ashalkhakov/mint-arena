@@ -671,6 +671,7 @@ void Cmd_Damage_f( gentity_t *ent ) {
 			AngleVectors( ent->player->ps.viewangles, forward, NULL, NULL );
 			VectorMA( eye, 8192, forward, end );
 			G_TraceShot( &tr, eye, NULL, NULL, end, ent->s.number, MASK_SHOT, NULL );
+			G_Printf( "damage: aim hits %d at %s\n", tr.entityNum, vtos( tr.endpos ) );
 			Com_sprintf( arg, sizeof( arg ), "%d", tr.entityNum );
 		} else if ( !Q_stricmp( arg, "last" ) ) {
 			Com_sprintf( arg, sizeof( arg ), "%d", level.lastSpawned );		// the "spawn" cheat's

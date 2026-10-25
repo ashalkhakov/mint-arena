@@ -57,6 +57,30 @@ G_TestEntityPosition
 
 ============
 */
+/*
+================
+G_InPusher
+
+whether the entity's box is in the pusher where it is now
+================
+*/
+static qboolean G_InPusher( gentity_t *ent, gentity_t *pusher ) {
+	trace_t	tr;
+	vec3_t	origin;
+	collisionType_t	collisionType;
+
+	if ( ent->player ) {
+		VectorCopy( ent->player->ps.origin, origin );
+		collisionType = ent->player->ps.collisionType;
+	} else {
+		VectorCopy( ent->s.pos.trBase, origin );
+		collisionType = ent->s.collisionType;
+	}
+	G_ClipToEntity( &tr, origin, ent->s.mins, ent->s.maxs, origin, pusher->s.number, ent->clipmask ? ent->clipmask : MASK_SOLID,
+					collisionType == CT_CAPSULE ? TT_CAPSULE : TT_AABB );
+	return tr.startsolid;
+}
+
 gentity_t	*G_TestEntityPosition( gentity_t *ent ) {
 	trace_t	tr;
 	collisionType_t	collisionType;
@@ -411,7 +435,10 @@ qboolean G_MoverPush( gentity_t *pusher, vec3_t move, vec3_t amove, gentity_t **
 			}
 			// see if the ent's bbox is inside the pusher's final position
 			// this does allow a fast moving object to pass through a thin entity...
-			if (!G_TestEntityPosition (check)) {
+			// (the pusher's alone: a prop leaning on the wall within its
+			// bounds isn't in it, nor what's in its non-solid parts, a laser
+			// screen's light)
+			if ( !G_InPusher( check, pusher ) ) {
 				continue;
 			}
 		}
@@ -2051,20 +2078,50 @@ check either the X_AXIS or Y_AXIS box to change that.
 "dmg"		damage to inflict when blocked (2 default)
 "color"		constantLight color
 "light"		constantLight radius
+"health"	shot down after that much damage: it bursts at its origin and its
+			"killtarget"s and "target"s are used ("breaksound")
 */
 void Use_Rotating (gentity_t *ent, gentity_t *other, gentity_t *activator) {
+	// on or off from the angles it's at: turning (TR_LINEAR) at its speed
+	// (movedir), or still there
+	BG_EvaluateTrajectory( &ent->s.apos, level.time, ent->s.apos.trBase );
+	ent->s.apos.trTime = level.time;
+	if ( ent->s.apos.trType == TR_STATIONARY ) {
+		ent->s.apos.trType = TR_LINEAR;
+		VectorCopy( ent->movedir, ent->s.apos.trDelta );
+	} else {
+		ent->s.apos.trType = TR_STATIONARY;
+		VectorClear( ent->s.apos.trDelta );
+	}
+	VectorCopy( ent->s.apos.trBase, ent->r.currentAngles );
+}
 
-	if ( ent->s.apos.trTime > 0 ) 
-		ent->s.apos.trTime = ent->s.apos.trTime - level.time;	//makes it go
-	else {
-		if ( level.time == 0 )
-			ent->s.apos.trTime = 1;
-		else
-			ent->s.apos.trTime = level.time + ent->s.apos.trTime;	//makes it stop
+/*
+================
+Die_Rotating
+
+shot to pieces ("health"): it bursts where it turns about (its origin
+brush, a fan's hub), and what it kills or targets goes too (a laser
+screen's tripwire, "killtarget")
+================
+*/
+void Die_Rotating( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath ) {
+	gentity_t *te;
+
+	self->takedamage = qfalse;
+	te = G_TempEntity( self->r.currentOrigin, EV_EXPLOSION );
+	if ( self->soundPos2 ) {
+		G_Sound( te, CHAN_AUTO, self->soundPos2 );
+	}
+	G_CampaignUseTargets( self, attacker ? attacker : self );
+	if ( self->inuse ) {
+		G_FreeEntity( self );
 	}
 }
 
 void SP_func_rotating (gentity_t *ent) {
+	char *noise;
+
 	if ( !ent->speed ) {
 		ent->speed = 100;
 	}
@@ -2075,14 +2132,16 @@ void SP_func_rotating (gentity_t *ent) {
 	}
 
 	// set the axis of rotation
-	ent->s.apos.trType = TR_ROTATING;
+	VectorClear( ent->movedir );
 	if ( ent->spawnflags & 4 ) {
-		ent->s.apos.trDelta[2] = ent->speed;
+		ent->movedir[2] = ent->speed;
 	} else if ( ent->spawnflags & 8 ) {
-		ent->s.apos.trDelta[0] = ent->speed;
+		ent->movedir[0] = ent->speed;
 	} else {
-		ent->s.apos.trDelta[1] = ent->speed;
+		ent->movedir[1] = ent->speed;
 	}
+	ent->s.apos.trType = TR_LINEAR;
+	VectorCopy( ent->movedir, ent->s.apos.trDelta );
 
 	if (!ent->damage) {
 		ent->damage = 2;
@@ -2107,7 +2166,20 @@ void SP_func_rotating (gentity_t *ent) {
 
 	ent->use = Use_Rotating;
 
-	// if START_OFF is set, disable the func_rotating from the start
-	if ( ent->spawnflags & 32 )
-		Use_Rotating( ent, NULL, NULL );
+	// "health": it can be shot down ("breaksound" as it goes)
+	if ( ent->health > 0 ) {
+		ent->takedamage = qtrue;
+		ent->die = Die_Rotating;
+		G_SpawnString( "breaksound", "", &noise );
+		if ( noise[0] ) {
+			ent->soundPos2 = G_SoundIndex( noise );
+		}
+	}
+
+	// if START_OFF is set, disable the func_rotating from the start: still,
+	// at the map's angles
+	if ( ent->spawnflags & 32 ) {
+		ent->s.apos.trType = TR_STATIONARY;
+		VectorClear( ent->s.apos.trDelta );
+	}
 }
