@@ -853,16 +853,38 @@ static void PM_LadderMove( void ) {
 
 /*
 =============
+PM_LadderColumn
+
+The column down the middle of the player's box (LADDER_COLUMN either way
+across, its height) and how much nearer the box's front along dir is than
+the column's: a ladder is the one before the middle of the body, not a wall
+the box's side meets beside it (e1m1b's, swum to a little off its middle:
+the box met the wall first, the same way facing, and found no ladder)
+=============
+*/
+#define LADDER_COLUMN	4
+
+static float PM_LadderColumn( const vec3_t dir, vec3_t mins, vec3_t maxs ) {
+	VectorSet( mins, -LADDER_COLUMN, -LADDER_COLUMN, pm->ps->mins[2] );
+	VectorSet( maxs, LADDER_COLUMN, LADDER_COLUMN, pm->ps->maxs[2] );
+	return ( pm->ps->maxs[0] - LADDER_COLUMN ) * fabs( dir[0] ) + ( pm->ps->maxs[1] - LADDER_COLUMN ) * fabs( dir[1] );
+}
+
+/*
+=============
 PM_LadderAhead
 
-Whether the box at origin, moved dist along dir, touches a ladder.
+Whether the box at origin, moved dist along dir, touches a ladder (before
+the middle of the body: PM_LadderColumn).
 =============
 */
 static qboolean PM_LadderAhead( const vec3_t origin, const vec3_t dir, float dist, trace_t *tr ) {
-	vec3_t end;
+	vec3_t end, mins, maxs;
+	float front;
 
-	VectorMA( origin, dist, dir, end );
-	pm->trace( tr, origin, pm->ps->mins, pm->ps->maxs, end, pm->ps->playerNum, MASK_PLAYERSOLID );
+	front = PM_LadderColumn( dir, mins, maxs );
+	VectorMA( origin, dist + front, dir, end );
+	pm->trace( tr, origin, mins, maxs, end, pm->ps->playerNum, MASK_PLAYERSOLID );
 	return tr->fraction < 1 && !tr->startsolid && ( tr->surfaceFlags & SURF_LADDER );
 }
 
@@ -881,19 +903,33 @@ static qboolean PM_LadderNear( trace_t *tr ) {
 	float yaw;
 	int i;
 
-	// at the middle of the body: a ladder ending at the feet (one stood on
-	// over its top end) is one to climb down, not up
-	VectorSet( mins, pm->ps->mins[0], pm->ps->mins[1], -4 );
-	VectorSet( maxs, pm->ps->maxs[0], pm->ps->maxs[1], 4 );
+	// from the middle of the body up to the head (its column,
+	// PM_LadderColumn): a ladder ending at the feet (one stood on over its
+	// top end) is one to climb down, not up; one starting at the chest
+	// (e1m1b's, from the water: its foot over the waist of one stood in it)
+	// is one to take hold of
 	for ( i = 0; i < 3; i++ ) {
+		float front;
+		trace_t	box;
+
 		yaw = DEG2RAD( pm->ps->viewangles[YAW] + turns[i] );
 		VectorSet( dir, cos( yaw ), sin( yaw ), 0 );
-		VectorMA( pm->ps->origin, LADDER_USE_REACH, dir, end );
+		front = PM_LadderColumn( dir, mins, maxs );
+		mins[2] = -4;
+		VectorMA( pm->ps->origin, LADDER_USE_REACH + front, dir, end );
 		pm->trace( tr, pm->ps->origin, mins, maxs, end, pm->ps->playerNum, MASK_PLAYERSOLID );
-		if ( tr->fraction < 1 && !tr->startsolid && ( tr->surfaceFlags & SURF_LADDER ) ) {
-			// up against it with the whole box
-			VectorMA( pm->ps->origin, LADDER_USE_REACH * tr->fraction, dir, end );
-			return PM_LadderAhead( pm->ps->origin, dir, LADDER_USE_REACH, tr );
+		if ( tr->fraction < 1 && !tr->startsolid && ( tr->surfaceFlags & SURF_LADDER )
+			 && PM_LadderAhead( pm->ps->origin, dir, LADDER_USE_REACH, tr ) ) {
+			// up against it with the whole box (what it meets first: the
+			// ladder, or the wall beside it)
+			VectorMA( pm->ps->origin, LADDER_USE_REACH, dir, end );
+			pm->trace( &box, pm->ps->origin, pm->ps->mins, pm->ps->maxs, end, pm->ps->playerNum, MASK_PLAYERSOLID );
+			if ( !box.startsolid ) {
+				VectorCopy( box.endpos, tr->endpos );
+			} else {
+				VectorCopy( pm->ps->origin, tr->endpos );
+			}
+			return qtrue;
 		}
 	}
 	return qfalse;
@@ -1065,7 +1101,13 @@ static qboolean PM_LadderFromAbove( qboolean take, int numDirs ) {
 		if ( !take ) {
 			return qtrue;		// there is one (the prompt)
 		}
-		// out over the edge, then down onto it (PM_LadderMoving)
+		// out over the edge, then down onto it (PM_LadderMoving), the box's
+		// front against it (the column's met it: PM_LadderColumn)
+		{
+			vec3_t cmins, cmaxs;
+
+			VectorMA( tr.endpos, -PM_LadderColumn( back, cmins, cmaxs ), back, tr.endpos );
+		}
 		PM_LadderHold( tr.plane.normal );
 		VectorSubtract( over, pm->ps->origin, spot );
 		PM_LadderBeginMove( spot, tr.endpos, qfalse );

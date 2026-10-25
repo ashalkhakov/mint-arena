@@ -1013,6 +1013,11 @@ Touch_DoorTrigger
 ================
 */
 void Touch_DoorTrigger( gentity_t *ent, gentity_t *other, trace_t *trace ) {
+	// a player opens a door with use (g_frob.c), not by walking at it; a bot,
+	// which can't, still does
+	if ( other->player && other->player->sess.sessionTeam != TEAM_SPECTATOR && !( other->r.svFlags & SVF_BOT ) ) {
+		return;
+	}
 	if ( other->player && other->player->sess.sessionTeam == TEAM_SPECTATOR ) {
 		// if the door is not open and not opening
 		if ( ent->parent->moverState != MOVER_1TO2 &&
@@ -1078,6 +1083,16 @@ void Think_SpawnNewDoorTrigger( gentity_t *ent ) {
 	other->parent = ent;
 	other->s.contents = CONTENTS_TRIGGER;
 	other->touch = Touch_DoorTrigger;
+
+	// a door that opened at a touch opens with use (each of its parts:
+	// Use_BinaryMover goes to the master); one opened by a switch doesn't
+	{
+		gentity_t *part;
+
+		for ( part = ent ; part ; part = part->teamchain ) {
+			part->frobable = qtrue;
+		}
+	}
 	// remember the thinnest axis
 	other->count = best;
 	G_LinkEntity (other);
@@ -1506,6 +1521,10 @@ void Touch_Button(gentity_t *ent, gentity_t *other, trace_t *trace ) {
 	if ( !other->player ) {
 		return;
 	}
+	// a player presses it with use (g_frob.c); a bot, which can't, by touch
+	if ( !( other->r.svFlags & SVF_BOT ) ) {
+		return;
+	}
 
 	if ( ent->moverState == MOVER_POS1 ) {
 		Use_BinaryMover( ent, other, other );
@@ -1514,7 +1533,7 @@ void Touch_Button(gentity_t *ent, gentity_t *other, trace_t *trace ) {
 
 
 /*QUAKED func_button (0 .5 .8) ?
-When a button is touched, it moves some distance in the direction of its angle, triggers all of its targets, waits some time, then returns to its original position where it can be triggered again.
+When a button is used (a bot touches it), it moves some distance in the direction of its angle, triggers all of its targets, waits some time, then returns to its original position where it can be triggered again.
 
 "model2"	.md3 model to also draw
 "angle"		determines the opening direction
@@ -1563,8 +1582,9 @@ void SP_func_button( gentity_t *ent ) {
 		// shootable button
 		ent->takedamage = qtrue;
 	} else {
-		// touchable button
+		// touchable button: used by a player (g_frob.c), touched by a bot
 		ent->touch = Touch_Button;
+		ent->frobable = qtrue;
 	}
 
 	InitMover( ent );

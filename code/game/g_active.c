@@ -420,6 +420,12 @@ void PlayerTimerActions( gentity_t *ent, int msec ) {
 	int			maxHealth;
 
 	player = ent->player;
+
+	// poisoned (G_Poison): a bite now and then, till it wears off
+	if ( player->poisonTime > level.time && level.time >= player->poisonNext && ent->health > 0 ) {
+		player->poisonNext = level.time + player->poisonInterval;
+		G_Damage( ent, NULL, &g_entities[player->poisonAttacker], NULL, NULL, player->poisonDamage, DAMAGE_NO_KNOCKBACK | DAMAGE_NO_ARMOR, MOD_SLIME );
+	}
 	player->timeResidual += msec;
 
 	while ( player->timeResidual >= 1000 ) {

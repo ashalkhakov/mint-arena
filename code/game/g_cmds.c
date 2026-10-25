@@ -672,6 +672,8 @@ void Cmd_Damage_f( gentity_t *ent ) {
 			VectorMA( eye, 8192, forward, end );
 			G_TraceShot( &tr, eye, NULL, NULL, end, ent->s.number, MASK_SHOT, NULL );
 			Com_sprintf( arg, sizeof( arg ), "%d", tr.entityNum );
+		} else if ( !Q_stricmp( arg, "last" ) ) {
+			Com_sprintf( arg, sizeof( arg ), "%d", level.lastSpawned );		// the "spawn" cheat's
 		}
 		if ( atoi( arg ) < 0 || atoi( arg ) >= level.num_entities || !g_entities[atoi( arg )].inuse ) {
 			trap_SendServerCommand( ent - g_entities, "print \"no such entity\n\"" );

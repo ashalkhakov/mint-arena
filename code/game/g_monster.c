@@ -501,6 +501,84 @@ static void G_MonsterGroundCheck( gentity_t *ent, const vec3_t origin, int mask 
 
 /*
 ================
+G_MonsterWaterLevel
+
+how deep in water (slime, lava) it is, as Daikatana's ai_water_level: 1 its
+feet (its box's bottom), 2 its middle (its origin), 3 over its top
+================
+*/
+static void G_MonsterWaterLevel( gentity_t *ent ) {
+	vec3_t	p;
+	int		contents;
+
+	ent->waterlevel = 0;
+	ent->watertype = 0;
+	VectorCopy( ent->r.currentOrigin, p );
+	p[2] += ent->monster.moveMins[2] + 1;
+	contents = G_PointContents( p, ent->s.number );
+	if ( !( contents & MASK_WATER ) ) {
+		return;
+	}
+	ent->watertype = contents;
+	ent->waterlevel = 1;
+	if ( G_PointContents( ent->r.currentOrigin, ent->s.number ) & MASK_WATER ) {
+		ent->waterlevel = 2;
+		VectorCopy( ent->r.currentOrigin, p );
+		p[2] += ent->monster.moveMaxs[2];
+		if ( G_PointContents( p, ent->s.number ) & MASK_WATER ) {
+			ent->waterlevel = 3;
+		}
+	}
+}
+
+/*
+================
+G_MonsterSwimMove
+
+in water to its middle (an amphibious one: Daikatana's MOVETYPE_SWIM, the
+crox's, the froginator's): no gravity, straight at where it goes, up and
+down too, at "swim_speed", its thrust no more than "swim_accel" a second;
+it holds where it stops. Out of it to its middle, it's on its feet again
+================
+*/
+static void G_MonsterSwimMove( gentity_t *ent, float dt ) {
+	monsterState_t	*m = &ent->monster;
+	vec3_t			origin, vel, goal, wish, change;
+	float			dist, len, accel;
+	int				mask = MASK_PLAYERSOLID | CONTENTS_MONSTERCLIP;
+
+	VectorCopy( ent->r.currentOrigin, origin );
+	VectorCopy( m->velocity, vel );
+	VectorClear( wish );
+	if ( m->moveStatus == MOVE_STATUS_MOVING && !( m->flags & MONF_NOMOVE ) && G_MonsterMoveGoal( ent, goal ) ) {
+		VectorSubtract( goal, origin, wish );
+		dist = VectorNormalize( wish );
+		if ( dist < MONSTER_REACHED + m->moveMaxs[0] && m->moveCommand != MOVE_TO_ENEMY ) {
+			m->moveStatus = MOVE_STATUS_DONE;
+			VectorClear( wish );
+		} else {
+			VectorScale( wish, MIN( m->swimSpeed, dist * 2 ), wish );
+		}
+	}
+	VectorSubtract( wish, vel, change );
+	len = VectorLength( change );
+	accel = m->swimAccel * dt;
+	if ( len > accel ) {
+		VectorScale( change, accel / len, change );
+	}
+	VectorAdd( vel, change, vel );
+	if ( G_MonsterSlideMove( ent, origin, vel, dt, mask ) ) {
+		m->flags |= MONF_BLOCKED;
+	} else {
+		m->flags &= ~MONF_BLOCKED;
+	}
+	VectorCopy( vel, m->velocity );
+	m->flags &= ~MONF_ONGROUND;
+	G_SetOrigin( ent, origin );
+}
+
+/*
+================
 G_MonsterGroundMove
 
 Doom 3's idPhysics_Monster: it walks where its move goes, stepping up and
@@ -969,7 +1047,7 @@ rolls with its banking
 static void G_MonsterTurn( gentity_t *ent, float dt ) {
 	monsterState_t	*m = &ent->monster;
 	gentity_t		*target = NULL;
-	vec3_t			dir, angles;
+	vec3_t			dir, angles, jolt = { 0, 0, 0 };
 	float			delta, step;
 
 	switch ( m->faceCommand ) {
@@ -995,6 +1073,35 @@ static void G_MonsterTurn( gentity_t *ent, float dt ) {
 			break;
 	}
 
+	if ( ( m->flags & MONF_DEATH_FALL ) && !( m->flags & MONF_ONGROUND ) ) {
+		// falling dead: it tumbles, spiralling down with "death_spiral" (its
+		// way across turning with its spin)
+		if ( m->deathSpiral > 0 ) {
+			float a = DEG2RAD( m->deathSpin[YAW] * dt ), x = m->velocity[0], y = m->velocity[1], h;
+
+			m->velocity[0] = x * cos( a ) - y * sin( a );
+			m->velocity[1] = x * sin( a ) + y * cos( a );
+			h = sqrt( Square( m->velocity[0] ) + Square( m->velocity[1] ) );
+			if ( h < m->deathSpiral ) {
+				if ( h < 1 ) {
+					m->velocity[0] = cos( DEG2RAD( ent->r.currentAngles[YAW] ) );
+					m->velocity[1] = sin( DEG2RAD( ent->r.currentAngles[YAW] ) );
+					h = 1;
+				}
+				m->velocity[0] *= m->deathSpiral / h;
+				m->velocity[1] *= m->deathSpiral / h;
+			}
+		}
+		VectorMA( ent->r.currentAngles, dt, m->deathSpin, angles );
+		VectorCopy( angles, ent->r.currentAngles );
+		VectorCopy( angles, ent->s.apos.trBase );
+		VectorCopy( angles, ent->s.angles );
+		return;
+	}
+	if ( m->flags & MONF_DEATH_FALL ) {
+		return;		// (on the ground, as it fell)
+	}
+
 	if ( m->flags & MONF_PERCHED ) {
 		// its belly to what it's on
 		VectorCopy( m->perchAngles, angles );
@@ -1016,6 +1123,21 @@ static void G_MonsterTurn( gentity_t *ent, float dt ) {
 		angles[YAW] = AngleMod( angles[YAW] + delta );
 	}
 
+	// a pain's jolt (painJolt): a shake dying away in a third of a second
+	if ( m->joltAmp > 0 && !( m->flags & MONF_DEAD ) ) {
+		float t = ( level.time - m->joltTime ) * 0.001f;
+
+		if ( t < 0.4f ) {
+			float a = m->joltAmp * exp( -t * 9 );
+
+			jolt[PITCH] = a * sin( t * 45 );
+			jolt[ROLL] = a * 0.7f * sin( t * 38 + 1.3f );
+			jolt[YAW] = a * 0.4f * sin( t * 31 + 2.1f );
+		} else {
+			m->joltAmp = 0;
+		}
+	}
+
 	if ( m->flags & MONF_FLY ) {
 		float pitch = 0;
 
@@ -1027,12 +1149,16 @@ static void G_MonsterTurn( gentity_t *ent, float dt ) {
 		}
 		angles[PITCH] = pitch + m->wobble[PITCH];
 		angles[ROLL] = m->roll + m->wobble[ROLL];
-	} else {
+	} else if ( !( m->flags & MONF_DEAD ) ) {
 		angles[PITCH] = 0;
 		angles[ROLL] = 0;
-	}
+	}		// (dead, as its script leaves it: a dead rockgat's barrel sagging)
+	angles[PITCH] += jolt[PITCH];
+	angles[ROLL] += jolt[ROLL];
 
+	// (the shake drawn, not turned to: its yaw as it was)
 	VectorCopy( angles, ent->r.currentAngles );
+	angles[YAW] += jolt[YAW];
 	VectorCopy( angles, ent->s.apos.trBase );
 	VectorCopy( angles, ent->s.angles );
 }
@@ -1226,6 +1352,81 @@ static void G_MonsterDrop( gentity_t *ent, const char *args ) {
 
 /*
 ================
+G_DebrisThink
+
+a piece of debris shrinks away (Daikatana's gib_scale_spin), then goes
+================
+*/
+static void G_DebrisThink( gentity_t *self ) {
+	if ( level.time < self->timestamp ) {
+		self->nextthink = self->timestamp;
+		return;
+	}
+	self->s.origin2[0] *= 0.85f;
+	if ( self->s.origin2[0] < 0.05f ) {
+		G_FreeEntity( self );
+		return;
+	}
+	self->nextthink = level.time + 50;
+}
+
+/*
+================
+G_MonsterDebris
+
+a robot bursting (Daikatana's AI_StartGibFest, a FRAGTYPE_ROBOTIC
+one's): "debris_count" pieces of its "debris" models (a list, taken in
+turn) at "debris_scale", flung from its middle at up to "debris_speed",
+tumbling, its own momentum with them, as rigid bodies that fall and bounce,
+shrinking away after "debris_life" seconds; Daikatana's gib sound
+================
+*/
+void G_MonsterDebris( gentity_t *ent ) {
+	char		models[MAX_STRING_CHARS], *list[16], *s;
+	int			numModels = 0, count, i;
+	float		scale, speed, life;
+	vec3_t		center, origin, velocity, spin, angles, axis[3];
+	gentity_t	*piece, *te;
+
+	Q_strncpyz( models, G_MonsterKey( ent, "debris", "" ), sizeof( models ) );
+	for ( s = strtok( models, " " ); s && numModels < 16; s = strtok( NULL, " " ) ) {
+		list[numModels++] = s;
+	}
+	if ( !numModels ) {
+		return;
+	}
+	count = (int)G_MonsterFloat( ent, "debris_count", "6" );
+	scale = G_MonsterFloat( ent, "debris_scale", "0.5" );
+	speed = G_MonsterFloat( ent, "debris_speed", "300" );
+	life = G_MonsterFloat( ent, "debris_life", "5" );
+	VectorAdd( ent->r.absmin, ent->r.absmax, center );
+	VectorScale( center, 0.5f, center );
+	for ( i = 0; i < count; i++ ) {
+		VectorSet( velocity, crandom(), crandom(), 0.5f + random() );
+		VectorNormalize( velocity );
+		VectorMA( center, 4, velocity, origin );
+		VectorScale( velocity, speed * ( 0.4f + 0.6f * random() ), velocity );
+		VectorAdd( velocity, ent->monster.velocity, velocity );
+		VectorSet( spin, crandom() * 12, crandom() * 12, crandom() * 12 );
+		VectorSet( angles, random() * 360, random() * 360, random() * 360 );
+		AnglesToAxis( angles, axis );
+		piece = G_PhysicsDropModel( list[i % numModels], scale, origin, (const vec3_t *)axis, velocity, spin, MASK_SOLID );
+		if ( !piece ) {
+			continue;
+		}
+		piece->classname = "debris";
+		piece->takedamage = qfalse;
+		piece->s.contents = 0;		// (in no one's way)
+		piece->timestamp = level.time + (int)( life * 1000 * ( 0.8f + 0.4f * random() ) );
+		piece->think = G_DebrisThink;
+		piece->nextthink = piece->timestamp;
+	}
+	te = G_TempEntity( center, EV_GENERAL_SOUND );
+	te->s.eventParm = G_SoundIndex( va( "sounds/global/m_gibsurf%c.wav", 'a' + rand() % 2 ) );
+}
+
+/*
+================
 G_MonsterFrameCommands
 
 Doom 3's frame commands, the game's: as its legs' animation passes a frame,
@@ -1307,6 +1508,7 @@ void G_MonsterThink( gentity_t *ent ) {
 		return;
 	}
 
+	G_MonsterWaterLevel( ent );
 	G_MonsterSense( ent );
 	G_MonsterUpdateFields( ent );
 	G_MonsterUpdateScript( ent );
@@ -1332,6 +1534,8 @@ void G_MonsterThink( gentity_t *ent ) {
 
 	if ( m->flags & MONF_FLY && !( m->flags & MONF_DEAD ) ) {
 		G_MonsterFlyMove( ent, dt );
+	} else if ( ( m->flags & MONF_AMPHIBIOUS ) && ent->waterlevel >= 2 && !( m->flags & MONF_DEAD ) ) {
+		G_MonsterSwimMove( ent, dt );
 	} else {
 		G_MonsterGroundMove( ent, dt );
 	}
@@ -1392,7 +1596,20 @@ void G_MonsterDie( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, i
 	self->takedamage = qfalse;
 	self->s.contents = CONTENTS_CORPSE;
 
-	if ( G_StartRagdoll( self ) ) {
+	if ( ( m->flags & MONF_FLY ) && G_MonsterFloat( self, "death_fall", "0" ) ) {
+		// a flyer falls, tumbling as it was going ("death_spin" degrees a
+		// second at most), its script to say what it does on the ground
+		float spin = G_MonsterFloat( self, "death_spin", "180" );
+
+		m->flags |= MONF_DEATH_FALL;
+		m->flags &= ~MONF_ONGROUND;
+		VectorSet( m->deathSpin, crandom() * spin * 0.6f, crandom() * spin * 0.3f, crandom() * spin );
+		m->deathSpiral = G_MonsterFloat( self, "death_spiral", "0" );
+		if ( m->deathSpiral > 0 ) {
+			// (a spiral: its spin about its yaw the most, one way or the other)
+			m->deathSpin[YAW] = ( m->deathSpin[YAW] < 0 ? -1 : 1 ) * spin;
+		}
+	} else if ( G_StartRagdoll( self ) ) {
 		self->takedamage = qtrue;		// shots still push it
 		self->health = 1 << 30;
 	}
@@ -1589,6 +1806,11 @@ void SP_monster( gentity_t *ent ) {
 	m->impactSpeed = G_MonsterFloat( ent, "impact_speed", "0" );
 	m->impactDamage = G_MonsterFloat( ent, "impact_damage", "0" );
 	m->impactBounce = G_MonsterFloat( ent, "impact_bounce", "0.5" );
+	if ( G_MonsterFloat( ent, "amphibious", "0" ) ) {
+		m->flags |= MONF_AMPHIBIOUS;
+		m->swimSpeed = G_MonsterFloat( ent, "swim_speed", "100" );
+		m->swimAccel = G_MonsterFloat( ent, "swim_accel", "300" );
+	}
 	if ( G_MonsterFloat( ent, "fly", "0" ) ) {
 		m->flags |= MONF_FLY | MONF_NOGRAVITY;
 		m->flySpeed = G_MonsterFloat( ent, "fly_speed", "200" );

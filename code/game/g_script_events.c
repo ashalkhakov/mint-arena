@@ -520,6 +520,39 @@ static void Event_FindEnemy( gentity_t *self, const intptr_t *args ) {
 	Thread_ReturnEntity( G_MonsterFindEnemy( self, EVARG_INT( 0 ) ) );
 }
 
+/*
+================
+Event_FindEnemyInRange
+
+findEnemyInRange( range ): the nearest player within range, seen or not
+(Daikatana's rockgat: in the rock, it rises for anyone near)
+================
+*/
+static void Event_FindEnemyInRange( gentity_t *self, const intptr_t *args ) {
+	gentity_t	*best = NULL, *other;
+	float		bestDist = EVARG_FLOAT( 0 ), dist;
+	int			i;
+
+	MONSTER_OR_RETURN( Thread_ReturnEntity( NULL ) );
+	if ( level.inCinematic ) {
+		Thread_ReturnEntity( NULL );
+		return;
+	}
+	for ( i = 0; i < level.maxplayers; i++ ) {
+		other = &g_entities[i];
+		if ( !other->inuse || !other->player || other->health <= 0 || ( other->flags & FL_NOTARGET )
+			 || other->player->sess.sessionTeam == TEAM_SPECTATOR ) {
+			continue;
+		}
+		dist = Distance( other->r.currentOrigin, self->r.currentOrigin );
+		if ( dist < bestDist ) {
+			best = other;
+			bestDist = dist;
+		}
+	}
+	Thread_ReturnEntity( best );
+}
+
 static void Event_SetEnemy( gentity_t *self, const intptr_t *args ) {
 	gentity_t *enemy = EVARG_ENTITY( 0 );
 
@@ -681,6 +714,21 @@ static void Event_FacingIdeal( gentity_t *self, const intptr_t *args ) {
 static void Event_SetFlySpeed( gentity_t *self, const intptr_t *args ) {
 	MONSTER_OR_RETURN( (void)0 );
 	self->monster.flySpeed = EVARG_FLOAT( 0 );
+}
+
+/*
+================
+Event_PainJolt
+
+painJolt( degrees ): hurt, it shakes, rocking that many degrees and dying
+away (G_MonsterTurn): a pain for a monster with no pain animation (a
+cambot, a rockgat)
+================
+*/
+static void Event_PainJolt( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	self->monster.joltTime = level.time;
+	self->monster.joltAmp = EVARG_FLOAT( 0 );
 }
 
 static void Event_SetFlyOffset( gentity_t *self, const intptr_t *args ) {
@@ -1011,6 +1059,35 @@ static void Event_SetFrame( gentity_t *self, const intptr_t *args ) {
 	self->s.frame = (int)EVARG_FLOAT( 0 );
 }
 
+/*
+================
+Event_ThrowDebris
+
+throwDebris(): it bursts into its "debris" (G_MonsterDebris: a robot's)
+================
+*/
+static void Event_ThrowDebris( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( (void)0 );
+	G_MonsterDebris( self );
+}
+
+/*
+================
+Event_StartRagdoll
+
+startRagdoll(): it goes limp now, its ragdoll from its pose (a flyer that
+fell dead, landed: the slaughterskeet lying broken); false if it has none
+================
+*/
+static void Event_StartRagdoll( gentity_t *self, const intptr_t *args ) {
+	MONSTER_OR_RETURN( Thread_ReturnInt( 0 ) );
+	if ( !self->ragdoll && G_StartRagdoll( self ) ) {
+		self->takedamage = qtrue;		// shots still push it
+		self->health = 1 << 30;
+	}
+	Thread_ReturnInt( self->ragdoll != NULL );
+}
+
 static void Event_PlayModelFx( gentity_t *self, const intptr_t *args ) {
 	int i;
 
@@ -1199,6 +1276,7 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "setState",			"s",		0,		Event_SetState },
 	{ "getState",			NULL,		's',	Event_GetState },
 	{ "findEnemy",			"d",		'e',	Event_FindEnemy },
+	{ "findEnemyInRange",	"f",		'e',	Event_FindEnemyInRange },
 	{ "setEnemy",			"E",		0,		Event_SetEnemy },
 	{ "clearEnemy",			NULL,		0,		Event_ClearEnemy },
 	{ "getEnemy",			NULL,		'e',	Event_GetEnemy },
@@ -1225,6 +1303,7 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "stop",				NULL,		0,		Event_CameraStop },
 	{ "isPerched",			NULL,		'd',	Event_IsPerched },
 	{ "setFlyOffset",		"d",		0,		Event_SetFlyOffset },
+	{ "painJolt",			"f",		0,		Event_PainJolt },
 	{ "vehicleDrive",		"ff",		0,		Event_VehicleDrive },
 	{ "vehicleEngine",		"f",		0,		Event_VehicleEngine },
 	{ "enableGravity",		NULL,		0,		Event_EnableGravity },
@@ -1237,6 +1316,8 @@ const entityEventCallback_t entityEventCallbacks[] = {
 	{ "attackWeapon",		"sv",		'd',	Event_AttackWeapon },
 	{ "alertMonsters",		"f",		0,		Event_AlertMonsters },
 	{ "playModelFx",		"s",		0,		Event_PlayModelFx },
+	{ "throwDebris",		NULL,		0,		Event_ThrowDebris },
+	{ "startRagdoll",		NULL,		'd',	Event_StartRagdoll },
 	{ "setFrame",			"f",		0,		Event_SetFrame },
 	{ "playAnim",			"ds",		'd',	Event_PlayAnim },
 	{ "playCycle",			"ds",		'd',	Event_PlayAnim },

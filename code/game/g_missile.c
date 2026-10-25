@@ -188,6 +188,21 @@ static void G_MissileImpact( gentity_t *ent, trace_t *trace, int zone ) {
 				ent->s.origin, ent->damage * G_HitboxDamageScale( other, zone ) + 0.5f,
 				0, ent->methodOfDeath);
 		}
+		// "poison" damage seconds interval: a player hit is poisoned (Daikatana's
+		// com->Poison, the froginator's spit)
+		const char *poison;
+
+		if ( other->player && other->health > 0 && ( def = EntityDef_Find( ent->classname ) ) != NULL
+			 && DictGetString( def, "poison", "", &poison ) && poison[0] ) {
+			float p[3] = { 1, 15, 3 };
+
+			sscanf( poison, "%f %f %f", &p[0], &p[1], &p[2] );
+			other->player->poisonDamage = (int)p[0];
+			other->player->poisonTime = level.time + (int)( p[1] * 1000 );
+			other->player->poisonInterval = MAX( 100, (int)( p[2] * 1000 ) );
+			other->player->poisonNext = level.time + other->player->poisonInterval;
+			other->player->poisonAttacker = ent->r.ownerNum;
+		}
 	}
 
 	// is it cheaper in bandwidth to just remove this ent and create a new
@@ -229,10 +244,43 @@ static void G_MissileImpact( gentity_t *ent, trace_t *trace, int zone ) {
 G_RunMissile
 ================
 */
+/*
+================
+G_MissileWeave
+
+a projectile that sways from side to side as it goes ("weave" speed period:
+Daikatana's ThunderSpray, the thunderskeet's, its second shot the other
+way): its way's sideways speed a sine, the way itself kept (bounced, too)
+================
+*/
+static void G_MissileWeave( gentity_t *ent ) {
+	vec3_t	vel, base, right, up = { 0, 0, 1 };
+	float	side, t;
+
+	BG_EvaluateTrajectoryDelta( &ent->s.pos, level.time, vel );
+	CrossProduct( vel, up, right );
+	if ( VectorNormalize( right ) < 0.001f ) {
+		return;
+	}
+	VectorMA( vel, -ent->weaveLast, right, base );
+	t = ( level.time - ent->weaveStart ) * 0.001f;
+	side = ent->weaveSpeed * sin( 2 * M_PI * t / ent->weavePeriod + ent->weavePhase );
+	VectorMA( base, side, right, vel );
+	ent->weaveLast = side;
+	// (on from here, as it goes now)
+	BG_EvaluateTrajectory( &ent->s.pos, level.time, ent->s.pos.trBase );
+	ent->s.pos.trTime = level.time;
+	VectorCopy( vel, ent->s.pos.trDelta );
+}
+
 void G_RunMissile( gentity_t *ent ) {
 	vec3_t		origin;
 	trace_t		tr;
 	int			passent, zone;
+
+	if ( ent->weaveSpeed > 0 && ent->s.pos.trType == TR_LINEAR ) {
+		G_MissileWeave( ent );
+	}
 
 	// stuck to something, it only waits
 	if ( ent->s.pos.trType == TR_STATIONARY && ( ent->missileFlags & MISSILE_STICK ) ) {
@@ -347,6 +395,21 @@ gentity_t *fire_projectile( gentity_t *self, const dict_t *def, int weapon, vec3
 		bolt->missileFlags |= MISSILE_DETONATE_ON_ACTOR;
 	}
 	bolt->physicsBounce = DictGetFloat( def, "bounce", "0" );
+	{
+		// "weave" speed period: it sways (G_MissileWeave), each shot the
+		// other way from the one before
+		static int	weaves;
+		const char	*weave;
+		float		w[2] = { 0, 1.2f };
+
+		if ( DictGetString( def, "weave", "", &weave ) && weave[0] && sscanf( weave, "%f %f", &w[0], &w[1] ) >= 1 && w[0] > 0 ) {
+			bolt->weaveSpeed = w[0];
+			bolt->weavePeriod = MAX( 0.1f, w[1] );
+			bolt->weavePhase = ( weaves++ & 1 ) ? M_PI : 0;
+			bolt->weaveLast = 0;
+			bolt->weaveStart = level.time;
+		}
+	}
 	if ( DictGetBool( def, "stick", "0" ) ) {
 		bolt->missileFlags |= MISSILE_STICK;
 	}

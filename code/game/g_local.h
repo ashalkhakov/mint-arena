@@ -99,6 +99,8 @@ typedef struct gplayer_s gplayer_t;
 #define MONF_HIT_REACH			0x2000		// its model reaches past its box (hitMins/hitMaxs): shots look for it
 #define MONF_PERCHED			0x4000		// landed on a wall, a ceiling or the floor (a flyer): it stays, until it's told to move
 #define MONF_NO_UNSTICK			0x8000		// "unstick" 0: left where it's put, in something or not (a cinematic's actor)
+#define MONF_AMPHIBIOUS			0x10000		// "amphibious" 1: in water it swims (Daikatana's DFL_AMPHIBIOUS: the crox, the froginator)
+#define MONF_DEATH_FALL			0x20000		// "death_fall" 1: a flyer killed falls, tumbling, to the ground (no ragdoll till its script says)
 
 typedef enum {
 	MOVE_NONE,
@@ -165,6 +167,12 @@ typedef struct {
 	float		flyWobble;			// "fly_wobble": how far it rocks with it, degrees
 	vec3_t		wobble;				// its pitch and roll now from its engine (G_MonsterFlyEngine)
 	vec3_t		hoverPos;			// where a flyer stopped: it holds there
+	float		swimSpeed;			// "swim_speed", in water (MONF_AMPHIBIOUS)
+	float		swimAccel;			// "swim_accel"
+	vec3_t		deathSpin;			// falling dead (MONF_DEATH_FALL), its tumble, degrees a second
+	float		deathSpiral;		// "death_spiral": its fall a spiral, so fast across
+	int			joltTime;			// painJolt(): hurt, it shakes, from then
+	float		joltAmp;			// that many degrees at first
 	float		roll;				// a flyer's banking
 	vec3_t		route[MONSTER_ROUTE];	// a flyer's way through the air (g_airnav.c), when it can't fly straight
 	int			routeLen;
@@ -269,6 +277,11 @@ struct gentity_s {
 	int			methodOfDeath;
 	int			splashMethodOfDeath;
 	int			missileFlags;	// MISSILE_*, from the projectile def
+	float		weaveSpeed;		// "weave": its sway across its way, so fast at most (G_MissileWeave)
+	float		weavePeriod;	// in so many seconds
+	float		weavePhase;
+	float		weaveLast;		// its sway's speed the frame before
+	int			weaveStart;
 
 	int			count;
 	float		frobDistance;	// how far a player reaches to use it, "frob_distance" (g_frob.c)
@@ -482,6 +495,12 @@ struct gplayer_s {
 
 	int			airOutTime;
 
+	int			poisonTime;			// poisoned till then (G_Poison: a projectile's "poison", the froginator's spit)
+	int			poisonNext;			// its next bite
+	int			poisonInterval;
+	int			poisonDamage;
+	int			poisonAttacker;
+
 	int			invRefuseTime;		// "no room" said again from then on (g_inventory.c)
 	int			invBotTime;			// a bot looks in its inventory again then
 
@@ -526,6 +545,7 @@ typedef struct {
 	struct gentity_s	*gentities;
 	int			gentitySize;
 	int			num_entities;		// MAX_CLIENTS <= num_entities <= ENTITYNUM_MAX_NORMAL
+	int			lastSpawned;		// the "spawn" cheat's last (damage <n> last)
 
 	gconnection_t	*connections;
 
@@ -837,6 +857,7 @@ void	G_CharacterSetAnim( gentity_t *ent, int channel, int anim );
 void	Svcmd_CharacterAnim_f( void );
 void	SP_misc_character( gentity_t *ent );
 void	Svcmd_SpawnCharacter_f( void );
+void	Svcmd_Spawn_f( void );
 void AltFireWeapon( gentity_t *ent );
 #ifdef MISSIONPACK
 void G_StartKamikaze( gentity_t *ent );
@@ -1038,6 +1059,7 @@ void G_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, co
 void G_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask, traceType_t type );
 void G_ClipToEntity( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int entityNum, int contentmask, traceType_t type );
 int G_PointContents( const vec3_t p, int passEntityNum );
+void G_MonsterDebris( gentity_t *ent );
 
 //
 // g_bot.c

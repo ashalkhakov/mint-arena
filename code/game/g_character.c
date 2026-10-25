@@ -327,10 +327,11 @@ static qboolean G_TraceHitboxes( gentity_t *ent, const vec3_t start, const vec3_
 ================
 G_SegmentMeetsBox
 
-whether the line from a to b goes through the box
+whether the line from a to b goes through the box, and how far along it
+goes in (enter, 0 to 1)
 ================
 */
-static qboolean G_SegmentMeetsBox( const vec3_t a, const vec3_t b, const vec3_t lo, const vec3_t hi ) {
+static qboolean G_SegmentMeetsBox( const vec3_t a, const vec3_t b, const vec3_t lo, const vec3_t hi, float *enter ) {
 	float	t0 = 0, t1 = 1, d, ta, tb;
 	int		k;
 
@@ -352,6 +353,9 @@ static qboolean G_SegmentMeetsBox( const vec3_t a, const vec3_t b, const vec3_t 
 		if ( t0 > t1 ) {
 			return qfalse;
 		}
+	}
+	if ( enter ) {
+		*enter = t0;		// (how far along it goes in)
 	}
 	return qtrue;
 }
@@ -416,6 +420,7 @@ void G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const
 		trace_t	tr;
 		vec3_t	lo, hi;
 		int		z;
+		float	enter;
 
 		ent = &g_entities[i];
 		if ( !ent->inuse || !( ent->monster.flags & MONF_HIT_REACH ) || ent->ragdoll || i == passEntityNum
@@ -426,7 +431,25 @@ void G_TraceShot( trace_t *results, const vec3_t start, const vec3_t mins, const
 		VectorAdd( ent->r.currentOrigin, ent->monster.hitMaxs, hi );
 		VectorSubtract( lo, maxs, lo );
 		VectorSubtract( hi, mins, hi );
-		if ( !G_SegmentMeetsBox( start, results->endpos, lo, hi ) ) {
+		if ( !G_SegmentMeetsBox( start, results->endpos, lo, hi, &enter ) ) {
+			continue;
+		}
+		if ( !bg_models[ent->characterDef].numHitboxes ) {
+			// a model with no hitboxes (an md3's: the rockgat's, lowered in
+			// the rock under the box it moves with): the box it reaches to
+			vec3_t dir;
+
+			results->fraction *= enter;
+			VectorSubtract( results->endpos, start, dir );
+			VectorMA( start, enter, dir, results->endpos );
+			VectorSubtract( start, end, dir );
+			VectorNormalize2( dir, results->plane.normal );
+			results->entityNum = i;
+			results->contents = ent->s.contents;
+			results->surfaceFlags = 0;
+			if ( zone ) {
+				*zone = -1;
+			}
 			continue;
 		}
 		if ( G_TraceHitboxes( ent, start, mins, maxs, end, contentmask, &tr, &z ) && tr.fraction < results->fraction ) {
@@ -701,6 +724,62 @@ void Svcmd_SpawnCharacter_f( void ) {
 	level.numSpawnVars = 0;
 	if ( ent->inuse ) {
 		G_Printf( "character %d\n", ent->s.number );
+	}
+}
+
+/*
+================
+Svcmd_Spawn_f
+
+spawn <classname> [distance] [height] [key value]...: an entity of the class
+(a monster, an item...) as a map would have it, distance (128) in front of
+the first player, height up, facing them; its number said (cheat, for
+testing: Doom 3's "spawn")
+================
+*/
+void Svcmd_Spawn_f( void ) {
+	gentity_t	*player, *ent;
+	vec3_t		forward, origin;
+	char		classname[MAX_QPATH], arg[MAX_TOKEN_CHARS], key[MAX_TOKEN_CHARS];
+	int			i;
+
+	if ( !g_cheats.integer ) {
+		G_Printf( "Cheats are not enabled on this server.\n" );
+		return;
+	}
+	player = &g_entities[0];
+	if ( !player->inuse || !player->player || trap_Argc() < 2 ) {
+		G_Printf( "usage: spawn <classname> [distance] [height] [key value]...\n" );
+		return;
+	}
+	trap_Argv( 1, classname, sizeof( classname ) );
+	trap_Argv( 2, arg, sizeof( arg ) );
+	AngleVectors( tv( 0, player->player->ps.viewangles[YAW], 0 ), forward, NULL, NULL );
+	VectorMA( player->r.currentOrigin, arg[0] ? atof( arg ) : 128, forward, origin );
+	trap_Argv( 3, arg, sizeof( arg ) );
+	origin[2] += atof( arg );
+
+	level.numSpawnVars = 0;
+	level.numSpawnVarChars = 0;
+	level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "classname" );
+	level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( classname );
+	level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "origin" );
+	level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( va( "%f %f %f", origin[0], origin[1], origin[2] ) );
+	level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( "angle" );
+	level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( va( "%f", player->player->ps.viewangles[YAW] + 180 ) );
+	for ( i = 4; i + 1 < trap_Argc() && level.numSpawnVars < MAX_SPAWN_VARS; i += 2 ) {
+		trap_Argv( i, key, sizeof( key ) );
+		trap_Argv( i + 1, arg, sizeof( arg ) );
+		level.spawnVars[level.numSpawnVars][0] = G_AddSpawnVarToken( key );
+		level.spawnVars[level.numSpawnVars++][1] = G_AddSpawnVarToken( arg );
+	}
+	ent = G_SpawnGEntityFromSpawnVars();
+	level.numSpawnVars = 0;
+	if ( ent && ent->inuse ) {
+		level.lastSpawned = ent->s.number;
+		G_Printf( "spawned %s %d at %s\n", classname, ent->s.number, vtos( origin ) );
+	} else {
+		G_Printf( "spawn: no %s\n", classname );
 	}
 }
 

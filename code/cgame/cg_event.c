@@ -741,10 +741,12 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 			fx = BG_ModelKey( &bg_models[es->modelindex2], bg_modelFxKeys[es->eventParm], "" );
 			if ( fx[0] ) {
-				vec3_t fwd;
+				vec3_t axis[3];
 
-				AngleVectors( cent->lerpAngles, fwd, NULL, NULL );
-				CG_FX_PlayEffect( fx, cent->lerpOrigin, fwd );
+				// (in the model's own frame: its forward, left, up; an
+				// effect's offsets its, the thunderskeet's flares before it)
+				AnglesToAxis( cent->lerpAngles, axis );
+				CG_FX_PlayEffectIDAxis( CG_FX_RegisterEffect( fx ), cent->lerpOrigin, axis );
 			}
 		}
 		break;

@@ -701,6 +701,7 @@ struct svcmd
   { "say", qtrue, Svcmd_Say_f },
   { "script", qfalse, G_Script_f },
   { "sectorlist", qfalse, Svcmd_SectorList_f, Svcmd_SectorListComplete },
+  { "spawn", qfalse, Svcmd_Spawn_f },
   { "spawncharacter", qfalse, Svcmd_SpawnCharacter_f },
   { "teleport", qfalse, Svcmd_Teleport_f, Svcmd_TeleportComplete },
   { "tell", qtrue, Svcmd_Tell_f, Svcmd_TellComplete }
